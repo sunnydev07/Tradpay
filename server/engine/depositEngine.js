@@ -39,7 +39,7 @@ function creditDeposit(state, deposit, meta = {}) {
     throw httpError(`Deposit cannot be credited from status "${deposit.status}"`, 409);
   }
 
-  creditUser(state, deposit.userId, deposit.amount);
+  const credited = creditUser(state, deposit.userId, deposit.amount);
   deposit.status = 'completed';
   deposit.verifiedAt = new Date().toISOString();
   deposit.verifiedBy = meta.verifiedBy || 'system';
@@ -47,6 +47,10 @@ function creditDeposit(state, deposit, meta = {}) {
   if (meta.providerId) deposit.providerId = String(meta.providerId).slice(0, 200);
   if (meta.eventId) deposit.eventId = String(meta.eventId).slice(0, 200);
   db.save();
+  try {
+    const supabaseService = require('./supabaseService');
+    supabaseService.syncUserData(credited).catch(() => {});
+  } catch (e) {}
   return depositView(deposit);
 }
 

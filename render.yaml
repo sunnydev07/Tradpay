@@ -19,8 +19,10 @@ services:
       - key: PORT
         value: 10000
       - key: SUPABASE_URL
-        sync: false
+        value: https://vhzfbacpvfjdpkthxvej.supabase.co
       - key: SUPABASE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemZiYWNwdmZqZHBrdGh4dmVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MzQxNjYsImV4cCI6MjEwNTMxMDE2Nn0.iDkE1RvfZrneScBhjP9xryTsv7lKqwqMzEl6Fepe8cM
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: ADMIN_USER_IDS
         sync: false

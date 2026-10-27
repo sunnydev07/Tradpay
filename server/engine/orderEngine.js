@@ -282,6 +282,13 @@ function submitOrder({ buyId, utr = '', proofUrl = '', userId }) {
 
   db.save();
 
+  if (user) {
+    try {
+      const supabaseService = require('./supabaseService');
+      supabaseService.syncUserData(user).catch(() => {});
+    } catch (e) {}
+  }
+
   broadcast('ORDER_COMPLETED', {
     userId: order.userId,
     buyId,

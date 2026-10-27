@@ -770,41 +770,85 @@
           <button @click="modals.auth.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
         </div>
 
-        <div class="flex rounded-xl bg-white/5 p-1 border border-white/5">
-          <button @click="authMode = 'login'" class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition" :class="authMode === 'login' ? 'bg-[#F2D7A5] text-[#1B1B1B]' : 'text-gray-400 hover:text-white'">
-            Sign In
-          </button>
-          <button @click="authMode = 'register'" class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition" :class="authMode === 'register' ? 'bg-[#F2D7A5] text-[#1B1B1B]' : 'text-gray-400 hover:text-white'">
-            New User (Register)
-          </button>
+        <!-- Logged-in profile view inside modal -->
+        <div v-if="isLoggedIn && authViewMode !== 'switch'" class="space-y-4">
+          <div class="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
+            <img src="/static/user/profile.png" class="w-12 h-12 rounded-full border border-[#F2D7A5]/50 object-cover" @error="handleImgFallback">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-bold text-white truncate">{{ user.nickname || 'Trader' }}</p>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-[#F2D7A5] font-semibold">VIP {{ user.vipLevel || 1 }}</span>
+              </div>
+              <p class="text-xs text-gray-400 font-mono truncate">{{ user.phone || user.email }}</p>
+              <p class="text-[10px] text-gray-500 font-mono truncate mt-0.5">UID: {{ user.id }}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+              <span class="text-gray-400 block text-[10px]">Available Balance</span>
+              <span class="text-base font-bold text-[#F2D7A5]">₹{{ formatMoney(user.balance) }}</span>
+            </div>
+            <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+              <span class="text-gray-400 block text-[10px]">Invite Code</span>
+              <span class="text-base font-bold text-white font-mono">{{ user.inviteCode || 'LP8899' }}</span>
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-2">
+            <button @click="authViewMode = 'switch'" class="flex-1 py-2.5 rounded-xl bg-white/10 text-white text-xs font-semibold hover:bg-white/15 transition">
+              Switch Account
+            </button>
+            <button @click="handleLogout(); modals.auth.show = false;" class="flex-1 py-2.5 rounded-xl bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-semibold hover:bg-red-500/30 transition">
+              Sign Out
+            </button>
+          </div>
         </div>
 
-        <div class="space-y-3 text-xs">
-          <div>
-            <label class="block text-gray-400 mb-1">Phone Number or Email</label>
-            <input v-model="authForm.identifier" placeholder="e.g. 9876543210 or user@example.com" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5] font-mono">
+        <!-- Auth form when logged out or switching accounts -->
+        <div v-else class="space-y-4">
+          <div class="flex rounded-xl bg-white/5 p-1 border border-white/5">
+            <button @click="authMode = 'login'" class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition" :class="authMode === 'login' ? 'bg-[#F2D7A5] text-[#1B1B1B]' : 'text-gray-400 hover:text-white'">
+              Sign In
+            </button>
+            <button @click="authMode = 'register'" class="flex-1 py-1.5 rounded-lg text-xs font-semibold transition" :class="authMode === 'register' ? 'bg-[#F2D7A5] text-[#1B1B1B]' : 'text-gray-400 hover:text-white'">
+              New User (Register)
+            </button>
           </div>
 
-          <div v-if="authMode === 'register'">
-            <label class="block text-gray-400 mb-1">Trader Nickname</label>
-            <input v-model="authForm.nickname" placeholder="e.g. AlexTrader" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5]">
+          <div class="space-y-3 text-xs">
+            <div>
+              <label class="block text-gray-400 mb-1">Phone Number, Email, or Username</label>
+              <input v-model="authForm.identifier" placeholder="e.g. 9876543210 or user@example.com" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5] font-mono">
+            </div>
+
+            <div v-if="authMode === 'register'">
+              <label class="block text-gray-400 mb-1">Trader Nickname</label>
+              <input v-model="authForm.nickname" placeholder="e.g. AlexTrader" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5]">
+            </div>
+
+            <div>
+              <label class="block text-gray-400 mb-1">Password (min 6 characters)</label>
+              <input v-model="authForm.password" type="password" placeholder="••••••••" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5]">
+            </div>
+
+            <div v-if="authMode === 'register'">
+              <label class="block text-gray-400 mb-1">Referral / Invite Code (Optional)</label>
+              <input v-model="authForm.inviteCode" placeholder="e.g. LP8899" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-white font-mono uppercase focus:outline-none focus:border-[#F2D7A5]">
+            </div>
           </div>
 
-          <div>
-            <label class="block text-gray-400 mb-1">Password</label>
-            <input v-model="authForm.password" type="password" placeholder="••••••••" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5]">
-          </div>
+          <button @click="handleAuthSubmit" :disabled="authLoading" class="w-full py-3 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-2">
+            <span v-if="authLoading">Syncing with Supabase...</span>
+            <span v-else>{{ authMode === 'login' ? 'Sign In to Account' : 'Create Free Account' }}</span>
+          </button>
 
-          <div v-if="authMode === 'register'">
-            <label class="block text-gray-400 mb-1">Referral / Invite Code (Optional)</label>
-            <input v-model="authForm.inviteCode" placeholder="e.g. LP8899" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-white font-mono uppercase focus:outline-none focus:border-[#F2D7A5]">
+          <div v-if="isLoggedIn" class="text-center pt-1">
+            <button @click="authViewMode = 'info'" class="text-[11px] text-gray-400 hover:text-white underline">
+              Back to current account
+            </button>
           </div>
         </div>
-
-        <button @click="handleAuthSubmit" :disabled="authLoading" class="w-full py-3 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-2">
-          <span v-if="authLoading">Syncing with Supabase...</span>
-          <span v-else>{{ authMode === 'login' ? 'Sign In to Account' : 'Create Free Account' }}</span>
-        </button>
       </div>
     </div>
 
@@ -1150,6 +1194,7 @@
         const token = ref(localStorage.getItem('tradepay_token') || '');
         const isLoggedIn = computed(() => !!token.value);
         const authMode = ref('login');
+        const authViewMode = ref('info');
         const authLoading = ref(false);
         const authForm = reactive({
           identifier: '',
@@ -1420,12 +1465,17 @@
 
         // Auth Actions
         function openAuthModal() {
+          authViewMode.value = isLoggedIn.value ? 'info' : 'login';
           modals.auth.show = true;
         }
 
         async function handleAuthSubmit() {
           if (!authForm.identifier || !authForm.password) {
             showToast('Please enter identifier and password');
+            return;
+          }
+          if (authMode.value === 'register' && authForm.password.length < 6) {
+            showToast('Password must be at least 6 characters');
             return;
           }
           authLoading.value = true;
@@ -1440,6 +1490,8 @@
             if (json.code === 1000) {
               token.value = json.data.token;
               localStorage.setItem('tradepay_token', json.data.token);
+              authForm.password = '';
+              authViewMode.value = 'info';
               modals.auth.show = false;
               playBeep();
               showToast(`Welcome ${json.data.nickname}! Synced with Supabase`, 'success');
@@ -2029,6 +2081,7 @@
           token,
           isLoggedIn,
           authMode,
+          authViewMode,
           authLoading,
           authForm,
           formatMoney,

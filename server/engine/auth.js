@@ -34,27 +34,27 @@ function createLocalUser(supUser) {
     phone: supUser.phone || supUser.email || '',
     nickname: supUser.nickname || 'Trader',
     avatar: supUser.avatar || '/static/user/profile.png',
-    balance: 0.00,
-    totalBalance: 0.00,
-    rewardTotal: 0.00,
-    pending: 0.00,
-    points: 0,
+    balance: Number(supUser.balance) || 0.00,
+    totalBalance: Number(supUser.totalBalance) || Number(supUser.balance) || 0.00,
+    rewardTotal: Number(supUser.rewardTotal) || 0.00,
+    pending: Number(supUser.pending) || 0.00,
+    points: Number(supUser.points) || 0,
     vipLevel: Number(supUser.vipLevel) || 1,
     inviteCode: supUser.inviteCode || newInviteCode(),
-    pinHash: null,
-    pinSalt: null,
-    isPinSet: false,
-    onSellStatus: 1,
-    wallets: [],
-    claimedOrders: [],
-    claimedMissions: [],
-    newcomerRewardClaimed: false,
-    createdAt: new Date().toISOString()
+    pinHash: supUser.pinHash || null,
+    pinSalt: supUser.pinSalt || null,
+    isPinSet: Boolean(supUser.isPinSet || supUser.pinHash),
+    onSellStatus: supUser.onSellStatus != null ? supUser.onSellStatus : 1,
+    wallets: Array.isArray(supUser.wallets) ? supUser.wallets : [],
+    claimedOrders: Array.isArray(supUser.claimedOrders) ? supUser.claimedOrders : [],
+    claimedMissions: Array.isArray(supUser.claimedMissions) ? supUser.claimedMissions : [],
+    newcomerRewardClaimed: Boolean(supUser.newcomerRewardClaimed),
+    createdAt: supUser.createdAt || new Date().toISOString()
   };
 }
 
 async function authenticateToken(token) {
-  if (!token || typeof token !== 'string' || token.length > 4096) return null;
+  if (!token || typeof token !== 'string' || token.length > 32768) return null;
 
   // Supabase access tokens are JWTs. Reject static/predictable tokens outright.
   if (token.split('.').length !== 3) return null;
@@ -83,14 +83,42 @@ async function authenticateToken(token) {
   if (!user) {
     user = createLocalUser(supUser);
     state.users[supUser.id] = user;
+    if (Array.isArray(user.wallets) && user.wallets.length > 0) {
+      if (!Array.isArray(state.wallets)) state.wallets = [];
+      for (const w of user.wallets) {
+        if (!state.wallets.some(existing => existing.id === w.id)) {
+          state.wallets.push(w);
+        }
+      }
+    }
     db.save();
   } else {
-    // Supabase identity may refresh non-sensitive profile fields only.
+    // Refresh identity fields from Supabase
     if (supUser.nickname) user.nickname = supUser.nickname;
     if (supUser.phone) user.phone = supUser.phone;
     if (supUser.avatar) user.avatar = supUser.avatar;
     if (!user.inviteCode && supUser.inviteCode) user.inviteCode = supUser.inviteCode;
+    if (supUser.balance != null && (user.balance === 0 || user.balance == null)) {
+      user.balance = Number(supUser.balance);
+      user.totalBalance = Number(supUser.totalBalance) || user.balance;
+    }
+    if (Array.isArray(supUser.wallets) && supUser.wallets.length > 0 && (!user.wallets || user.wallets.length === 0)) {
+      user.wallets = supUser.wallets;
+      for (const w of user.wallets) {
+        if (!state.wallets.some(existing => existing.id === w.id)) {
+          state.wallets.push(w);
+        }
+      }
+    }
+    if (!user.isPinSet && (supUser.isPinSet || supUser.pinHash)) {
+      user.isPinSet = true;
+      user.pinHash = supUser.pinHash;
+      user.pinSalt = supUser.pinSalt;
+    }
   }
+
+  // Cache user's active session token for cloud persistence
+  user._lastToken = token;
 
   tokenCache.set(tokenHash, {
     user,

@@ -281,7 +281,7 @@ router.post('/app/user/login/login', async (req, res) => {
       ...security.publicUser(user)
     });
   } catch (err) {
-    return fail(res, 'Invalid credentials', 401);
+    return fail(res, err.message || 'Invalid credentials', 401);
   }
 });
 
@@ -290,14 +290,14 @@ router.post('/app/user/rs/submit', async (req, res) => {
     return fail(res, 'Authentication service is not configured', 503);
   }
 
-  const { phone, identifier, email, password, nickname } = req.body || {};
+  const { phone, identifier, email, password, nickname, inviteCode } = req.body || {};
   const idToUse = identifier || phone || email || '';
 
   if (!String(idToUse).trim()) {
-    return fail(res, 'Phone or email is required', 400);
+    return fail(res, 'Phone, email, or username is required', 400);
   }
-  if (typeof password !== 'string' || password.length < 8) {
-    return fail(res, 'Password must be at least 8 characters', 400);
+  if (typeof password !== 'string' || password.length < 6) {
+    return fail(res, 'Password must be at least 6 characters', 400);
   }
 
   try {
@@ -305,7 +305,8 @@ router.post('/app/user/rs/submit', async (req, res) => {
       identifier: idToUse,
       phone,
       password,
-      nickname: nickname || ''
+      nickname: nickname || '',
+      inviteCode: inviteCode || ''
     });
     const user = await auth.authenticateToken(authRes.token);
     if (!user) {
@@ -397,6 +398,9 @@ router.post('/app/user/info/updatePin', (req, res) => {
   user.isPinSet = true;
   delete user.pin;
   db.save();
+
+  // Persist updated security PIN credentials to Supabase
+  supabaseService.syncUserData(user, extractToken(req)).catch(() => {});
 
   return ok(res, { success: true });
 });
@@ -712,7 +716,12 @@ async function createCollectionWallet(req, res) {
 
   const newWallet = await qrService.attachQrToWallet(baseWallet);
   state.wallets.push(newWallet);
+  if (!Array.isArray(user.wallets)) user.wallets = [];
+  user.wallets.push(newWallet);
   db.save();
+
+  // Persist updated collection wallets to Supabase
+  supabaseService.syncUserData(user, extractToken(req)).catch(() => {});
 
   return ok(res, newWallet);
 }
@@ -736,7 +745,13 @@ router.post('/app/ct/app/collection/changeStatus/:id', async (req, res) => {
     return fail(res, 'Invalid wallet status', 400);
   }
   wallet.status = nextStatus;
+  if (Array.isArray(user.wallets)) {
+    const uw = user.wallets.find(w => w.id === id);
+    if (uw) uw.status = nextStatus;
+  }
   db.save();
+
+  supabaseService.syncUserData(user, extractToken(req)).catch(() => {});
 
   return ok(res, wallet);
 });
@@ -750,7 +765,12 @@ router.post('/app/ct/app/collection/onSell/:id', (req, res) => {
   );
   if (!wallet) return fail(res, 'Wallet not found', 404);
   wallet.status = 1;
+  if (Array.isArray(user.wallets)) {
+    const uw = user.wallets.find(w => w.id === id);
+    if (uw) uw.status = 1;
+  }
   db.save();
+  supabaseService.syncUserData(user, extractToken(req)).catch(() => {});
   return ok(res, { success: true });
 });
 
@@ -763,7 +783,12 @@ router.post('/app/ct/app/collection/offSell/:id', (req, res) => {
   );
   if (!wallet) return fail(res, 'Wallet not found', 404);
   wallet.status = 0;
+  if (Array.isArray(user.wallets)) {
+    const uw = user.wallets.find(w => w.id === id);
+    if (uw) uw.status = 0;
+  }
   db.save();
+  supabaseService.syncUserData(user, extractToken(req)).catch(() => {});
   return ok(res, { success: true });
 });
 
@@ -981,6 +1006,7 @@ router.post('/app/newcomer-rewards/claim/:id', (req, res) => {
   user.balance = money.add(user.balance, 88);
   user.totalBalance = user.balance;
   db.save();
+  supabaseService.syncUserData(user, extractToken(req)).catch(() => {});
 
   return ok(res, { amount: 88, balance: user.balance });
 });
