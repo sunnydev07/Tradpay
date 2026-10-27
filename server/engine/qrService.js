@@ -119,35 +119,35 @@ async function attachQrToOrder(order) {
   if (!order) return order;
   const state = db.get();
   const qrs = state.officialQRs || db.officialQRs || [];
-  
-  // Match payout wallet if official, or default to first verified platform account
-  let assignedQr = null;
-  if (order.payoutWalletId) {
-    assignedQr = qrs.find(q => q.id === Number(order.payoutWalletId));
-  }
-  if (!assignedQr) {
-    assignedQr = qrs[0] || {
-      id: 1,
-      vpa: '6377276074-2@ybl',
-      qrImage: '/static/qr/scr1.jpeg'
-    };
+
+  // The payee must be the wallet selected for this order. Never fall back to
+  // an unrelated official QR: doing so routes user payments to the wrong VPA.
+  const wallet = state.wallets.find(w => w.id === Number(order.payoutWalletId));
+  const vpa = (wallet && (wallet.account || wallet.vpa)) || order.payoutAccount;
+  if (!vpa) {
+    throw new Error('Order payout account is not configured');
   }
 
+  const qrImage = (wallet && wallet.qrImage) ||
+    (qrs.find(q => q.vpa === vpa) || {}).qrImage ||
+    '/static/qr/scr1.jpeg';
   const amount = Number(order.amount);
   const note = order.orderNo || order.payOrderId || `Order ${order.id || ''}`;
-  // No payee name (pn) included — keep official QR details minimal
+  const name = wallet && !wallet.isOfficial ? (wallet.name || '') : '';
   const upiUri = buildUpiUri({
-    vpa: assignedQr.vpa,
+    vpa,
+    name,
     amount,
     note
   });
 
   const qrDataUrl = await getQrDataUrl(upiUri);
 
-  order.payeeVpa = assignedQr.vpa;
+  order.payoutAccount = vpa;
+  order.payeeVpa = vpa;
   order.upiUri = upiUri;
   order.qrDataUrl = qrDataUrl;
-  order.qrImage = assignedQr.qrImage || '/static/qr/scr1.jpeg';
+  order.qrImage = qrImage;
   order.qrImageUrl = `/api/qr/image?text=${encodeURIComponent(upiUri)}`;
 
   return order;

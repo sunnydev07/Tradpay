@@ -1,5 +1,12 @@
 const http = require('http');
 
+// Legacy pre-auth QR test. It targets public endpoints and the old demo flow;
+// use `npm test` for the supported security suite.
+if (process.env.ALLOW_LEGACY_SCRIPTS !== 'true') {
+  console.error('Legacy unauthenticated test disabled. Run against a local server with ALLOW_LEGACY_SCRIPTS=true.');
+  process.exit(1);
+}
+
 function request(path, method = 'GET', body = null, headers = {}) {
   return new Promise((resolve, reject) => {
     const options = {

@@ -7,8 +7,24 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
+    # Persistent disks require a paid Render plan. On a paid plan, add:
+    # disk:
+    #   name: tradepay-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    # and set TRADEPAY_DB_FILE=/var/data/db.json below.
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: ADMIN_USER_IDS
+        sync: false
+      # Optional until a PSP is connected; set it in the dashboard to enable
+      # signed /webhooks/payment reconciliation.
+      # - key: PAYMENT_WEBHOOK_SECRET
+      #   sync: false

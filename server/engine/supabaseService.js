@@ -1,9 +1,38 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vhzfbacpvfjdpkthxvej.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemZiYWNwdmZqZHBrdGh4dmVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MzQxNjYsImV4cCI6MjEwNTMxMDE2Nn0.iDkE1RvfZrneScBhjP9xryTsv7lKqwqMzEl6Fepe8cM';
+// Supabase configuration is supplied by the environment only. The project URL
+// and publishable key are not secrets, but hardcoding them couples every fork
+// to one project and makes it too easy to ship against the wrong backend.
+const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim();
+const SUPABASE_KEY = String(process.env.SUPABASE_KEY || '').trim();
+const SUPABASE_SERVICE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+let supabase = null;
+let adminClient = null;
+
+function isConfigured() {
+  return Boolean(SUPABASE_URL && SUPABASE_KEY);
+}
+
+function getClient() {
+  if (!isConfigured()) return null;
+  if (!supabase) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+  }
+  return supabase;
+}
+
+function getAdminClient() {
+  if (!isConfigured() || !SUPABASE_SERVICE_KEY) return null;
+  if (!adminClient) {
+    adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+  }
+  return adminClient;
+}
 
 function normalizeAuthIdentifier(identifier) {
   const trimmed = String(identifier || '').trim();
@@ -14,44 +43,39 @@ function normalizeAuthIdentifier(identifier) {
   return `${cleanPhone || 'user' + Date.now()}@tradepay.live`;
 }
 
-// 1. Sign up user via Supabase Auth with REAL ZERO INITIAL BALANCE
+// 1. Sign up user via Supabase Auth with ZERO initial balances.
+// Financial and PIN state is owned by the server, never by user_metadata.
 async function signUpUser({ identifier, password, nickname = '', phone = '' }) {
-  const email = normalizeAuthIdentifier(identifier || phone);
-  const userPhone = phone || (identifier.includes('@') ? '+919876543210' : identifier);
+  const client = getClient();
+  if (!client) throw new Error('Authentication service is not configured');
+
+  const identifierValue = String(identifier || phone || '').trim();
+  const email = normalizeAuthIdentifier(identifierValue);
+  const userPhone = phone || (identifierValue.includes('@') ? '' : identifierValue);
   const cleanNick = nickname || ('Trader_' + Math.floor(1000 + Math.random() * 9000));
   const inviteCode = 'LP' + Math.floor(1000 + Math.random() * 9000);
 
-  // Strictly ZERO initial balances for authentic production UI
   const initialMetadata = {
     nickname: cleanNick,
     phone: userPhone,
-    balance: 0.00,
-    totalBalance: 0.00,
-    rewardTotal: 0.00,
-    pending: 0.00,
-    points: 0,
-    vipLevel: 1,
     inviteCode,
-    pin: '123456',
-    isPinSet: true,
-    onSellStatus: 1,
-    wallets: [],
-    claimedOrders: []
+    vipLevel: 1
   };
 
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await client.auth.signUp({
     email,
-    password: password || 'Password123!',
-    options: {
-      data: initialMetadata
-    }
+    password,
+    options: { data: initialMetadata }
   });
 
-  if (error) {
-    throw new Error(error.message);
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error('Registration failed');
+
+  const token = data.session?.access_token;
+  if (!token) {
+    throw new Error('Account created. Confirm your email address before signing in.');
   }
 
-  const token = data.session?.access_token || ('token_' + data.user.id);
   return {
     token,
     user: {
@@ -62,17 +86,21 @@ async function signUpUser({ identifier, password, nickname = '', phone = '' }) {
   };
 }
 
-// 2. Sign in user via Supabase Auth
+// 2. Sign in user via Supabase Auth. Returns identity/profile only.
 async function signInUser({ identifier, password }) {
+  const client = getClient();
+  if (!client) throw new Error('Authentication service is not configured');
+
   const email = normalizeAuthIdentifier(identifier);
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await client.auth.signInWithPassword({
     email,
-    password: password || 'Password123!'
+    password
   });
 
-  if (error) {
-    throw new Error(error.message);
+  if (error) throw new Error(error.message);
+  if (!data.user || !data.session?.access_token) {
+    throw new Error('Sign in failed');
   }
 
   const metadata = data.user.user_metadata || {};
@@ -82,74 +110,64 @@ async function signInUser({ identifier, password }) {
       id: data.user.id,
       email: data.user.email,
       nickname: metadata.nickname || 'Trader',
-      phone: metadata.phone || email,
-      balance: metadata.balance != null ? Number(metadata.balance) : 0.00,
-      totalBalance: metadata.totalBalance != null ? Number(metadata.totalBalance) : 0.00,
-      rewardTotal: metadata.rewardTotal != null ? Number(metadata.rewardTotal) : 0.00,
-      pending: metadata.pending != null ? Number(metadata.pending) : 0.00,
-      points: metadata.points != null ? Number(metadata.points) : 0,
-      vipLevel: metadata.vipLevel || 1,
+      phone: metadata.phone || data.user.phone || '',
+      avatar: metadata.avatar || '/static/user/profile.png',
       inviteCode: metadata.inviteCode || 'LP8899',
-      pin: metadata.pin || '123456',
-      isPinSet: true,
-      onSellStatus: metadata.onSellStatus != null ? metadata.onSellStatus : 1,
-      wallets: metadata.wallets || [],
-      claimedOrders: metadata.claimedOrders || []
+      vipLevel: Number(metadata.vipLevel) || 1
     }
   };
 }
 
-// 3. Update User Metadata (Balance, Wallets, PIN) in Supabase
-async function updateUserRecord(token, metadataUpdates) {
-  if (!token || token.startsWith('token_10086')) {
-    return metadataUpdates;
+// 3. Update non-sensitive profile metadata only.
+// Balance, PIN, wallets, rewards and referral state must never be written to
+// client-writable Supabase user_metadata.
+async function updateUserRecord(token, metadataUpdates = {}) {
+  const client = getClient();
+  const admin = getAdminClient();
+  const safeKeys = ['nickname', 'phone', 'avatar'];
+  const safeUpdates = {};
+  for (const key of safeKeys) {
+    if (metadataUpdates[key] !== undefined) safeUpdates[key] = metadataUpdates[key];
+  }
+  if (!Object.keys(safeUpdates).length || !client || !admin) {
+    return { synced: false, reason: 'admin sync not configured' };
   }
 
-  const userClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: false }
-  });
-
   try {
-    const { data, error } = await userClient.auth.setSession({
-      access_token: token,
-      refresh_token: token
-    });
+    const { data: { user }, error } = await client.auth.getUser(token);
+    if (error || !user) return { synced: false, reason: 'invalid session' };
 
-    if (!error) {
-      await userClient.auth.updateUser({
-        data: metadataUpdates
-      });
-    }
+    const merged = { ...(user.user_metadata || {}), ...safeUpdates };
+    const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
+      user_metadata: merged
+    });
+    if (updateError) return { synced: false, reason: updateError.message };
+    return { synced: true };
   } catch (err) {
     console.error('[Supabase] updateUserRecord error:', err.message);
+    return { synced: false, reason: err.message };
   }
-
-  return metadataUpdates;
 }
 
-// 4. Verify user token
+// 4. Verify a bearer token with Supabase and return identity/profile only.
 async function verifyToken(token) {
-  if (!token) return null;
-  if (token === 'token_10086') {
-    return {
-      id: '10086',
-      nickname: 'Trader_Alex',
-      phone: '+919876543210',
-      balance: 0.00,
-      totalBalance: 0.00,
-      rewardTotal: 0.00,
-      pin: '123456'
-    };
-  }
+  if (!token || typeof token !== 'string') return null;
+  const client = getClient();
+  if (!client) return null;
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const { data: { user }, error } = await client.auth.getUser(token);
     if (error || !user) return null;
+
+    const metadata = user.user_metadata || {};
     return {
       id: user.id,
       email: user.email,
-      balance: 0.00,
-      ...(user.user_metadata || {})
+      phone: metadata.phone || user.phone || '',
+      nickname: metadata.nickname || 'Trader',
+      avatar: metadata.avatar || '/static/user/profile.png',
+      inviteCode: metadata.inviteCode || null,
+      vipLevel: Number(metadata.vipLevel) || 1
     };
   } catch (e) {
     return null;
@@ -157,7 +175,8 @@ async function verifyToken(token) {
 }
 
 module.exports = {
-  supabase,
+  isConfigured,
+  getClient,
   signUpUser,
   signInUser,
   updateUserRecord,

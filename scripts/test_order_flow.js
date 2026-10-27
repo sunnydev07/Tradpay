@@ -1,5 +1,12 @@
 const http = require('http');
 
+// Legacy pre-auth flow test. The current API requires a Supabase bearer token,
+// ownership checks and a 12-digit UTR, so this script is intentionally opt-in.
+if (process.env.ALLOW_LEGACY_SCRIPTS !== 'true') {
+  console.error('Legacy unauthenticated test disabled. Run against a local server with ALLOW_LEGACY_SCRIPTS=true.');
+  process.exit(1);
+}
+
 async function testEndpoint(path, method = 'GET', body = null) {
   return new Promise((resolve, reject) => {
     const options = {

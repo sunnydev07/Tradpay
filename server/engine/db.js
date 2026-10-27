@@ -1,12 +1,14 @@
 const fs = require('fs');
 const path = require('path');
+const security = require('./security');
 
 const DATA_DIR = path.join(__dirname, '../../data');
-const DB_FILE = path.join(DATA_DIR, 'db.json');
+const DB_FILE = process.env.TRADEPAY_DB_FILE || path.join(DATA_DIR, 'db.json');
+const DB_DIR = path.dirname(DB_FILE);
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Ensure the configured data directory exists
+if (!fs.existsSync(DB_DIR)) {
+  fs.mkdirSync(DB_DIR, { recursive: true });
 }
 
 // Official QR codes provided by user (name/branding details intentionally omitted)
@@ -31,7 +33,8 @@ const officialQRs = [
   }
 ];
 
-// Default initial state with strictly ZERO balances
+// Default initial state with strictly ZERO balances. The demo account has no PIN
+// and no token; it is only reachable through an authenticated Supabase session.
 const defaultState = {
   users: {
     "10086": {
@@ -47,15 +50,17 @@ const defaultState = {
       points: 0,
       vipLevel: 1,
       inviteCode: "LP8899",
-      pin: "123456",
-      isPinSet: true,
+      pinHash: null,
+      pinSalt: null,
+      isPinSet: false,
       onSellStatus: 1,
+      claimedMissions: [],
+      newcomerRewardClaimed: false,
       createdAt: new Date().toISOString()
     }
   },
-  tokens: {
-    "token_10086": "10086"
-  },
+  revokedTokens: {},
+  deposits: [],
   officialQRs,
   wallets: [
     {
@@ -190,7 +195,7 @@ const defaultState = {
     {
       id: 1,
       title: "Official UPI QR Payments Online",
-      content: "Users can now scan and pay permanently using the official platform UPI QR codes for instant automated balance top-up.",
+      content: "Users can now scan and pay using the official platform UPI QR codes, then submit the 12-digit UTR for verification before the balance is credited.",
       createdAt: "2026-10-28"
     },
     {
@@ -202,14 +207,111 @@ const defaultState = {
   ]
 };
 
-// Always start with zero balance clean state
-let state = JSON.parse(JSON.stringify(defaultState));
+function mergeSettings(saved) {
+  const settings = {
+    ...defaultState.settings,
+    ...(saved && typeof saved === 'object' ? saved : {})
+  };
+  settings.nightBonus = {
+    ...defaultState.settings.nightBonus,
+    ...(saved && saved.nightBonus ? saved.nightBonus : {})
+  };
+  if (!Array.isArray(settings.dispatchRanges) || !settings.dispatchRanges.length) {
+    settings.dispatchRanges = defaultState.settings.dispatchRanges;
+  }
+  return settings;
+}
 
-// Write clean zero-balance state to disk
-try {
-  fs.writeFileSync(DB_FILE, JSON.stringify(defaultState, null, 2), 'utf-8');
-} catch (err) {
-  console.error('[DB] Write error:', err.message);
+function migrateUser(user) {
+  if (!user || typeof user !== 'object') return user;
+
+  // Never keep raw bearer tokens or plaintext PINs in the local store.
+  delete user.token;
+  if (user.pin && !user.pinHash) {
+    const hashed = security.hashPin(user.pin);
+    user.pinHash = hashed.hash;
+    user.pinSalt = hashed.salt;
+    user.isPinSet = true;
+  }
+  delete user.pin;
+
+  if (!Array.isArray(user.claimedMissions)) user.claimedMissions = [];
+  if (typeof user.newcomerRewardClaimed !== 'boolean') user.newcomerRewardClaimed = false;
+  if (!Array.isArray(user.wallets)) user.wallets = [];
+  if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
+  if (!user.inviteCode) user.inviteCode = 'LP' + Math.floor(1000 + Math.random() * 9000);
+  if (!user.avatar) user.avatar = '/static/user/profile.png';
+  return user;
+}
+
+function buildState(saved) {
+  const safeSaved = saved && typeof saved === 'object' ? saved : {};
+  const state = JSON.parse(JSON.stringify(defaultState));
+
+  if (safeSaved.users && typeof safeSaved.users === 'object') {
+    state.users = safeSaved.users;
+  }
+  if (safeSaved.officialQRs && Array.isArray(safeSaved.officialQRs) && safeSaved.officialQRs.length) {
+    state.officialQRs = safeSaved.officialQRs;
+  }
+  if (Array.isArray(safeSaved.wallets)) state.wallets = safeSaved.wallets;
+  if (Array.isArray(safeSaved.hangSales)) state.hangSales = safeSaved.hangSales;
+  if (safeSaved.claimedOrders && typeof safeSaved.claimedOrders === 'object') {
+    state.claimedOrders = safeSaved.claimedOrders;
+  }
+  if (Array.isArray(safeSaved.deposits)) state.deposits = safeSaved.deposits;
+  if (safeSaved.revokedTokens && typeof safeSaved.revokedTokens === 'object') {
+    state.revokedTokens = safeSaved.revokedTokens;
+  }
+  if (Array.isArray(safeSaved.missions)) state.missions = safeSaved.missions;
+  if (Array.isArray(safeSaved.notices)) state.notices = safeSaved.notices;
+  state.settings = mergeSettings(safeSaved.settings);
+  state.team = {
+    ...defaultState.team,
+    ...(safeSaved.team && typeof safeSaved.team === 'object' ? safeSaved.team : {}),
+    ratios: {
+      ...defaultState.team.ratios,
+      ...(safeSaved.team && safeSaved.team.ratios ? safeSaved.team.ratios : {})
+    },
+    members: safeSaved.team && Array.isArray(safeSaved.team.members)
+      ? safeSaved.team.members
+      : defaultState.team.members
+  };
+
+  for (const user of Object.values(state.users)) migrateUser(user);
+  delete state.tokens;
+  return state;
+}
+
+function loadState() {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      if (raw.trim()) {
+        return buildState(JSON.parse(raw));
+      }
+    }
+  } catch (err) {
+    console.error('[DB] Load error, starting from defaults:', err.message);
+  }
+  return buildState(null);
+}
+
+let state = loadState();
+
+function writeState() {
+  try {
+    const tmpFile = `${DB_FILE}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(state, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, DB_FILE);
+  } catch (err) {
+    console.error('[DB] Save error:', err.message);
+  }
+}
+
+// Seed the file only when it does not exist. Never overwrite live state on import.
+if (!fs.existsSync(DB_FILE)) {
+  writeState();
 }
 
 // Debounced persistent write
@@ -217,20 +319,32 @@ let saveTimeout = null;
 function save() {
   if (saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
-    try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('[DB] Save error:', err.message);
-    }
+    saveTimeout = null;
+    writeState();
   }, 100);
 }
+
+function flush() {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+  writeState();
+}
+
+process.on('exit', () => {
+  if (saveTimeout) {
+    try { writeState(); } catch (e) { /* no-op during shutdown */ }
+  }
+});
 
 module.exports = {
   get: () => state,
   officialQRs,
   save,
+  flush,
   reset: () => {
-    state = JSON.parse(JSON.stringify(defaultState));
-    save();
+    state = buildState(null);
+    flush();
   }
 };

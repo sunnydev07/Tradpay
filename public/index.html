@@ -544,10 +544,10 @@
             <span class="text-lg">📱</span>
             <div>
               <p class="text-xs font-bold text-white">Official QR Code Deposit</p>
-              <p class="text-[10px] text-gray-400">Scan official UPI QRs for instant top-up</p>
+              <p class="text-[10px] text-gray-400">Scan official UPI QRs; credited after verification</p>
             </div>
           </div>
-          <span class="text-xs text-[#F2D7A5]">Instant UPI ›</span>
+          <span class="text-xs text-[#F2D7A5]">UPI Deposit ›</span>
         </button>
 
         <button @click="openPinModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
@@ -558,7 +558,7 @@
               <p class="text-[10px] text-gray-400">Protect order claims and withdrawals</p>
             </div>
           </div>
-          <span class="text-xs text-emerald-400">Configured (123456) ›</span>
+          <span class="text-xs text-emerald-400">{{ user.isPinSet ? 'Configured ›' : 'Set Up ›' }}</span>
         </button>
 
         <button @click="openUsdtModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
@@ -580,8 +580,19 @@
               <p class="text-[10px] text-gray-400">Daily sign-in and referral missions</p>
             </div>
           </div>
-          <span class="text-xs text-[#F2D7A5] font-semibold">{{ user.points || 500 }} pts ›</span>
+          <span class="text-xs text-[#F2D7A5] font-semibold">{{ user.points || 0 }} pts ›</span>
         </button>
+
+        <a v-if="user.isAdmin" href="/admin.html" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🛡️</span>
+            <div>
+              <p class="text-xs font-bold text-white">Deposit Review (Admin)</p>
+              <p class="text-[10px] text-gray-400">Verify and settle pending UPI deposits</p>
+            </div>
+          </div>
+          <span class="text-xs text-[#F2D7A5]">Open ›</span>
+        </a>
 
         <button @click="handleInstallClick" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
           <div class="flex items-center gap-3">
@@ -720,6 +731,25 @@
             <span v-if="depositSubmitting">Submitting...</span>
             <span v-else>Submit for Verification</span>
           </button>
+        </div>
+
+        <!-- Recent deposit submissions (credits only after verification) -->
+        <div v-if="depositHistory.length" class="p-3.5 rounded-2xl bg-black/20 border border-white/5 space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-white">Recent Deposits</h4>
+            <span class="text-[10px] text-gray-500">Verified before credit</span>
+          </div>
+          <div v-for="d in depositHistory" :key="d.id" class="flex items-center justify-between text-[11px]">
+            <div class="min-w-0">
+              <span class="font-mono text-white">₹{{ d.amount }}</span>
+              <span class="text-gray-500 ml-2">{{ String(d.createdAt).slice(0, 10) }}</span>
+              <span class="block text-[10px] text-gray-500 font-mono truncate">UTR {{ d.utr }}</span>
+            </div>
+            <span class="px-2 py-0.5 rounded-full font-semibold capitalize"
+              :class="d.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400' : (d.status === 'rejected' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400')">
+              {{ d.status }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -1114,6 +1144,7 @@
           utr: ''
         });
         const depositSubmitting = ref(false);
+        const depositHistory = ref([]);
 
         // Auth & Token Management
         const token = ref(localStorage.getItem('tradepay_token') || '');
@@ -1336,14 +1367,21 @@
         // QR Modal Actions
         function openQrPayModal() {
           modals.qrPay.show = true;
+          fetchDepositHistory();
         }
 
         function selectAndOpenQr(id) {
           selectedQrId.value = id;
           modals.qrPay.show = true;
+          fetchDepositHistory();
         }
 
         async function submitQrDeposit() {
+          if (!token.value) {
+            showToast('Please sign in to submit a deposit');
+            openAuthModal();
+            return;
+          }
           if (!depositForm.amount || depositForm.amount <= 0) {
             showToast('Please enter deposit amount');
             return;
@@ -1365,11 +1403,11 @@
             });
             const json = await res.json();
             if (json.code === 1000) {
-              modals.qrPay.show = false;
               playBeep();
               showToast(json.msg || `Deposit of ₹${depositForm.amount} submitted for verification`, 'success');
               depositForm.utr = '';
               fetchSummary();
+              fetchDepositHistory();
             } else {
               showToast(json.msg || 'Deposit submission failed');
             }
@@ -1422,6 +1460,7 @@
             await authFetch('/app/user/info/appLogout', { method: 'POST' });
           } catch (e) { /* best effort */ }
           token.value = '';
+          depositHistory.value = [];
           localStorage.removeItem('tradepay_token');
           if (ws) {
             ws.onclose = null;
@@ -1450,6 +1489,20 @@
             const json = await res.json();
             if (json.code === 1000) {
               Object.assign(user, json.data);
+            }
+          } catch (e) {}
+        }
+
+        async function fetchDepositHistory() {
+          if (!token.value) {
+            depositHistory.value = [];
+            return;
+          }
+          try {
+            const res = await authFetch('/app/payment/deposit/history');
+            const json = await res.json();
+            if (json.code === 1000) {
+              depositHistory.value = (json.data.records || []).slice(0, 5);
             }
           } catch (e) {}
         }
@@ -1590,6 +1643,7 @@
           fetchWallets();
           fetchHangSales();
           fetchNightBonus();
+          fetchDepositHistory();
         }
 
         // Actions
@@ -1951,6 +2005,7 @@
           isIos,
           depositForm,
           depositSubmitting,
+          depositHistory,
           user,
           summary,
           nightBonus,
@@ -2009,6 +2064,7 @@
           getWalletQrUrl,
           getUsdtQrUrl,
           fetchOfficialQrs,
+          fetchDepositHistory,
           handleQrError,
           installApp,
           dismissInstallBanner,
