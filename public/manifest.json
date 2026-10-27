@@ -1,0 +1,49 @@
+{
+  "name": "TradePay - Liquidity & P2P Engine",
+  "short_name": "TradePay",
+  "description": "High-Speed P2P Order Matching, UPI Collection & Liquidity Engine",
+  "start_url": "/?source=pwa",
+  "id": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#141414",
+  "theme_color": "#1B1B1B",
+  "categories": ["finance", "business", "utilities"],
+  "icons": [
+    {
+      "src": "/static/logo/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/logo/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/logo/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scan & Pay QR",
+      "short_name": "Scan QR",
+      "description": "Instant official UPI QR deposit",
+      "url": "/?action=scan",
+      "icons": [{ "src": "/static/logo/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Take Orders",
+      "short_name": "Orders",
+      "description": "View live market liquidity orders",
+      "url": "/?tab=payment",
+      "icons": [{ "src": "/static/logo/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

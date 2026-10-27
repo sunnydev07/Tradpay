@@ -1,4 +1,5 @@
 const db = require('./db');
+const qrService = require('./qrService');
 
 let wsBroadcaster = null;
 
@@ -56,7 +57,7 @@ function getHangSales(params = {}) {
 }
 
 // Claim an order (pages/payment/payment.vue -> createOrder)
-function claimOrder({ payOrderId, payoutWalletId, userId = '10086' }) {
+async function claimOrder({ payOrderId, payoutWalletId, userId = '10086' }) {
   const state = db.get();
   const order = state.hangSales.find(o => o.payOrderId === payOrderId && o.status === 'pending');
 
@@ -110,6 +111,9 @@ function claimOrder({ payOrderId, payoutWalletId, userId = '10086' }) {
     createdAt: new Date().toISOString()
   };
 
+  // Attach dynamic QR code and exact amount-tailored payment URI
+  await qrService.attachQrToOrder(claimedRecord);
+
   state.claimedOrders[buyId] = claimedRecord;
   order.status = 'processing';
   db.save();
@@ -119,6 +123,8 @@ function claimOrder({ payOrderId, payoutWalletId, userId = '10086' }) {
     buyId,
     amount: order.amount,
     walletName: wallet.ctName,
+    qrDataUrl: claimedRecord.qrDataUrl,
+    upiUri: claimedRecord.upiUri,
     msg: `Order for ₹${order.amount} claimed successfully!`
   });
 

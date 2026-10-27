@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>TradePay - P2P Order Matching & Liquidity Engine</title>
+  
+  <!-- Progressive Web App (PWA) & Mobile App Meta Tags -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1B1B1B">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TradePay">
+  <link rel="apple-touch-icon" href="/static/logo/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/static/logo/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/static/logo/icon-512.png">
   <link rel="icon" type="image/png" href="/static/logo/logo.png">
   <link rel="stylesheet" href="/css/view.css">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -106,6 +117,69 @@
       </div>
     </transition>
 
+    <!-- PWA Install Banner -->
+    <div v-if="showInstallBanner && !isAppInstalled" class="mx-4 mt-3 p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-[#242424] to-[#242424] border border-[#F2D7A5]/40 flex items-center justify-between shadow-xl">
+      <div class="flex items-center gap-2.5">
+        <img src="/static/logo/icon-192.png" class="w-9 h-9 rounded-xl object-contain bg-black/40 p-0.5 border border-white/10" alt="TradePay App">
+        <div>
+          <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+            <span>Install TradePay App</span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">MOBILE APP</span>
+          </h4>
+          <p class="text-[10px] text-gray-400 mt-0.5">Use as standalone app on your home screen</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button @click="installApp" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-extrabold shadow-md hover:brightness-110 active:scale-95 transition">
+          Install
+        </button>
+        <button @click="dismissInstallBanner" class="text-gray-400 hover:text-white text-sm p-1">✕</button>
+      </div>
+    </div>
+
+    <!-- iOS Add to Home Screen Instructions Modal -->
+    <div v-if="modals.iosInstall.show" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="w-full max-w-[400px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+          <div class="flex items-center gap-2">
+            <img src="/static/logo/icon-192.png" class="w-8 h-8 rounded-lg object-contain">
+            <h3 class="text-sm font-bold text-white">Install on iPhone / Safari</h3>
+          </div>
+          <button @click="modals.iosInstall.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs text-gray-300">
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
+            <span class="text-base">1️⃣</span>
+            <div>
+              <p class="font-bold text-white">Tap the Share Icon</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">In Safari toolbar at the bottom, tap the <span class="text-[#F2D7A5] font-bold">Share icon</span> (square with arrow pointing up).</p>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
+            <span class="text-base">2️⃣</span>
+            <div>
+              <p class="font-bold text-white">Select "Add to Home Screen"</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">Scroll down the share sheet and tap <span class="text-[#F2D7A5] font-bold">"Add to Home Screen" ➕</span>.</p>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
+            <span class="text-base">3️⃣</span>
+            <div>
+              <p class="font-bold text-white">Tap "Add" in Top Right</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">The TradePay app icon will be installed on your iOS home screen and open full-screen!</p>
+            </div>
+          </div>
+        </div>
+
+        <button @click="modals.iosInstall.show = false" class="w-full py-2.5 rounded-xl bg-[#F2D7A5] text-[#1B1B1B] text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
+          Got It!
+        </button>
+      </div>
+    </div>
+
     <!-- ======================================================== -->
     <!-- TAB 1: HOME -->
     <!-- ======================================================== -->
@@ -176,21 +250,17 @@
 
         <!-- QR Previews & 1-Click Pay Buttons -->
         <div class="grid grid-cols-2 gap-2.5 pt-1">
-          <div @click="selectAndOpenQr(1)" class="p-2.5 rounded-xl bg-black/40 border border-white/5 hover:border-[#F2D7A5]/50 cursor-pointer transition flex items-center gap-2.5">
-            <img src="/static/qr/scr1.jpeg" class="w-12 h-12 rounded-lg object-cover border border-white/10 shadow" alt="QR 1">
-            <div class="overflow-hidden">
-              <p class="text-[11px] font-bold text-white truncate">AKSHAT JAIN</p>
-              <p class="text-[9px] text-[#F2D7A5] font-mono truncate">6377276074-2@ybl</p>
-              <span class="text-[9px] text-emerald-400 font-semibold">Tap to scan</span>
+          <div v-for="q in officialQrs" :key="q.id" @click="selectAndOpenQr(q.id)" class="p-2.5 rounded-xl bg-black/40 border border-white/5 hover:border-[#F2D7A5]/50 cursor-pointer transition flex items-center gap-2.5">
+            <div class="w-12 h-12 rounded-lg overflow-hidden border border-white/10 shadow flex-shrink-0 bg-white flex items-center justify-center p-0.5">
+              <img :src="q.qrDataUrl || q.screenshotUrl || q.qrImage" class="w-full h-full object-contain" :alt="q.name" @error="handleImgFallback">
             </div>
-          </div>
-
-          <div @click="selectAndOpenQr(2)" class="p-2.5 rounded-xl bg-black/40 border border-white/5 hover:border-[#F2D7A5]/50 cursor-pointer transition flex items-center gap-2.5">
-            <img src="/static/qr/scr2.jpeg" class="w-12 h-12 rounded-lg object-cover border border-white/10 shadow" alt="QR 2">
             <div class="overflow-hidden">
-              <p class="text-[11px] font-bold text-white truncate">Vinod Kumar Yogi</p>
-              <p class="text-[9px] text-[#F2D7A5] font-mono truncate">9588856526@ybl</p>
-              <span class="text-[9px] text-emerald-400 font-semibold">Tap to scan</span>
+              <p class="text-[11px] font-bold text-white truncate">{{ q.name }}</p>
+              <p class="text-[9px] text-[#F2D7A5] font-mono truncate">{{ q.vpa }}</p>
+              <span class="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
+                <span>📷</span>
+                <span>Tap to scan</span>
+              </span>
             </div>
           </div>
         </div>
@@ -368,18 +438,13 @@
           <button @click="openQrPayModal" class="text-[11px] text-[#F2D7A5] font-semibold underline">Show QRs</button>
         </div>
         <div class="grid grid-cols-2 gap-2 text-xs">
-          <div class="p-2 rounded-xl bg-black/30 border border-white/5 flex items-center gap-2">
-            <img src="/static/qr/scr1.jpeg" class="w-8 h-8 rounded object-cover">
-            <div class="truncate">
-              <p class="font-bold text-white text-[11px]">Akshat Jain</p>
-              <p class="text-[9px] text-gray-400 font-mono truncate">6377276074-2@ybl</p>
+          <div v-for="(q, idx) in officialQrs" :key="q.id" @click="selectAndOpenQr(q.id)" class="p-2 rounded-xl bg-black/30 border border-white/5 flex items-center gap-2 cursor-pointer hover:border-[#F2D7A5]/40 transition">
+            <div class="w-8 h-8 rounded overflow-hidden bg-white flex-shrink-0 flex items-center justify-center p-0.5">
+              <img :src="q.qrDataUrl || q.screenshotUrl || q.qrImage" class="w-full h-full object-contain" @error="handleImgFallback">
             </div>
-          </div>
-          <div class="p-2 rounded-xl bg-black/30 border border-white/5 flex items-center gap-2">
-            <img src="/static/qr/scr2.jpeg" class="w-8 h-8 rounded object-cover">
             <div class="truncate">
-              <p class="font-bold text-white text-[11px]">Vinod Kumar Yogi</p>
-              <p class="text-[9px] text-gray-400 font-mono truncate">9588856526@ybl</p>
+              <p class="font-bold text-white text-[11px] truncate">Official QR {{ idx + 1 }}</p>
+              <p class="text-[9px] text-gray-400 font-mono truncate">{{ q.vpa }}</p>
             </div>
           </div>
         </div>
@@ -401,9 +466,14 @@
               </div>
             </div>
 
-            <button @click="toggleWalletStatus(w)" class="w-12 h-6 rounded-full transition-colors relative p-1" :class="w.status === 1 ? 'bg-[#F2D7A5]' : 'bg-gray-700'">
-              <div class="w-4 h-4 rounded-full bg-[#1B1B1B] transition-transform" :class="w.status === 1 ? 'translate-x-6' : 'translate-x-0'"></div>
-            </button>
+            <div class="flex items-center gap-2">
+              <button @click="openWalletQrModal(w)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#F2D7A5]/20 border border-white/10 hover:border-[#F2D7A5]/30 text-[#F2D7A5] text-[10px] font-semibold flex items-center gap-1 transition">
+                <span>📷 QR</span>
+              </button>
+              <button @click="toggleWalletStatus(w)" class="w-12 h-6 rounded-full transition-colors relative p-1" :class="w.status === 1 ? 'bg-[#F2D7A5]' : 'bg-gray-700'">
+                <div class="w-4 h-4 rounded-full bg-[#1B1B1B] transition-transform" :class="w.status === 1 ? 'translate-x-6' : 'translate-x-0'"></div>
+              </button>
+            </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2 pt-3 border-t border-white/5 text-xs text-gray-400">
@@ -510,7 +580,7 @@
             <span class="text-lg">📱</span>
             <div>
               <p class="text-xs font-bold text-white">Official QR Code Deposit</p>
-              <p class="text-[10px] text-gray-400">Scan Akshat Jain or Vinod Kumar Yogi QRs</p>
+              <p class="text-[10px] text-gray-400">Scan official UPI QRs for instant top-up</p>
             </div>
           </div>
           <span class="text-xs text-[#F2D7A5]">Instant UPI ›</span>
@@ -547,6 +617,19 @@
             </div>
           </div>
           <span class="text-xs text-[#F2D7A5] font-semibold">{{ user.points || 500 }} pts ›</span>
+        </button>
+
+        <button @click="handleInstallClick" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">📲</span>
+            <div>
+              <p class="text-xs font-bold text-white">Install Mobile App (PWA)</p>
+              <p class="text-[10px] text-gray-400">Install to phone home screen as standalone app</p>
+            </div>
+          </div>
+          <span class="text-xs font-semibold" :class="isAppInstalled ? 'text-emerald-400' : 'text-[#F2D7A5]'">
+            {{ isAppInstalled ? 'Installed ✓' : 'Install App ›' }}
+          </span>
         </button>
 
         <button v-if="isLoggedIn" @click="handleLogout" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition text-red-400">
@@ -614,33 +697,44 @@
 
         <!-- QR Selector Toggle -->
         <div class="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-black/40 border border-white/5">
-          <button @click="selectedQrId = 1" class="py-2 px-3 rounded-xl text-xs font-bold transition flex flex-col items-center" :class="selectedQrId === 1 ? 'bg-[#F2D7A5] text-[#1B1B1B] shadow' : 'text-gray-400 hover:text-white'">
-            <span>QR 1: Akshat Jain</span>
-            <span class="text-[9px] font-mono opacity-80">6377276074-2@ybl</span>
-          </button>
-          <button @click="selectedQrId = 2" class="py-2 px-3 rounded-xl text-xs font-bold transition flex flex-col items-center" :class="selectedQrId === 2 ? 'bg-[#F2D7A5] text-[#1B1B1B] shadow' : 'text-gray-400 hover:text-white'">
-            <span>QR 2: Vinod Kumar</span>
-            <span class="text-[9px] font-mono opacity-80">9588856526@ybl</span>
+          <button v-for="(q, idx) in officialQrs" :key="q.id" @click="selectedQrId = q.id" class="py-2 px-3 rounded-xl text-xs font-bold transition flex flex-col items-center" :class="selectedQrId === q.id ? 'bg-[#F2D7A5] text-[#1B1B1B] shadow' : 'text-gray-400 hover:text-white'">
+            <span class="truncate max-w-full">Official QR {{ idx + 1 }}</span>
+            <span class="text-[9px] font-mono opacity-80 truncate max-w-full">{{ q.vpa }}</span>
           </button>
         </div>
 
-        <!-- Full Screenshot QR Code Display -->
+        <!-- Mode Switch: Merchant Screenshot vs Dynamic QR -->
+        <div class="flex rounded-xl bg-black/50 p-1 border border-white/10">
+          <button @click="qrDisplayMode = 'screenshot'" class="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition" :class="qrDisplayMode === 'screenshot' ? 'bg-[#F2D7A5] text-[#1B1B1B] shadow' : 'text-gray-400 hover:text-white'">
+            Merchant Screenshot
+          </button>
+          <button @click="qrDisplayMode = 'generated'" class="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1" :class="qrDisplayMode === 'generated' ? 'bg-[#F2D7A5] text-[#1B1B1B] shadow' : 'text-gray-400 hover:text-white'">
+            <span>Auto-Fill ₹{{ depositForm.amount || 0 }}</span>
+            <span class="text-[9px] px-1 rounded bg-emerald-500/30 text-emerald-300 font-bold">UPI</span>
+          </button>
+        </div>
+
+        <!-- Full Screenshot or Amount QR Code Display -->
         <div class="p-4 rounded-2xl bg-[#1A1A1A] border border-white/10 text-center space-y-3">
-          <div class="relative mx-auto rounded-2xl overflow-hidden border-2 border-[#F2D7A5]/50 shadow-2xl max-w-[260px] bg-white">
-            <img :src="currentQr.qrImage" class="w-full h-auto object-contain block mx-auto hover:scale-105 transition-transform duration-300" alt="Official QR">
+          <div class="relative mx-auto rounded-2xl overflow-hidden border-2 border-[#F2D7A5]/50 shadow-2xl max-w-[260px] bg-white min-h-[200px] flex items-center justify-center p-1">
+            <div v-if="qrLoading" class="py-12 flex flex-col items-center gap-2 text-xs text-gray-500">
+              <span class="animate-spin text-2xl">⏳</span>
+              <span>Loading QR Code...</span>
+            </div>
+            <img v-else-if="qrDisplayMode === 'screenshot'" :src="currentQr.screenshotUrl || currentQr.qrImage" class="w-full h-auto object-contain block mx-auto hover:scale-105 transition-transform duration-300" alt="Official Screenshot QR" @error="handleQrError">
+            <img v-else :src="'/api/qr/image?text=' + encodeURIComponent(getDynamicUpiUri(currentQr, depositForm.amount)) + '&size=320'" class="w-full h-auto object-contain block mx-auto hover:scale-105 transition-transform duration-300" alt="Dynamic Amount QR" @error="handleQrError">
           </div>
 
           <div class="space-y-1">
-            <h4 class="text-sm font-extrabold text-white">{{ currentQr.name }}</h4>
             <div class="flex items-center justify-center gap-1.5">
               <span class="font-mono text-xs text-[#F2D7A5]">{{ currentQr.vpa }}</span>
               <button @click="copyText(currentQr.vpa)" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
             </div>
-            <p class="text-[10px] text-gray-400">{{ currentQr.channel }} • Instant Auto-Credit</p>
+            <p class="text-[10px] text-gray-400">Instant Auto-Credit</p>
           </div>
 
-          <a :href="currentQr.upiUri" class="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold shadow hover:brightness-110 transition">
-            <span>⚡ Open in PhonePe / GPay / Paytm</span>
+          <a :href="getDynamicUpiUri(currentQr, depositForm.amount)" class="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
+            <span>⚡ Open in PhonePe / GPay / Paytm (₹{{ depositForm.amount || 0 }})</span>
           </a>
         </div>
 
@@ -780,15 +874,19 @@
         <!-- Attached Official QR Preview for instant scan -->
         <div class="p-3 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <img :src="currentQr.qrImage" class="w-14 h-14 rounded-xl object-cover border border-white/20">
-            <div>
-              <p class="text-xs font-bold text-white">{{ currentQr.name }}</p>
-              <p class="text-[10px] text-[#F2D7A5] font-mono">{{ currentQr.vpa }}</p>
-              <button @click="openQrPayModal" class="text-[10px] text-emerald-400 font-semibold underline mt-0.5">Enlarge Full QR</button>
+            <div class="relative w-14 h-14 rounded-xl overflow-hidden border border-white/20 bg-white flex items-center justify-center p-0.5 cursor-pointer shadow flex-shrink-0" @click="openOrderQrModal">
+              <img :src="getOrderQrImage()" class="w-full h-full object-contain" alt="Payment QR" @error="handleImgFallback">
+            </div>
+            <div class="overflow-hidden">
+              <p class="text-[10px] text-[#F2D7A5] font-mono truncate">{{ activeClaimedOrder.payeeVpa || currentQr.vpa }}</p>
+              <button @click="openOrderQrModal" class="text-[10px] text-emerald-400 font-semibold underline mt-0.5 flex items-center gap-1">
+                <span>🔍</span>
+                <span>Enlarge QR (₹{{ formatMoney(activeClaimedOrder.amount) }})</span>
+              </button>
             </div>
           </div>
-          <a :href="currentQr.upiUri" class="px-3 py-2 rounded-xl bg-emerald-500 text-white text-[11px] font-bold shadow">
-            Pay Now
+          <a :href="getOrderUpiUri()" class="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-[11px] font-bold shadow hover:brightness-110 active:scale-95 transition flex items-center gap-1 whitespace-nowrap">
+            <span>⚡ Pay Now</span>
           </a>
         </div>
 
@@ -824,6 +922,39 @@
           <button @click="submitActiveOrder" class="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition">
             Confirm Receipt & Credit
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 2.5: ORDER QR FULLSCREEN LIGHTBOX -->
+    <!-- ======================================================== -->
+    <div v-if="modals.orderQr.show" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+          <div>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-bold">ORDER PAYMENT QR</span>
+            <h3 class="text-sm font-bold text-white mt-1">Exact Amount: ₹{{ formatMoney(activeClaimedOrder.amount) }}</h3>
+          </div>
+          <button @click="modals.orderQr.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-[#1A1A1A] border border-white/10 text-center space-y-3">
+          <div class="relative mx-auto rounded-2xl overflow-hidden border-2 border-[#F2D7A5]/50 shadow-2xl max-w-[260px] bg-white p-2">
+            <img :src="getOrderQrImage()" class="w-full h-auto object-contain block mx-auto hover:scale-105 transition-transform duration-300" alt="Order QR" @error="handleImgFallback">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex items-center justify-center gap-1.5">
+              <span class="font-mono text-xs text-[#F2D7A5]">{{ activeClaimedOrder.payeeVpa || currentQr.vpa }}</span>
+              <button @click="copyText(activeClaimedOrder.payeeVpa || currentQr.vpa)" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
+            </div>
+            <p class="text-[10px] text-gray-400">Order: {{ activeClaimedOrder.orderNo }} • Time left: {{ formatTime(orderCountdown) }}</p>
+          </div>
+
+          <a :href="getOrderUpiUri()" class="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
+            <span>⚡ Open in PhonePe / GPay / Paytm (₹{{ formatMoney(activeClaimedOrder.amount) }})</span>
+          </a>
         </div>
       </div>
     </div>
@@ -901,12 +1032,46 @@
           <div class="p-3 rounded-xl bg-white/5 text-center space-y-2">
             <p class="text-[10px] text-gray-400">Current Exchange Rate</p>
             <p class="text-base font-bold text-[#F2D7A5]">1 USDT = ₹{{ summary.usdtRechargeRate || 91.50 }} (+2% Cashback)</p>
-            <div class="p-3 bg-white rounded-xl mx-auto w-32 h-32 flex items-center justify-center">
-              <span class="text-xs text-black font-mono">QR CODE [{{ usdtChain }}]</span>
+            <div class="p-2.5 bg-white rounded-2xl mx-auto w-36 h-36 flex items-center justify-center shadow-lg">
+              <img :src="getUsdtQrUrl(usdtChain)" class="w-full h-full object-contain" :alt="'USDT QR ' + usdtChain" @error="handleImgFallback">
             </div>
             <p class="text-[10px] font-mono text-gray-400 break-all px-2">{{ getUsdtAddress(usdtChain) }}</p>
             <button @click="copyText(getUsdtAddress(usdtChain))" class="text-[#F2D7A5] text-xs font-semibold">Copy Address</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 4.5: WALLET QR CODE VIEWER -->
+    <!-- ======================================================== -->
+    <div v-if="modals.walletQr.show" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+          <div>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">RECEIVING WALLET QR</span>
+            <h3 class="text-sm font-bold text-white mt-1">{{ selectedWalletForQr?.ctName || 'UPI Account' }}</h3>
+          </div>
+          <button @click="modals.walletQr.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-[#1A1A1A] border border-white/10 text-center space-y-3">
+          <div class="relative mx-auto rounded-2xl overflow-hidden border-2 border-[#F2D7A5]/50 shadow-2xl max-w-[250px] bg-white p-2">
+            <img :src="getWalletQrUrl(selectedWalletForQr)" class="w-full h-auto object-contain block mx-auto hover:scale-105 transition-transform duration-300" alt="Wallet QR" @error="handleImgFallback">
+          </div>
+
+          <div class="space-y-1">
+            <h4 class="text-sm font-extrabold text-white">{{ selectedWalletForQr?.name }}</h4>
+            <div class="flex items-center justify-center gap-1.5">
+              <span class="font-mono text-xs text-[#F2D7A5]">{{ selectedWalletForQr?.account }}</span>
+              <button @click="copyText(selectedWalletForQr?.account)" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
+            </div>
+            <p class="text-[10px] text-gray-400">Limit: ₹{{ selectedWalletForQr?.minAmount }} - ₹{{ selectedWalletForQr?.maxAmount }}</p>
+          </div>
+
+          <a :href="selectedWalletForQr?.upiUri || ('upi://pay?pa=' + encodeURIComponent(selectedWalletForQr?.account || '').replace(/%40/g, '@') + '&pn=' + encodeURIComponent(selectedWalletForQr?.name || 'User') + '&mode=02&purpose=00')" class="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
+            <span>⚡ Open UPI Intent</span>
+          </a>
         </div>
       </div>
     </div>
@@ -956,29 +1121,29 @@
           '/static/banner/ad2.png'
         ]);
 
-        const activeNotice = ref('✨ Official UPI QR codes active! Scan Akshat Jain or Vinod Kumar Yogi QRs for instant automated balance top-up.');
+        const activeNotice = ref('✨ Official UPI QR codes active! Scan & pay for instant automated balance top-up.');
 
-        // Official QR Codes
+        // Official QR Codes (name/branding details intentionally omitted)
         const officialQrs = ref([
           {
             id: 1,
-            name: 'AKSHAT JAIN',
             vpa: '6377276074-2@ybl',
-            channel: 'PhonePe (Yes Bank)',
             qrImage: '/static/qr/scr1.jpeg',
-            upiUri: 'upi://pay?pa=6377276074-2@ybl&pn=AKSHAT%20%20JAIN&mc=0000&mode=02&purpose=00'
+            upiUri: 'upi://pay?pa=6377276074-2@ybl&mc=0000&mode=02&purpose=00'
           },
           {
             id: 2,
-            name: 'Vinod Kumar Yogi',
             vpa: '9588856526@ybl',
-            channel: 'PhonePe (Yes Bank)',
             qrImage: '/static/qr/scr2.jpeg',
-            upiUri: 'upi://pay?pa=9588856526@ybl&pn=Vinod%20Kumar%20Yogi&mc=0000&mode=02&purpose=00'
+            upiUri: 'upi://pay?pa=9588856526@ybl&mc=0000&mode=02&purpose=00'
           }
         ]);
         const selectedQrId = ref(1);
-        const currentQr = computed(() => officialQrs.value.find(q => q.id === selectedQrId.value) || officialQrs.value[0]);
+        const qrDisplayMode = ref('screenshot'); // 'screenshot' or 'generated'
+        const qrLoading = ref(false);
+        const qrError = ref(false);
+        const selectedWalletForQr = ref(null);
+        const currentQr = computed(() => officialQrs.value.find(q => q.id === selectedQrId.value) || officialQrs.value[0] || {});
 
         const depositForm = reactive({
           amount: 1000,
@@ -1055,15 +1220,24 @@
         // Missions
         const missions = ref([]);
 
+        // PWA Mobile App State
+        const deferredPrompt = ref(null);
+        const showInstallBanner = ref(!localStorage.getItem('tradepay_install_dismissed'));
+        const isAppInstalled = ref(false);
+        const isIos = ref(false);
+
         // Modals
         const modals = reactive({
           auth: { show: false },
           claim: { show: false },
           inrOrder: { show: false },
+          orderQr: { show: false },
           addWallet: { show: false },
+          walletQr: { show: false },
           usdt: { show: false },
           missions: { show: false },
-          qrPay: { show: false }
+          qrPay: { show: false },
+          iosInstall: { show: false }
         });
 
         const selectedOrder = ref({});
@@ -1343,12 +1517,92 @@
           } catch (e) {}
         }
 
+        async function fetchOfficialQrs() {
+          qrLoading.value = true;
+          qrError.value = false;
+          try {
+            const res = await authFetch('/app/payment/official-qrs');
+            const json = await res.json();
+            if (json.code === 1000 && Array.isArray(json.data) && json.data.length > 0) {
+              officialQrs.value = json.data;
+            }
+          } catch (e) {
+            qrError.value = true;
+          } finally {
+            qrLoading.value = false;
+          }
+        }
+
+        function getDynamicUpiUri(qr, amount) {
+          if (!qr) return '';
+          const num = Number(amount);
+          const cleanVpa = String(qr.vpa || '').trim();
+          const encodedVpa = encodeURIComponent(cleanVpa).replace(/%40/g, '@');
+          // No payee name (pn) included — keep QR payload minimal
+          let uri = `upi://pay?pa=${encodedVpa}`;
+          if (num && num > 0) {
+            uri += `&am=${num.toFixed(2)}&cu=INR`;
+          }
+          uri += '&tn=TradePay%20Deposit&mode=02&purpose=00';
+          return uri;
+        }
+
+        function getOrderUpiUri() {
+          if (activeClaimedOrder.value?.upiUri) return activeClaimedOrder.value.upiUri;
+          const vpa = activeClaimedOrder.value?.payeeVpa || currentQr.value?.vpa || '6377276074-2@ybl';
+          const amount = Number(activeClaimedOrder.value?.amount) || 0;
+          const note = activeClaimedOrder.value?.orderNo || 'TradePay Order';
+          const encodedVpa = encodeURIComponent(vpa).replace(/%40/g, '@');
+          // No payee name (pn) included — keep QR payload minimal
+          let uri = `upi://pay?pa=${encodedVpa}`;
+          if (amount > 0) uri += `&am=${amount.toFixed(2)}&cu=INR`;
+          uri += `&tn=${encodeURIComponent(note)}&mode=02&purpose=00`;
+          return uri;
+        }
+
+        function getOrderQrImage() {
+          if (activeClaimedOrder.value?.qrDataUrl) return activeClaimedOrder.value.qrDataUrl;
+          if (activeClaimedOrder.value?.qrImageUrl) return activeClaimedOrder.value.qrImageUrl;
+          const uri = getOrderUpiUri();
+          return `/api/qr/image?text=${encodeURIComponent(uri)}&size=300`;
+        }
+
+        function openOrderQrModal() {
+          modals.orderQr.show = true;
+        }
+
+        function openWalletQrModal(w) {
+          selectedWalletForQr.value = w;
+          modals.walletQr.show = true;
+        }
+
+        function getWalletQrUrl(w) {
+          if (!w) return '';
+          if (w.qrDataUrl) return w.qrDataUrl;
+          if (w.qrImageUrl) return w.qrImageUrl;
+          const vpa = w.account || w.vpa || 'user@upi';
+          const name = w.name || w.ctName || 'User';
+          const uri = `upi://pay?pa=${encodeURIComponent(vpa).replace(/%40/g, '@')}&pn=${encodeURIComponent(name)}&mode=02&purpose=00`;
+          return `/api/qr/image?text=${encodeURIComponent(uri)}&size=300`;
+        }
+
+        function getUsdtQrUrl(chain) {
+          const addr = getUsdtAddress(chain);
+          return `/api/qr/image?text=${encodeURIComponent(addr)}&size=300`;
+        }
+
+        function handleQrError(e) {
+          const uri = getDynamicUpiUri(currentQr.value, depositForm.amount);
+          e.target.src = `/api/qr/image?text=${encodeURIComponent(uri)}&size=300`;
+        }
+
         function fetchAll() {
           fetchUserInfo();
           fetchSummary();
           fetchWallets();
           fetchHangSales();
           fetchNightBonus();
+          fetchOfficialQrs();
         }
 
         // Actions
@@ -1538,6 +1792,43 @@
           e.target.style.opacity = '0.5';
         }
 
+        function installApp() {
+          if (deferredPrompt.value) {
+            deferredPrompt.value.prompt();
+            deferredPrompt.value.userChoice.then((choiceResult) => {
+              if (choiceResult.outcome === 'accepted') {
+                isAppInstalled.value = true;
+                showInstallBanner.value = false;
+                showToast('Installing TradePay on your Home Screen...', 'success');
+              }
+              deferredPrompt.value = null;
+            });
+          } else if (isIos.value) {
+            modals.iosInstall.show = true;
+          } else {
+            showToast('Tap browser menu (⋮) and select "Install app" or "Add to Home Screen"');
+          }
+        }
+
+        function dismissInstallBanner() {
+          showInstallBanner.value = false;
+          localStorage.setItem('tradepay_install_dismissed', 'true');
+        }
+
+        function handleInstallClick() {
+          if (isAppInstalled.value) {
+            showToast('TradePay is already running as an installed app!', 'success');
+            return;
+          }
+          if (isIos.value) {
+            modals.iosInstall.show = true;
+          } else if (deferredPrompt.value) {
+            installApp();
+          } else {
+            showToast('Tap browser menu (⋮) and select "Install app" or "Add to Home Screen"');
+          }
+        }
+
         // WebSocket Setup
         let ws = null;
         function connectWebSocket() {
@@ -1569,6 +1860,38 @@
           fetchAll();
           connectWebSocket();
 
+          // Register PWA Service Worker for standalone phone app experience & offline caching
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => {
+              console.log('[PWA] Service Worker registration failed:', err);
+            });
+          }
+
+          // Detect standalone display mode (already installed app)
+          if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            isAppInstalled.value = true;
+            showInstallBanner.value = false;
+          }
+
+          // Detect iOS
+          isIos.value = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+          // Capture PWA install prompt
+          window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt.value = e;
+            if (!localStorage.getItem('tradepay_install_dismissed')) {
+              showInstallBanner.value = true;
+            }
+          });
+
+          window.addEventListener('appinstalled', () => {
+            isAppInstalled.value = true;
+            showInstallBanner.value = false;
+            deferredPrompt.value = null;
+            showToast('TradePay installed successfully on Home Screen!', 'success');
+          });
+
           setInterval(() => {
             bannerIndex.value = (bannerIndex.value + 1) % banners.value.length;
           }, 3500);
@@ -1588,7 +1911,15 @@
           activeNotice,
           officialQrs,
           selectedQrId,
+          qrDisplayMode,
+          qrLoading,
+          qrError,
+          selectedWalletForQr,
           currentQr,
+          deferredPrompt,
+          showInstallBanner,
+          isAppInstalled,
+          isIos,
           depositForm,
           depositSubmitting,
           user,
@@ -1641,6 +1972,18 @@
           openQrPayModal,
           selectAndOpenQr,
           submitQrDeposit,
+          getDynamicUpiUri,
+          getOrderUpiUri,
+          getOrderQrImage,
+          openOrderQrModal,
+          openWalletQrModal,
+          getWalletQrUrl,
+          getUsdtQrUrl,
+          fetchOfficialQrs,
+          handleQrError,
+          installApp,
+          dismissInstallBanner,
+          handleInstallClick,
           handleAuthSubmit,
           handleLogout,
           handleLogoError,

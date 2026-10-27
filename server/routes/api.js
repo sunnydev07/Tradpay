@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../engine/db');
 const orderEngine = require('../engine/orderEngine');
 const supabaseService = require('../engine/supabaseService');
+const qrService = require('../engine/qrService');
 
 // Response helpers
 function ok(res, data = {}, msg = 'success') {
@@ -74,11 +75,37 @@ async function getAuthUser(req) {
 }
 
 // -------------------------------------------------------------
+// DYNAMIC QR CODE RENDERING & STREAMING
+// -------------------------------------------------------------
+router.get('/api/qr/image', async (req, res) => {
+  try {
+    const text = req.query.text || req.query.data || req.query.uri;
+    if (!text) {
+      return res.status(400).send('Missing text or uri query parameter');
+    }
+    const width = Number(req.query.size) || 256;
+    const svg = await qrService.getQrSvg(text, { width });
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(svg);
+  } catch (err) {
+    console.error('[API] /api/qr/image error:', err.message);
+    return res.status(500).send('Error generating QR image');
+  }
+});
+
+// -------------------------------------------------------------
 // OFFICIAL QR CODES & INSTANT DEPOSITS
 // -------------------------------------------------------------
-router.get('/app/payment/official-qrs', (req, res) => {
+router.get('/app/payment/official-qrs', async (req, res) => {
   const state = db.get();
-  return ok(res, state.officialQRs || db.officialQRs);
+  const rawQrs = state.officialQRs || db.officialQRs || [];
+  const amount = req.query.amount ? Number(req.query.amount) : null;
+  const note = req.query.note || null;
+  const formatted = await Promise.all(
+    rawQrs.map(qr => qrService.formatOfficialQr(qr, amount, note))
+  );
+  return ok(res, formatted);
 });
 
 router.post('/app/payment/deposit/submit', async (req, res) => {
@@ -104,7 +131,6 @@ router.post('/app/payment/deposit/submit', async (req, res) => {
     userId: user.id,
     amount: numAmount,
     qrId: qr.id,
-    payeeName: qr.name,
     vpa: qr.vpa,
     utr: String(utr).trim(),
     status: 'completed',
@@ -122,7 +148,7 @@ router.post('/app/payment/deposit/submit', async (req, res) => {
     totalBalance: user.balance
   });
 
-  return ok(res, depositRecord, `Deposit of ₹${numAmount} credited successfully via ${qr.name}!`);
+  return ok(res, depositRecord, `Deposit of ₹${numAmount} credited successfully!`);
 });
 
 // -------------------------------------------------------------
@@ -369,7 +395,7 @@ router.post('/app/payment/order/create', async (req, res) => {
   const { payOrderId, payoutWalletId } = req.body || {};
   const user = await getAuthUser(req);
   try {
-    const claimed = orderEngine.claimOrder({
+    const claimed = await orderEngine.claimOrder({
       payOrderId,
       payoutWalletId: Number(payoutWalletId),
       userId: user.id
@@ -380,12 +406,13 @@ router.post('/app/payment/order/create', async (req, res) => {
   }
 });
 
-router.get('/app/payment/order/orderInfo', (req, res) => {
+router.get('/app/payment/order/orderInfo', async (req, res) => {
   const { buyId } = req.query || {};
   const order = orderEngine.getOrderInfo(buyId);
   if (!order) {
     return fail(res, 'Order not found', 404);
   }
+  await qrService.attachQrToOrder(order);
   return ok(res, order);
 });
 
@@ -423,13 +450,14 @@ router.get('/app/payment/order/history', async (req, res) => {
   const user = await getAuthUser(req);
   const state = db.get();
   const orders = Object.values(state.claimedOrders).filter(o => o.userId === user.id);
+  await Promise.all(orders.map(o => qrService.attachQrToOrder(o)));
   return ok(res, {
     records: orders,
     total: orders.length
   });
 });
 
-router.post('/app/payment/order/changeWallet', (req, res) => {
+router.post('/app/payment/order/changeWallet', async (req, res) => {
   const { buyId, newPayoutWalletId } = req.body || {};
   const state = db.get();
   const order = state.claimedOrders[buyId];
@@ -439,38 +467,54 @@ router.post('/app/payment/order/changeWallet', (req, res) => {
   order.payoutWalletId = wallet.id;
   order.payoutWalletName = wallet.ctName;
   order.payoutAccount = wallet.account;
+  await qrService.attachQrToOrder(order);
   db.save();
   return ok(res, order);
 });
 
-router.post('/app/payment/order/createUsdt', (req, res) => {
+router.post('/app/payment/order/createUsdt', async (req, res) => {
   const { amount, chainType = 'TRC20' } = req.body || {};
   const state = db.get();
   const usdtId = 'USDT' + Date.now();
-  const rate = state.settings.usdtRechargeRate;
-  const inrAmount = Number((Number(amount) * rate).toFixed(2));
+  const rate = state.settings?.usdtRechargeRate || 91.50;
+  const inrAmount = Number((Number(amount || 0) * rate).toFixed(2));
   const addresses = {
     TRC20: 'TLxK9y5Bsq27Pz5vF7nK9yTRC20EXAMPLE',
     BSC: '0x71C95911e74B39d48b1968848777BSCEXAMPLE',
     Polygon: '0x99A8c829e74B39d48b1968848POLYGONEXAMPLE'
   };
+  const address = addresses[chainType] || addresses.TRC20;
+  const qrData = await qrService.attachQrToUsdt(chainType, address, amount);
   const order = {
     id: usdtId,
-    usdtAmount: Number(amount),
+    usdtAmount: Number(amount || 0),
     inrAmount,
     rate,
     chainType,
-    address: addresses[chainType] || addresses.TRC20,
+    address,
+    qrDataUrl: qrData.qrDataUrl,
+    qrImageUrl: qrData.qrImageUrl,
     status: 'pending',
     createdAt: new Date().toISOString()
   };
   return ok(res, order);
 });
 
-router.get('/app/payment/order/usdtInfo', (req, res) => {
+router.get('/app/payment/order/usdtInfo', async (req, res) => {
+  const chains = ['TRC20', 'BSC', 'Polygon'];
+  const addresses = {
+    TRC20: 'TLxK9y5Bsq27Pz5vF7nK9yTRC20EXAMPLE',
+    BSC: '0x71C95911e74B39d48b1968848777BSCEXAMPLE',
+    Polygon: '0x99A8c829e74B39d48b1968848POLYGONEXAMPLE'
+  };
+  const details = {};
+  for (const c of chains) {
+    details[c] = await qrService.attachQrToUsdt(c, addresses[c]);
+  }
   return ok(res, {
     rate: 91.50,
-    chains: ['TRC20', 'BSC', 'Polygon']
+    chains,
+    details
   });
 });
 
@@ -488,7 +532,8 @@ router.post('/app/ct/app/collection/getWalletList', async (req, res) => {
   if (!userWallets.length && user.id === '10086') {
     userWallets = state.wallets;
   }
-  return ok(res, userWallets);
+  const enhanced = await Promise.all(userWallets.map(w => qrService.attachQrToWallet(w)));
+  return ok(res, enhanced);
 });
 
 router.post('/app/ct/app/collection/getPayoutWalletList', async (req, res) => {
@@ -498,14 +543,16 @@ router.post('/app/ct/app/collection/getPayoutWalletList', async (req, res) => {
   if (!userWallets.length && user.id === '10086') {
     userWallets = state.wallets.filter(w => w.status === 1);
   }
-  return ok(res, userWallets);
+  const enhanced = await Promise.all(userWallets.map(w => qrService.attachQrToWallet(w)));
+  return ok(res, enhanced);
 });
 
 router.post('/app/ct/app/collection/memberPayoutWallets', async (req, res) => {
   const user = await getAuthUser(req);
   const state = db.get();
   const userWallets = state.wallets.filter(w => w.userId === user.id);
-  return ok(res, userWallets);
+  const enhanced = await Promise.all(userWallets.map(w => qrService.attachQrToWallet(w)));
+  return ok(res, enhanced);
 });
 
 router.post('/app/ct/app/collection/submit', async (req, res) => {
@@ -548,6 +595,7 @@ router.post('/app/ct/app/collection/submit', async (req, res) => {
     createdAt: new Date().toISOString()
   };
 
+  await qrService.attachQrToWallet(newWallet);
   state.wallets.push(newWallet);
   db.save();
 
