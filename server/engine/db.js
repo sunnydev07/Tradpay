@@ -9,26 +9,22 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Official QR codes provided by user
+// Official QR codes provided by user (name/branding details intentionally omitted)
 const officialQRs = [
   {
     id: 1,
-    name: "AKSHAT JAIN",
     vpa: "6377276074-2@ybl",
-    channel: "PhonePe (Yes Bank)",
     qrImage: "/static/qr/scr1.jpeg",
-    upiUri: "upi://pay?pa=6377276074-2@ybl&pn=AKSHAT%20JAIN&mc=0000&mode=02&purpose=00",
+    upiUri: "upi://pay?pa=6377276074-2@ybl&mc=0000&mode=02&purpose=00",
     minAmount: 100,
     maxAmount: 100000,
     status: 1
   },
   {
     id: 2,
-    name: "Vinod Kumar Yogi",
     vpa: "9588856526@ybl",
-    channel: "PhonePe (Yes Bank)",
     qrImage: "/static/qr/scr2.jpeg",
-    upiUri: "upi://pay?pa=9588856526@ybl&pn=Vinod%20Kumar%20Yogi&mc=0000&mode=02&purpose=00",
+    upiUri: "upi://pay?pa=9588856526@ybl&mc=0000&mode=02&purpose=00",
     minAmount: 100,
     maxAmount: 100000,
     status: 1

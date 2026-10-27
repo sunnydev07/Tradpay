@@ -68,7 +68,7 @@ async function runTestSuite() {
 
     // 2. Direct QR Streaming / Image Endpoint
     console.log('\nTest 2: GET /api/qr/image (SVG Image Streaming & Error Handling)');
-    const testUri = 'upi://pay?pa=6377276074-2@ybl&pn=AKSHAT%20JAIN&am=1500.00&cu=INR';
+    const testUri = 'upi://pay?pa=6377276074-2@ybl&am=1500.00&cu=INR';
     const svgRes = await request(`/api/qr/image?text=${encodeURIComponent(testUri)}&size=200`);
     assert(svgRes.status === 200, 'QR image endpoint responds with 200');
     assert(svgRes.headers['content-type']?.includes('image/svg+xml'), 'Content-Type contains image/svg+xml');
@@ -102,7 +102,8 @@ async function runTestSuite() {
     assert(claimedOrder.qrDataUrl && claimedOrder.qrDataUrl.startsWith('data:image/png;base64,'), 'Claimed order includes crisp PNG QR code');
     assert(claimedOrder.upiUri && claimedOrder.upiUri.includes(`&am=${claimedOrder.amount.toFixed(2)}`), `UPI URI corresponds to exact order amount: &am=${claimedOrder.amount.toFixed(2)}`);
     assert(claimedOrder.upiUri.includes(encodeURIComponent(claimedOrder.orderNo)), 'UPI URI corresponds to exact order number in transaction note');
-    assert(claimedOrder.payeeName && claimedOrder.payeeVpa, `Payee details attached: ${claimedOrder.payeeName} (${claimedOrder.payeeVpa})`);
+    assert(claimedOrder.payeeVpa, `Payee VPA attached: ${claimedOrder.payeeVpa}`);
+    assert(!claimedOrder.payeeName && !claimedOrder.payeeChannel, 'No payee name/channel details attached to order');
 
     // 5. Order Info Fetch (GET /app/payment/order/orderInfo)
     console.log('\nTest 5: Order Details Retrieval (GET /app/payment/order/orderInfo)');

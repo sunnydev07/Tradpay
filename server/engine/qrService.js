@@ -128,27 +128,23 @@ async function attachQrToOrder(order) {
   if (!assignedQr) {
     assignedQr = qrs[0] || {
       id: 1,
-      name: 'AKSHAT JAIN',
       vpa: '6377276074-2@ybl',
-      channel: 'PhonePe (Yes Bank)',
       qrImage: '/static/qr/scr1.jpeg'
     };
   }
 
   const amount = Number(order.amount);
   const note = order.orderNo || order.payOrderId || `Order ${order.id || ''}`;
+  // No payee name (pn) included — keep official QR details minimal
   const upiUri = buildUpiUri({
     vpa: assignedQr.vpa,
-    name: assignedQr.name || 'AKSHAT JAIN',
     amount,
     note
   });
 
   const qrDataUrl = await getQrDataUrl(upiUri);
 
-  order.payeeName = assignedQr.name || 'AKSHAT JAIN';
   order.payeeVpa = assignedQr.vpa;
-  order.payeeChannel = assignedQr.channel || 'PhonePe (Yes Bank)';
   order.upiUri = upiUri;
   order.qrDataUrl = qrDataUrl;
   order.qrImage = assignedQr.qrImage || '/static/qr/scr1.jpeg';

@@ -250,12 +250,12 @@
 
         <!-- QR Previews & 1-Click Pay Buttons -->
         <div class="grid grid-cols-2 gap-2.5 pt-1">
-          <div v-for="q in officialQrs" :key="q.id" @click="selectAndOpenQr(q.id)" class="p-2.5 rounded-xl bg-black/40 border border-white/5 hover:border-[#F2D7A5]/50 cursor-pointer transition flex items-center gap-2.5">
+          <div v-for="(q, idx) in officialQrs" :key="q.id" @click="selectAndOpenQr(q.id)" class="p-2.5 rounded-xl bg-black/40 border border-white/5 hover:border-[#F2D7A5]/50 cursor-pointer transition flex items-center gap-2.5">
             <div class="w-12 h-12 rounded-lg overflow-hidden border border-white/10 shadow flex-shrink-0 bg-white flex items-center justify-center p-0.5">
-              <img :src="q.qrDataUrl || q.screenshotUrl || q.qrImage" class="w-full h-full object-contain" :alt="q.name" @error="handleImgFallback">
+              <img :src="q.qrDataUrl || q.screenshotUrl || q.qrImage" class="w-full h-full object-contain" alt="Official QR" @error="handleImgFallback">
             </div>
             <div class="overflow-hidden">
-              <p class="text-[11px] font-bold text-white truncate">{{ q.name }}</p>
+              <p class="text-[11px] font-bold text-white truncate">Official QR {{ idx + 1 }}</p>
               <p class="text-[9px] text-[#F2D7A5] font-mono truncate">{{ q.vpa }}</p>
               <span class="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
                 <span>📷</span>
