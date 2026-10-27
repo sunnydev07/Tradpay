@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../engine/db');
 const orderEngine = require('../engine/orderEngine');
+const supabaseService = require('../engine/supabaseService');
 
-// Response helper
+// Response helpers
 function ok(res, data = {}, msg = 'success') {
   return res.json({
     code: 1000,
@@ -20,46 +21,209 @@ function fail(res, msg = 'Request failed', code = 500, data = null) {
   });
 }
 
-// -------------------------------------------------------------
-// 1. AUTH & USER
-// -------------------------------------------------------------
-router.post('/app/user/login/login', (req, res) => {
-  const { phone, password, verifyCode } = req.body || {};
-  const state = db.get();
-  // Find or create user
-  let user = Object.values(state.users).find(u => u.phone === phone);
-  if (!user) {
-    const newId = String(Math.floor(10000 + Math.random() * 90000));
-    user = {
-      id: newId,
-      userId: newId,
-      phone: phone || '+919876543210',
-      nickname: 'User_' + newId,
-      avatar: '/static/user/profile.png',
-      balance: 10000.00,
-      totalBalance: 10000.00,
-      rewardTotal: 0,
-      pending: 0,
-      points: 500,
-      vipLevel: 1,
-      inviteCode: 'LP' + newId.slice(-4),
-      pin: '123456',
-      isPinSet: true,
-      onSellStatus: 1,
-      createdAt: new Date().toISOString()
-    };
-    state.users[newId] = user;
+// Extract token from request
+function extractToken(req) {
+  const authHeader = req.headers.authorization || req.headers.token || req.query.token || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
   }
-  const token = 'token_' + user.id;
-  state.tokens[token] = user.id;
+  return authHeader.trim();
+}
+
+// Get authenticated user (Supabase or local fallback)
+async function getAuthUser(req) {
+  const token = extractToken(req);
+  const state = db.get();
+
+  if (token) {
+    // 1. Check local db tokens
+    if (state.tokens[token] && state.users[state.tokens[token]]) {
+      return state.users[state.tokens[token]];
+    }
+
+    // 2. Check Supabase token
+    const supUser = await supabaseService.verifyToken(token);
+    if (supUser) {
+      if (!state.users[supUser.id]) {
+        state.users[supUser.id] = {
+          id: supUser.id,
+          userId: supUser.id,
+          phone: supUser.phone || supUser.email || '+919876543210',
+          nickname: supUser.nickname || 'Trader',
+          avatar: '/static/user/profile.png',
+          balance: supUser.balance != null ? Number(supUser.balance) : 0.00,
+          totalBalance: supUser.totalBalance != null ? Number(supUser.totalBalance) : 0.00,
+          rewardTotal: supUser.rewardTotal != null ? Number(supUser.rewardTotal) : 0.00,
+          pending: 0.00,
+          points: supUser.points != null ? Number(supUser.points) : 0,
+          vipLevel: supUser.vipLevel || 1,
+          inviteCode: supUser.inviteCode || 'LP8899',
+          pin: supUser.pin || '123456',
+          isPinSet: true,
+          onSellStatus: 1,
+          wallets: supUser.wallets || [],
+          token
+        };
+      }
+      return state.users[supUser.id];
+    }
+  }
+
+  // Fallback demo user
+  return state.users['10086'] || Object.values(state.users)[0];
+}
+
+// -------------------------------------------------------------
+// OFFICIAL QR CODES & INSTANT DEPOSITS
+// -------------------------------------------------------------
+router.get('/app/payment/official-qrs', (req, res) => {
+  const state = db.get();
+  return ok(res, state.officialQRs || db.officialQRs);
+});
+
+router.post('/app/payment/deposit/submit', async (req, res) => {
+  const { amount, qrId, utr, remark } = req.body || {};
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
+
+  const numAmount = Number(amount);
+  if (!numAmount || numAmount <= 0) {
+    return fail(res, 'Please enter a valid deposit amount', 400);
+  }
+
+  if (!utr || String(utr).trim().length < 6) {
+    return fail(res, 'Please enter valid 12-digit bank UTR reference', 400);
+  }
+
+  const state = db.get();
+  const qrs = state.officialQRs || db.officialQRs;
+  const qr = qrs.find(q => q.id === Number(qrId)) || qrs[0];
+
+  const depositRecord = {
+    id: 'DEP' + Date.now(),
+    userId: user.id,
+    amount: numAmount,
+    qrId: qr.id,
+    payeeName: qr.name,
+    vpa: qr.vpa,
+    utr: String(utr).trim(),
+    status: 'completed',
+    createdAt: new Date().toISOString()
+  };
+
+  // Credit user balance
+  user.balance = Number((user.balance + numAmount).toFixed(2));
+  user.totalBalance = user.balance;
   db.save();
 
-  return ok(res, {
-    token,
-    userId: user.id,
-    phone: user.phone,
-    nickname: user.nickname
+  // Sync to Supabase
+  await supabaseService.updateUserRecord(token, {
+    balance: user.balance,
+    totalBalance: user.balance
   });
+
+  return ok(res, depositRecord, `Deposit of ₹${numAmount} credited successfully via ${qr.name}!`);
+});
+
+// -------------------------------------------------------------
+// 1. AUTH & USER (SUPABASE INTEGRATED)
+// -------------------------------------------------------------
+router.post('/app/user/login/login', async (req, res) => {
+  const { phone, identifier, email, password } = req.body || {};
+  const idToUse = identifier || phone || email || '+919876543210';
+  const state = db.get();
+
+  try {
+    let authRes;
+    try {
+      authRes = await supabaseService.signInUser({
+        identifier: idToUse,
+        password: password || 'Password123!'
+      });
+    } catch (loginErr) {
+      // If user not found, auto-register for seamless onboarding
+      if (loginErr.message.includes('Invalid login credentials') || loginErr.message.includes('not found')) {
+        authRes = await supabaseService.signUpUser({
+          identifier: idToUse,
+          phone: idToUse,
+          password: password || 'Password123!',
+          nickname: 'Trader_' + Math.floor(1000 + Math.random() * 9000)
+        });
+      } else {
+        throw loginErr;
+      }
+    }
+
+    // Save session in local cache for speed
+    const user = authRes.user;
+    state.users[user.id] = {
+      ...user,
+      token: authRes.token
+    };
+    state.tokens[authRes.token] = user.id;
+
+    // Attach user wallets to state if present
+    if (user.wallets && user.wallets.length) {
+      for (const w of user.wallets) {
+        if (!state.wallets.some(existing => existing.id === w.id)) {
+          state.wallets.push({ ...w, userId: user.id });
+        }
+      }
+    }
+    db.save();
+
+    return ok(res, {
+      token: authRes.token,
+      userId: user.id,
+      phone: user.phone,
+      nickname: user.nickname,
+      balance: user.balance,
+      inviteCode: user.inviteCode
+    });
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.post('/app/user/rs/submit', async (req, res) => {
+  const { phone, identifier, email, password, nickname } = req.body || {};
+  const idToUse = identifier || phone || email || '+919876543210';
+  const state = db.get();
+
+  try {
+    const authRes = await supabaseService.signUpUser({
+      identifier: idToUse,
+      phone: idToUse,
+      password: password || 'Password123!',
+      nickname: nickname || ('Trader_' + Math.floor(1000 + Math.random() * 9000))
+    });
+
+    const user = authRes.user;
+    state.users[user.id] = {
+      ...user,
+      token: authRes.token
+    };
+    state.tokens[authRes.token] = user.id;
+    if (user.wallets && user.wallets.length) {
+      for (const w of user.wallets) {
+        if (!state.wallets.some(existing => existing.id === w.id)) {
+          state.wallets.push({ ...w, userId: user.id });
+        }
+      }
+    }
+    db.save();
+
+    return ok(res, {
+      token: authRes.token,
+      userId: user.id,
+      phone: user.phone,
+      nickname: user.nickname,
+      balance: user.balance,
+      inviteCode: user.inviteCode
+    });
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
 });
 
 router.post('/app/user/login/start', (req, res) => {
@@ -71,52 +235,20 @@ router.post('/app/user/login/confirm', (req, res) => {
 });
 
 router.post('/app/user/login/sendOtp', (req, res) => {
-  return ok(res, { success: true, msg: 'OTP sent successfully (Use 123456)' });
-});
-
-router.post('/app/user/rs/submit', (req, res) => {
-  const { phone } = req.body || {};
-  const state = db.get();
-  const newId = String(Math.floor(10000 + Math.random() * 90000));
-  const user = {
-    id: newId,
-    userId: newId,
-    phone: phone || '+919876543210',
-    nickname: 'Trader_' + newId,
-    avatar: '/static/user/profile.png',
-    balance: 5000.00,
-    totalBalance: 5000.00,
-    rewardTotal: 0,
-    pending: 0,
-    points: 200,
-    vipLevel: 1,
-    inviteCode: 'LP' + newId.slice(-4),
-    pin: '123456',
-    isPinSet: true,
-    onSellStatus: 1,
-    createdAt: new Date().toISOString()
-  };
-  state.users[newId] = user;
-  const token = 'token_' + newId;
-  state.tokens[token] = newId;
-  db.save();
-
-  return ok(res, { token, userId: newId });
+  return ok(res, { success: true, msg: 'OTP sent (Use 123456)' });
 });
 
 router.get('/app/user/rs/invite/prefill', (req, res) => {
   return ok(res, { inviteCode: 'LP8899' });
 });
 
-router.get('/app/user/info', (req, res) => {
-  const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
+router.get('/app/user/info', async (req, res) => {
+  const user = await getAuthUser(req);
   return ok(res, user);
 });
 
-router.get('/app/user/info/person', (req, res) => {
-  const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
+router.get('/app/user/info/person', async (req, res) => {
+  const user = await getAuthUser(req);
   return ok(res, {
     id: user.id,
     phone: user.phone,
@@ -128,23 +260,25 @@ router.get('/app/user/info/person', (req, res) => {
   });
 });
 
-router.post('/app/user/info/verifyPin', (req, res) => {
+router.post('/app/user/info/verifyPin', async (req, res) => {
   const { pin } = req.body || {};
-  const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
+  const user = await getAuthUser(req);
   if (pin === user.pin || pin === '123456') {
     return ok(res, { verified: true });
   }
   return fail(res, 'Incorrect Security PIN', 400);
 });
 
-router.post('/app/user/info/updatePin', (req, res) => {
-  const { oldPin, newPin } = req.body || {};
-  const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
+router.post('/app/user/info/updatePin', async (req, res) => {
+  const { newPin } = req.body || {};
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
   user.pin = newPin || '123456';
   user.isPinSet = true;
   db.save();
+
+  // Sync with Supabase
+  await supabaseService.updateUserRecord(token, { pin: user.pin });
   return ok(res, { success: true });
 });
 
@@ -152,29 +286,26 @@ router.post('/app/user/info/updatePassword', (req, res) => {
   return ok(res, { success: true });
 });
 
-router.post('/app/user/info/onSell/:id', (req, res) => {
-  const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
+router.post('/app/user/info/onSell/:id', async (req, res) => {
+  const user = await getAuthUser(req);
   user.onSellStatus = 1;
   db.save();
   return ok(res, { status: 1 });
 });
 
-router.post('/app/user/info/offSell/:id', (req, res) => {
-  const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
+router.post('/app/user/info/offSell/:id', async (req, res) => {
+  const user = await getAuthUser(req);
   user.onSellStatus = 0;
   db.save();
   return ok(res, { status: 0 });
 });
 
-router.get('/app/user/info/getInviterUrl', (req, res) => {
-  const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
-  const url = `${req.protocol}://${req.get('host')}/#/register?inviteCode=${user.inviteCode}`;
+router.get('/app/user/info/getInviterUrl', async (req, res) => {
+  const user = await getAuthUser(req);
+  const url = `${req.protocol}://${req.get('host')}/#/register?inviteCode=${user.inviteCode || 'LP8899'}`;
   return ok(res, {
     url,
-    inviteCode: user.inviteCode,
+    inviteCode: user.inviteCode || 'LP8899',
     qrCode: url
   });
 });
@@ -188,7 +319,7 @@ router.post('/app/user/info/appLogout', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 2. ORDERS (COVER ORDER & HANG SALES)
+// 2. ORDERS (WITH SUPABASE REAL DATA SORTING & MANAGING)
 // -------------------------------------------------------------
 router.get('/app/payment/order', (req, res) => {
   const records = orderEngine.getHangSales(req.query);
@@ -200,14 +331,14 @@ router.get('/app/payment/order', (req, res) => {
   });
 });
 
-router.get('/app/payment/order/summary', (req, res) => {
+router.get('/app/payment/order/summary', async (req, res) => {
+  const user = await getAuthUser(req);
   const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
   return ok(res, {
     balance: user.balance,
-    totalBalance: user.totalBalance,
-    rewardTotal: user.rewardTotal,
-    pending: user.pending,
+    totalBalance: user.totalBalance || user.balance,
+    rewardTotal: user.rewardTotal || 0,
+    pending: user.pending || 0,
     usdtRechargeRate: state.settings.usdtRechargeRate,
     usdtCashbackRate: state.settings.usdtCashbackRate,
     wallet: user.balance
@@ -234,13 +365,14 @@ router.get('/app/payment/order/nightBonusStatus', (req, res) => {
   });
 });
 
-router.post('/app/payment/order/create', (req, res) => {
+router.post('/app/payment/order/create', async (req, res) => {
   const { payOrderId, payoutWalletId } = req.body || {};
+  const user = await getAuthUser(req);
   try {
     const claimed = orderEngine.claimOrder({
       payOrderId,
       payoutWalletId: Number(payoutWalletId),
-      userId: '10086'
+      userId: user.id
     });
     return ok(res, claimed);
   } catch (err) {
@@ -257,10 +389,20 @@ router.get('/app/payment/order/orderInfo', (req, res) => {
   return ok(res, order);
 });
 
-router.post('/app/payment/order/submit', (req, res) => {
+router.post('/app/payment/order/submit', async (req, res) => {
   const { buyId, utr, proofUrl } = req.body || {};
+  const token = extractToken(req);
   try {
     const updated = orderEngine.submitOrder({ buyId, utr, proofUrl });
+    const user = await getAuthUser(req);
+
+    // Sync updated user balance & rewardTotal to Supabase
+    await supabaseService.updateUserRecord(token, {
+      balance: user.balance,
+      totalBalance: user.balance,
+      rewardTotal: user.rewardTotal
+    });
+
     return ok(res, updated);
   } catch (err) {
     return fail(res, err.message, 500);
@@ -277,9 +419,10 @@ router.post('/app/payment/order/cancel', (req, res) => {
   }
 });
 
-router.get('/app/payment/order/history', (req, res) => {
+router.get('/app/payment/order/history', async (req, res) => {
+  const user = await getAuthUser(req);
   const state = db.get();
-  const orders = Object.values(state.claimedOrders);
+  const orders = Object.values(state.claimedOrders).filter(o => o.userId === user.id);
   return ok(res, {
     records: orders,
     total: orders.length
@@ -336,28 +479,41 @@ router.post('/app/payment/app/buy/order/usdt', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 3. WALLETS & KYC
+// 3. WALLETS & KYC (PER-USER SUPABASE MANAGEMENT)
 // -------------------------------------------------------------
-router.post('/app/ct/app/collection/getWalletList', (req, res) => {
+router.post('/app/ct/app/collection/getWalletList', async (req, res) => {
+  const user = await getAuthUser(req);
   const state = db.get();
-  return ok(res, state.wallets);
+  let userWallets = state.wallets.filter(w => w.userId === user.id);
+  if (!userWallets.length && user.id === '10086') {
+    userWallets = state.wallets;
+  }
+  return ok(res, userWallets);
 });
 
-router.post('/app/ct/app/collection/getPayoutWalletList', (req, res) => {
+router.post('/app/ct/app/collection/getPayoutWalletList', async (req, res) => {
+  const user = await getAuthUser(req);
   const state = db.get();
-  // Filter active wallets
-  const active = state.wallets.filter(w => w.status === 1);
-  return ok(res, active);
+  let userWallets = state.wallets.filter(w => w.userId === user.id && w.status === 1);
+  if (!userWallets.length && user.id === '10086') {
+    userWallets = state.wallets.filter(w => w.status === 1);
+  }
+  return ok(res, userWallets);
 });
 
-router.post('/app/ct/app/collection/memberPayoutWallets', (req, res) => {
+router.post('/app/ct/app/collection/memberPayoutWallets', async (req, res) => {
+  const user = await getAuthUser(req);
   const state = db.get();
-  return ok(res, state.wallets);
+  const userWallets = state.wallets.filter(w => w.userId === user.id);
+  return ok(res, userWallets);
 });
 
-router.post('/app/ct/app/collection/submit', (req, res) => {
-  const { ctType, account, name, phone, minAmount = 500, maxAmount = 20000, dailyLimit = 100000 } = req.body || {};
+router.post('/app/ct/app/collection/submit', async (req, res) => {
+  const { ctType, account, name, phone, minAmount = 500, maxAmount = 25000, dailyLimit = 100000 } = req.body || {};
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
   const state = db.get();
+
   const ctNames = {
     1: 'Airtel',
     2: 'Freecharge',
@@ -372,15 +528,16 @@ router.post('/app/ct/app/collection/submit', (req, res) => {
     11: 'Navi',
     16: 'Moneyview'
   };
+
   const newId = (state.wallets.length ? Math.max(...state.wallets.map(w => w.id)) : 100) + 1;
   const newWallet = {
     id: newId,
-    userId: '10086',
+    userId: user.id,
     ctType: Number(ctType) || 3,
     ctName: ctNames[ctType] || 'UPI',
     account: account || 'user@upi',
-    phone: phone || '9876543210',
-    name: name || 'Account Holder',
+    phone: phone || user.phone || '9876543210',
+    name: name || user.nickname || 'Account Holder',
     status: 1,
     minAmount: Number(minAmount),
     maxAmount: Number(maxAmount),
@@ -390,8 +547,13 @@ router.post('/app/ct/app/collection/submit', (req, res) => {
     successRate: 100.0,
     createdAt: new Date().toISOString()
   };
+
   state.wallets.push(newWallet);
   db.save();
+
+  // Persist updated user wallets to Supabase
+  const userWallets = state.wallets.filter(w => w.userId === user.id);
+  await supabaseService.updateUserRecord(token, { wallets: userWallets });
 
   return ok(res, newWallet);
 });
@@ -400,47 +562,68 @@ router.post('/app/ct/app/collection/v2/submit', (req, res) => {
   return router.handle({ ...req, url: '/app/ct/app/collection/submit' }, res);
 });
 
-router.post('/app/ct/app/collection/changeStatus/:id', (req, res) => {
+router.post('/app/ct/app/collection/changeStatus/:id', async (req, res) => {
   const id = Number(req.params.id);
   const { status } = req.body || {};
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
   const state = db.get();
+
   const wallet = state.wallets.find(w => w.id === id);
   if (!wallet) return fail(res, 'Wallet not found', 404);
   wallet.status = status != null ? Number(status) : (wallet.status === 1 ? 0 : 1);
   db.save();
+
+  const userWallets = state.wallets.filter(w => w.userId === user.id);
+  await supabaseService.updateUserRecord(token, { wallets: userWallets });
+
   return ok(res, wallet);
 });
 
-router.post('/app/ct/app/collection/onSell/:id', (req, res) => {
+router.post('/app/ct/app/collection/onSell/:id', async (req, res) => {
   const id = Number(req.params.id);
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
   const state = db.get();
   const wallet = state.wallets.find(w => w.id === id);
   if (wallet) {
     wallet.status = 1;
     db.save();
+    const userWallets = state.wallets.filter(w => w.userId === user.id);
+    await supabaseService.updateUserRecord(token, { wallets: userWallets });
   }
   return ok(res, { success: true });
 });
 
-router.post('/app/ct/app/collection/offSell/:id', (req, res) => {
+router.post('/app/ct/app/collection/offSell/:id', async (req, res) => {
   const id = Number(req.params.id);
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
   const state = db.get();
   const wallet = state.wallets.find(w => w.id === id);
   if (wallet) {
     wallet.status = 0;
     db.save();
+    const userWallets = state.wallets.filter(w => w.userId === user.id);
+    await supabaseService.updateUserRecord(token, { wallets: userWallets });
   }
   return ok(res, { success: true });
 });
 
-router.post('/app/ct/app/collection/updateLimitedRange', (req, res) => {
+router.post('/app/ct/app/collection/updateLimitedRange', async (req, res) => {
   const { id, minAmount, maxAmount } = req.body || {};
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
   const state = db.get();
   const wallet = state.wallets.find(w => w.id === Number(id));
   if (!wallet) return fail(res, 'Wallet not found', 404);
   if (minAmount != null) wallet.minAmount = Number(minAmount);
   if (maxAmount != null) wallet.maxAmount = Number(maxAmount);
   db.save();
+
+  const userWallets = state.wallets.filter(w => w.userId === user.id);
+  await supabaseService.updateUserRecord(token, { wallets: userWallets });
+
   return ok(res, wallet);
 });
 
@@ -475,14 +658,16 @@ router.get('/app/ct/type/configCheck', (req, res) => {
 // -------------------------------------------------------------
 // 4. TEAM & REFERRAL
 // -------------------------------------------------------------
-router.get('/app/user/team/details', (req, res) => {
+router.get('/app/user/team/details', async (req, res) => {
+  const user = await getAuthUser(req);
   const state = db.get();
   return ok(res, {
     commissionTotal: state.team.commissionTotal,
     yCommission: state.team.yCommission,
     teamTurnover: state.team.teamTurnover,
     memberTotal: state.team.members.length,
-    activeCount: state.team.members.length
+    activeCount: state.team.members.length,
+    inviteCode: user.inviteCode || 'LP8899'
   });
 });
 
@@ -502,11 +687,12 @@ router.get('/app/user/team/subMembers', (req, res) => {
   });
 });
 
-router.get('/app/user/team/invites', (req, res) => {
-  const state = db.get();
+router.get('/app/user/team/invites', async (req, res) => {
+  const user = await getAuthUser(req);
+  const code = user.inviteCode || 'LP8899';
   return ok(res, {
-    inviteCode: 'LP8899',
-    inviteUrl: `${req.protocol}://${req.get('host')}/#/register?inviteCode=LP8899`
+    inviteCode: code,
+    inviteUrl: `${req.protocol}://${req.get('host')}/#/register?inviteCode=${code}`
   });
 });
 
@@ -561,15 +747,17 @@ router.get('/app/mission/task', (req, res) => {
   return ok(res, state.missions);
 });
 
-router.post('/app/mission/task/receive/:id', (req, res) => {
+router.post('/app/mission/task/receive/:id', async (req, res) => {
   const id = Number(req.params.id);
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
   const state = db.get();
   const m = state.missions.find(t => t.id === id);
   if (m) {
     m.claimed = true;
-    const user = state.users['10086'] || Object.values(state.users)[0];
-    user.points += m.reward;
+    user.points = (user.points || 0) + m.reward;
     db.save();
+    await supabaseService.updateUserRecord(token, { points: user.points });
   }
   return ok(res, { success: true });
 });
@@ -582,12 +770,13 @@ router.get('/app/newcomer-rewards/detail', (req, res) => {
   return ok(res, { claimed: false, amount: 88 });
 });
 
-router.post('/app/newcomer-rewards/claim/:id', (req, res) => {
-  const state = db.get();
-  const user = state.users['10086'] || Object.values(state.users)[0];
+router.post('/app/newcomer-rewards/claim/:id', async (req, res) => {
+  const user = await getAuthUser(req);
+  const token = extractToken(req);
   user.balance += 88;
   user.totalBalance += 88;
   db.save();
+  await supabaseService.updateUserRecord(token, { balance: user.balance });
   return ok(res, { amount: 88 });
 });
 

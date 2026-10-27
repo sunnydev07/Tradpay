@@ -9,7 +9,33 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Default initial state
+// Official QR codes provided by user
+const officialQRs = [
+  {
+    id: 1,
+    name: "AKSHAT JAIN",
+    vpa: "6377276074-2@ybl",
+    channel: "PhonePe (Yes Bank)",
+    qrImage: "/static/qr/scr1.jpeg",
+    upiUri: "upi://pay?pa=6377276074-2@ybl&pn=AKSHAT%20%20JAIN&mc=0000&mode=02&purpose=00",
+    minAmount: 100,
+    maxAmount: 100000,
+    status: 1
+  },
+  {
+    id: 2,
+    name: "Vinod Kumar Yogi",
+    vpa: "9588856526@ybl",
+    channel: "PhonePe (Yes Bank)",
+    qrImage: "/static/qr/scr2.jpeg",
+    upiUri: "upi://pay?pa=9588856526@ybl&pn=Vinod%20Kumar%20Yogi&mc=0000&mode=02&purpose=00",
+    minAmount: 100,
+    maxAmount: 100000,
+    status: 1
+  }
+];
+
+// Default initial state with strictly ZERO balances
 const defaultState = {
   users: {
     "10086": {
@@ -18,12 +44,12 @@ const defaultState = {
       phone: "+919876543210",
       nickname: "Trader_Alex",
       avatar: "/static/user/profile.png",
-      balance: 15420.50,
-      totalBalance: 15420.50,
-      rewardTotal: 3480.00,
-      pending: 0,
-      points: 1250,
-      vipLevel: 2,
+      balance: 0.00,
+      totalBalance: 0.00,
+      rewardTotal: 0.00,
+      pending: 0.00,
+      points: 0,
+      vipLevel: 1,
       inviteCode: "LP8899",
       pin: "123456",
       isPinSet: true,
@@ -34,73 +60,63 @@ const defaultState = {
   tokens: {
     "token_10086": "10086"
   },
+  officialQRs,
   wallets: [
     {
-      id: 101,
-      userId: "10086",
-      ctType: 3, // PhonePe
-      ctName: "PhonePe",
-      account: "alex.trade@ybl",
-      phone: "9876543210",
-      name: "Alex Trader",
-      status: 1, // 1: active (onSell), 0: offSell
-      minAmount: 500,
-      maxAmount: 20000,
-      dailyLimit: 100000,
-      todayTurnover: 12500,
-      todayCount: 8,
-      successRate: 99.4,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 102,
-      userId: "10086",
-      ctType: 5, // Paytm
-      ctName: "Paytm",
-      account: "9876543210@paytm",
-      phone: "9876543210",
-      name: "Alex Trader",
+      id: 1,
+      userId: "system",
+      ctType: 3,
+      ctName: "PhonePe (AKSHAT JAIN)",
+      account: "6377276074-2@ybl",
+      phone: "6377276074",
+      name: "AKSHAT JAIN",
+      qrImage: "/static/qr/scr1.jpeg",
+      upiUri: "upi://pay?pa=6377276074-2@ybl&pn=AKSHAT%20%20JAIN&mc=0000&mode=02&purpose=00",
+      isOfficial: true,
       status: 1,
-      minAmount: 500,
-      maxAmount: 30000,
-      dailyLimit: 150000,
-      todayTurnover: 28400,
-      todayCount: 14,
-      successRate: 98.9,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 103,
-      userId: "10086",
-      ctType: 2, // Freecharge
-      ctName: "Freecharge",
-      account: "alex9876@freecharge",
-      phone: "9876543210",
-      name: "Alex Trader",
-      status: 1,
-      minAmount: 500,
-      maxAmount: 15000,
-      dailyLimit: 50000,
-      todayTurnover: 5000,
-      todayCount: 3,
+      minAmount: 100,
+      maxAmount: 100000,
+      dailyLimit: 500000,
+      todayTurnover: 0.00,
+      todayCount: 0,
       successRate: 100.0,
       createdAt: new Date().toISOString()
     },
     {
-      id: 104,
+      id: 2,
+      userId: "system",
+      ctType: 3,
+      ctName: "PhonePe (Vinod Kumar Yogi)",
+      account: "9588856526@ybl",
+      phone: "9588856526",
+      name: "Vinod Kumar Yogi",
+      qrImage: "/static/qr/scr2.jpeg",
+      upiUri: "upi://pay?pa=9588856526@ybl&pn=Vinod%20Kumar%20Yogi&mc=0000&mode=02&purpose=00",
+      isOfficial: true,
+      status: 1,
+      minAmount: 100,
+      maxAmount: 100000,
+      dailyLimit: 500000,
+      todayTurnover: 0.00,
+      todayCount: 0,
+      successRate: 100.0,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 101,
       userId: "10086",
-      ctType: 4, // Mobikwik
-      ctName: "Mobikwik",
-      account: "alex.mobi@ikwik",
+      ctType: 3,
+      ctName: "PhonePe",
+      account: "alex.trade@ybl",
       phone: "9876543210",
       name: "Alex Trader",
-      status: 0,
+      status: 1,
       minAmount: 500,
-      maxAmount: 10000,
-      dailyLimit: 30000,
-      todayTurnover: 0,
+      maxAmount: 20000,
+      dailyLimit: 100000,
+      todayTurnover: 0.00,
       todayCount: 0,
-      successRate: 97.5,
+      successRate: 100.0,
       createdAt: new Date().toISOString()
     }
   ],
@@ -112,7 +128,7 @@ const defaultState = {
       reward: 18.00,
       rewardRate: 1.2,
       currency: "INR",
-      status: "pending", // pending, processing, completed, cancelled
+      status: "pending",
       allowedTypes: [2, 3, 4, 5],
       createdAt: new Date(Date.now() - 30000).toISOString()
     },
@@ -137,28 +153,6 @@ const defaultState = {
       status: "pending",
       allowedTypes: [2, 3, 5],
       createdAt: new Date(Date.now() - 60000).toISOString()
-    },
-    {
-      payOrderId: "PO20261028004",
-      orderNo: "PO20261028004",
-      amount: 8500.00,
-      reward: 127.50,
-      rewardRate: 1.5,
-      currency: "INR",
-      status: "pending",
-      allowedTypes: [3, 5],
-      createdAt: new Date(Date.now() - 90000).toISOString()
-    },
-    {
-      payOrderId: "PO20261028005",
-      orderNo: "PO20261028005",
-      amount: 12000.00,
-      reward: 192.00,
-      rewardRate: 1.6,
-      currency: "INR",
-      status: "pending",
-      allowedTypes: [5],
-      createdAt: new Date(Date.now() - 120000).toISOString()
     }
   ],
   claimedOrders: {},
@@ -180,57 +174,46 @@ const defaultState = {
     ]
   },
   team: {
-    commissionTotal: 4850.50,
-    yCommission: 420.00,
-    teamTurnover: 358900.00,
+    commissionTotal: 0.00,
+    yCommission: 0.00,
+    teamTurnover: 0.00,
     ratios: {
       tier1: 0.6,
       tier2: 0.3,
       tier3: 0.1
     },
-    members: [
-      { id: 201, phone: "+919811122334", level: 1, turnover: 120000, commission: 720, joinDate: "2026-10-20" },
-      { id: 202, phone: "+919822233445", level: 1, turnover: 85000, commission: 510, joinDate: "2026-10-21" },
-      { id: 203, phone: "+919833344556", level: 2, turnover: 64000, commission: 192, joinDate: "2026-10-23" },
-      { id: 204, phone: "+919844455667", level: 3, turnover: 45000, commission: 45, joinDate: "2026-10-25" }
-    ]
+    members: []
   },
   missions: [
     { id: 1, title: "Daily Sign-in", reward: 20, completed: true, claimed: false },
-    { id: 2, title: "Complete 3 Collection Orders", reward: 50, completed: true, claimed: true },
+    { id: 2, title: "Complete 1 Collection Order", reward: 50, completed: false, claimed: false },
     { id: 3, title: "Join Official Telegram Channel", reward: 100, completed: false, claimed: false, link: "https://t.me/tradepay_official" },
-    { id: 4, title: "Invite 1 Active Team Member", reward: 200, completed: true, claimed: false }
+    { id: 4, title: "Pay using Official QR Code", reward: 100, completed: false, claimed: false }
   ],
   notices: [
     {
       id: 1,
-      title: "Welcome to TradePay High-Speed Liquidity Engine",
-      content: "Ensure your UPI accounts are in onSell status during peak hours for maximum bonus rewards.",
-      createdAt: "2026-10-27"
+      title: "Official UPI QR Payments Online",
+      content: "Users can now scan and pay permanently using Akshat Jain or Vinod Kumar Yogi official PhonePe QRs for instant automated balance top-up.",
+      createdAt: "2026-10-28"
     },
     {
       id: 2,
       title: "Night Bonus Event Active (22:00 - 06:00)",
       content: "All matched orders receive an extra 25% reward bonus automatically during night hours.",
-      createdAt: "2026-10-27"
+      createdAt: "2026-10-28"
     }
   ]
 };
 
-// In-memory store
-let state = { ...defaultState };
+// Always start with zero balance clean state
+let state = JSON.parse(JSON.stringify(defaultState));
 
-// Load from disk if exists
+// Write clean zero-balance state to disk
 try {
-  if (fs.existsSync(DB_FILE)) {
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    state = Object.assign({}, defaultState, parsed);
-  } else {
-    fs.writeFileSync(DB_FILE, JSON.stringify(defaultState, null, 2), 'utf-8');
-  }
+  fs.writeFileSync(DB_FILE, JSON.stringify(defaultState, null, 2), 'utf-8');
 } catch (err) {
-  console.error('[DB] Failed to read db.json, using defaults:', err.message);
+  console.error('[DB] Write error:', err.message);
 }
 
 // Debounced persistent write
@@ -248,6 +231,7 @@ function save() {
 
 module.exports = {
   get: () => state,
+  officialQRs,
   save,
   reset: () => {
     state = JSON.parse(JSON.stringify(defaultState));
