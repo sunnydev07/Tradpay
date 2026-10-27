@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TradePay - P2P Order Matching & Liquidity Engine</title>
+  <link rel="icon" type="image/png" href="/static/logo/logo.png">
+  <link rel="stylesheet" href="/css/view.css">
+  <!-- Tailwind for utility styles -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bgDark: '#141414',
+            surface: '#1B1B1B',
+            card: '#242424',
+            cardElevated: '#2A2A2A',
+            gold: '#F2D7A5',
+            goldLight: '#FBE8C8',
+            goldDark: '#C9A96E',
+            greenAccent: '#10B981',
+            redAccent: '#EF4444'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar & Mobile Shell */
+    body {
+      background-color: #0E0E0E;
+      color: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app-container {
+      max-width: 480px;
+      min-height: 100vh;
+      margin: 0 auto;
+      background: #1B1B1B;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+      position: relative;
+      padding-bottom: 78px;
+    }
+
+    /* Glass effect */
+    .glass {
+      background: rgba(36, 36, 36, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .gold-gradient {
+      background: linear-gradient(135deg, #F2D7A5 0%, #D8B26E 100%);
+    }
+
+    .gold-text {
+      background: linear-gradient(135deg, #FBE8C8 0%, #F2D7A5 50%, #C9A96E 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Hide scrollbar */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    * {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Pulsing animations */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(242, 215, 165, 0.25); }
+      50% { box-shadow: 0 0 25px rgba(242, 215, 165, 0.55); }
+    }
+    .pulse-gold {
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+
+    /* Switch toggle */
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #F2D7A5;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #F2D7A5;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Top Header Bar -->
+    <header class="sticky top-0 z-40 bg-[#1B1B1B]/95 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <img src="/static/logo/logo.png" alt="Logo" class="w-8 h-8 rounded-lg shadow-md border border-white/10" @error="handleLogoError">
+        <div>
+          <h1 class="text-base font-bold tracking-wide gold-text flex items-center gap-1.5">
+            TradePay
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-normal border border-amber-500/30">PRO</span>
+          </h1>
+          <p class="text-[10px] text-gray-400">High-Speed Liquidity Engine</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Audio status toggle -->
+        <button @click="toggleAudio" class="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition flex items-center gap-1 text-gray-300">
+          <span v-if="audioEnabled">🔊</span>
+          <span v-else>🔇</span>
+        </button>
+
+        <!-- WebSocket status pill -->
+        <div class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Online</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Global Toast Alert -->
+    <transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
+      <div v-if="toast.show" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-medium shadow-2xl flex items-center gap-2 border" :class="toast.type === 'success' ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/30' : 'bg-[#2A2A2A] text-white border-white/10'">
+        <span>{{ toast.message }}</span>
+      </div>
+    </transition>
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: HOME -->
+    <!-- ======================================================== -->
+    <main v-if="activeTab === 'home'" class="p-4 space-y-4">
+      <!-- Balance Card -->
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#262626] to-[#1C1C1C] border border-[#F2D7A5]/25 p-5 shadow-xl">
+        <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-[#F2D7A5]/5 rounded-full blur-2xl"></div>
+        <div class="flex items-center justify-between text-xs text-gray-400">
+          <div class="flex items-center gap-1.5">
+            <span>Available Assets (INR)</span>
+            <button @click="hideBalance = !hideBalance" class="text-gray-400 hover:text-white">
+              <span v-if="hideBalance">👁️‍🗨️</span>
+              <span v-else>👁️</span>
+            </button>
+          </div>
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-400/10 text-[#F2D7A5] border border-[#F2D7A5]/20 font-medium">VIP {{ user.vipLevel || 2 }}</span>
+        </div>
+
+        <div class="mt-2 flex items-baseline justify-between">
+          <h2 class="text-3xl font-extrabold tracking-tight text-white">
+            <span class="text-lg font-bold text-[#F2D7A5] mr-1">₹</span>
+            <span v-if="!hideBalance">{{ formatMoney(summary.balance) }}</span>
+            <span v-else>••••••</span>
+          </h2>
+          <button @click="openUsdtModal" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition">
+            + Recharge
+          </button>
+        </div>
+
+        <!-- Quick Stats Grid in Card -->
+        <div class="mt-5 grid grid-cols-3 gap-2 pt-4 border-t border-white/5 text-center">
+          <div>
+            <p class="text-[10px] text-gray-400">Total Reward</p>
+            <p class="text-xs font-semibold text-emerald-400 mt-0.5">+₹{{ formatMoney(summary.rewardTotal) }}</p>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400">USDT Rate</p>
+            <p class="text-xs font-semibold text-[#F2D7A5] mt-0.5">₹{{ summary.usdtRechargeRate || 91.50 }}</p>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400">Cashback</p>
+            <p class="text-xs font-semibold text-emerald-400 mt-0.5">+{{ summary.usdtCashbackRate || 2.0 }}%</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Broadcast / Marquee Notice -->
+      <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#222222] border border-white/5 text-xs text-gray-300">
+        <span class="text-amber-400 animate-bounce">📢</span>
+        <div class="overflow-hidden whitespace-nowrap flex-1">
+          <div class="inline-block animate-marquee">
+            {{ activeNotice }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Banner Carousel -->
+      <div class="relative overflow-hidden rounded-2xl border border-white/5 aspect-[2.4/1] bg-[#222]">
+        <img :src="banners[bannerIndex]" class="w-full h-full object-cover transition-all duration-700" alt="Banner">
+        <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <span v-for="(b, idx) in banners" :key="idx" class="w-2 h-1 rounded-full transition-all" :class="idx === bannerIndex ? 'w-5 bg-[#F2D7A5]' : 'bg-white/30'"></span>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="grid grid-cols-4 gap-2.5">
+        <button @click="switchTab('payment')" class="flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-lg mb-1.5 text-[#F2D7A5]">
+            <img src="/static/icons/icon-order.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
+            <span class="hidden">⚡</span>
+          </div>
+          <span class="text-[11px] font-medium text-gray-200">Take Order</span>
+        </button>
+
+        <button @click="openUsdtModal" class="flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-lg mb-1.5 text-emerald-400">
+            <img src="/static/icons/icon-deposit.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
+            <span class="hidden">💰</span>
+          </div>
+          <span class="text-[11px] font-medium text-gray-200">USDT In</span>
+        </button>
+
+        <button @click="switchTab('team')" class="flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-lg mb-1.5 text-blue-400">
+            <img src="/static/icons/icon-activity.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
+            <span class="hidden">👥</span>
+          </div>
+          <span class="text-[11px] font-medium text-gray-200">Rebate</span>
+        </button>
+
+        <button @click="openMissionsModal" class="flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-lg mb-1.5 text-purple-400">
+            <img src="/static/icons/icon-task.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
+            <span class="hidden">🎁</span>
+          </div>
+          <span class="text-[11px] font-medium text-gray-200">Missions</span>
+        </button>
+      </div>
+
+      <!-- Realtime Engine Test / Simulator Card -->
+      <div class="rounded-2xl bg-gradient-to-r from-amber-950/30 via-[#242424] to-[#242424] border border-amber-500/30 p-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">⚡</span>
+            <div>
+              <h3 class="text-xs font-bold text-white">Live Engine Simulator</h3>
+              <p class="text-[10px] text-gray-400">Trigger test match orders with authentic audio</p>
+            </div>
+          </div>
+          <button @click="simulateIncomingOrder" class="px-3 py-1.5 rounded-xl bg-[#F2D7A5]/20 hover:bg-[#F2D7A5]/30 border border-[#F2D7A5]/40 text-[#F2D7A5] text-xs font-semibold active:scale-95 transition flex items-center gap-1">
+            <span>+ Spawn Order</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: PAYMENT (LIVE DISPATCH ENGINE) -->
+    <!-- ======================================================== -->
+    <main v-if="activeTab === 'payment'" class="p-4 space-y-4">
+      <!-- Night Bonus Alert Banner -->
+      <div v-if="nightBonus.inRangeNow" class="rounded-2xl bg-gradient-to-r from-amber-500/15 via-[#242424] to-amber-500/10 border border-amber-500/30 p-3.5 flex items-center justify-between shadow-lg">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 text-sm">
+            ✨
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h3 class="text-xs font-bold text-[#F2D7A5]">Special Reward Active</h3>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-[#F2D7A5] font-semibold">+25% BONUS</span>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-0.5">Time: {{ nightBonus.startTime }} - {{ nightBonus.endTime }} (All payouts boosted)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Amount Filter Chips -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+        <button v-for="chip in filterRanges" :key="chip.key" @click="selectFilter(chip)" class="px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition border" :class="activeFilterKey === chip.key ? 'bg-[#F2D7A5] text-[#1B1B1B] font-bold border-[#F2D7A5] shadow-md' : 'bg-[#242424] text-gray-300 border-white/5 hover:border-white/10'">
+          {{ chip.text }}
+        </button>
+      </div>
+
+      <!-- Order List Controls: Count & Sort -->
+      <div class="flex items-center justify-between text-xs text-gray-400 px-1">
+        <span>Available Orders ({{ hangSalesList.length }})</span>
+        <button @click="toggleSort" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#242424] border border-white/5 text-gray-300 hover:text-white">
+          <span>Sort: {{ sortLabel }}</span>
+          <span>⇅</span>
+        </button>
+      </div>
+
+      <!-- Hang Sales Order Cards -->
+      <div class="space-y-3">
+        <div v-for="order in hangSalesList" :key="order.payOrderId" class="rounded-2xl bg-[#242424] border border-white/5 p-4 hover:border-amber-500/30 transition shadow-md">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xl font-extrabold text-white">₹{{ formatMoney(order.amount) }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                  +{{ order.rewardRate }}%
+                </span>
+                <span v-if="nightBonus.inRangeNow" class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-[#F2D7A5] font-semibold">
+                  +Night Bonus
+                </span>
+              </div>
+              <p class="text-[11px] text-gray-400 mt-1">Est. Reward: <span class="text-emerald-400 font-medium">+₹{{ formatMoney(order.reward) }}</span></p>
+            </div>
+
+            <!-- Claim Button -->
+            <button @click="openClaimModal(order)" class="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition">
+              Claim Order
+            </button>
+          </div>
+
+          <!-- Supported Payout Methods icons -->
+          <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
+            <span class="text-[10px] text-gray-500">Supported:</span>
+            <div class="flex items-center gap-1.5">
+              <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">PhonePe</span>
+              <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">Paytm</span>
+              <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">Freecharge</span>
+              <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">Mobikwik</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-if="hangSalesList.length === 0" class="py-12 text-center text-gray-500 text-xs space-y-3">
+          <p class="text-3xl">📭</p>
+          <p>No orders in this range right now.</p>
+          <button @click="simulateIncomingOrder" class="px-3 py-1.5 rounded-xl bg-[#242424] text-[#F2D7A5] border border-white/10 text-xs">
+            Generate Matching Order
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: WALLET -->
+    <!-- ======================================================== -->
+    <main v-if="activeTab === 'wallet'" class="p-4 space-y-4">
+      <!-- Wallet Header & Add button -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white">Receiving Wallets</h2>
+          <p class="text-xs text-gray-400">Manage bound UPI & Collection accounts</p>
+        </div>
+        <button @click="openAddWalletModal" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition flex items-center gap-1">
+          <span>+ Add Wallet</span>
+        </button>
+      </div>
+
+      <!-- Wallet Cards List -->
+      <div class="space-y-3">
+        <div v-for="w in wallets" :key="w.id" class="rounded-2xl bg-[#242424] border border-white/5 p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <img :src="getWalletIcon(w.ctType)" class="w-10 h-10 rounded-xl object-contain bg-white/5 p-1 border border-white/5" @error="handleImgFallback">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm font-bold text-white">{{ w.ctName }}</h3>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" :class="w.status === 1 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'">
+                    {{ w.status === 1 ? 'Active (onSell)' : 'Paused (offSell)' }}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5 font-mono">{{ w.account }}</p>
+              </div>
+            </div>
+
+            <!-- Toggle Switch -->
+            <button @click="toggleWalletStatus(w)" class="w-12 h-6 rounded-full transition-colors relative p-1" :class="w.status === 1 ? 'bg-[#F2D7A5]' : 'bg-gray-700'">
+              <div class="w-4 h-4 rounded-full bg-[#1B1B1B] transition-transform" :class="w.status === 1 ? 'translate-x-6' : 'translate-x-0'"></div>
+            </button>
+          </div>
+
+          <!-- Limit range & turnover -->
+          <div class="grid grid-cols-2 gap-2 pt-3 border-t border-white/5 text-xs text-gray-400">
+            <div>
+              <p class="text-[10px] text-gray-500">Receive Limit Range</p>
+              <p class="text-xs font-semibold text-white mt-0.5">₹{{ w.minAmount }} - ₹{{ w.maxAmount }}</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-500">Today Turnover</p>
+              <p class="text-xs font-semibold text-emerald-400 mt-0.5">₹{{ formatMoney(w.todayTurnover) }} ({{ w.todayCount }} orders)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: TEAM -->
+    <!-- ======================================================== -->
+    <main v-if="activeTab === 'team'" class="p-4 space-y-4">
+      <!-- Commission Overview Card -->
+      <div class="rounded-2xl bg-gradient-to-br from-[#262626] to-[#1C1C1C] border border-[#F2D7A5]/25 p-5 shadow-xl">
+        <p class="text-xs text-gray-400">Total Team Commission</p>
+        <h2 class="text-3xl font-extrabold text-white mt-1">
+          <span class="text-lg font-bold text-[#F2D7A5] mr-1">₹</span>{{ formatMoney(teamData.commissionTotal) }}
+        </h2>
+
+        <div class="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/5">
+          <div>
+            <p class="text-[10px] text-gray-400">Yesterday's Rebate</p>
+            <p class="text-sm font-bold text-emerald-400 mt-0.5">+₹{{ formatMoney(teamData.yCommission) }}</p>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400">Team Turnover</p>
+            <p class="text-sm font-bold text-white mt-0.5">₹{{ formatMoney(teamData.teamTurnover) }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invite Code & Link Box -->
+      <div class="rounded-2xl bg-[#242424] border border-white/5 p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-[10px] text-gray-400">Your Invitation Code</p>
+            <p class="text-base font-bold text-[#F2D7A5] font-mono mt-0.5">{{ user.inviteCode || 'LP8899' }}</p>
+          </div>
+          <button @click="copyText(user.inviteCode || 'LP8899')" class="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold hover:bg-white/10 active:scale-95 transition">
+            Copy Code
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between pt-3 border-t border-white/5">
+          <div class="overflow-hidden">
+            <p class="text-[10px] text-gray-400">Invite URL</p>
+            <p class="text-xs text-gray-300 truncate mt-0.5 font-mono">https://tradepay.live/#/r?code={{ user.inviteCode }}</p>
+          </div>
+          <button @click="copyText('https://tradepay.live/#/r?code=' + (user.inviteCode || 'LP8899'))" class="px-3 py-1.5 rounded-xl bg-[#F2D7A5] text-[#1B1B1B] text-xs font-bold hover:brightness-110 active:scale-95 transition">
+            Copy Link
+          </button>
+        </div>
+      </div>
+
+      <!-- 3-Tier Commission Ratios -->
+      <div class="rounded-2xl bg-[#242424] border border-white/5 p-4">
+        <h3 class="text-xs font-bold text-white mb-3">3-Tier Multi-Level Rebate Structure</h3>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+            <p class="text-[10px] text-gray-400">Level 1 (Direct)</p>
+            <p class="text-sm font-bold text-[#F2D7A5] mt-1">0.60%</p>
+          </div>
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+            <p class="text-[10px] text-gray-400">Level 2</p>
+            <p class="text-sm font-bold text-[#F2D7A5] mt-1">0.30%</p>
+          </div>
+          <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+            <p class="text-[10px] text-gray-400">Level 3</p>
+            <p class="text-sm font-bold text-[#F2D7A5] mt-1">0.10%</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: MY (PROFILE & SETTINGS) -->
+    <!-- ======================================================== -->
+    <main v-if="activeTab === 'my'" class="p-4 space-y-4">
+      <!-- Profile Header -->
+      <div class="rounded-2xl bg-[#242424] border border-white/5 p-4 flex items-center gap-3">
+        <img src="/static/user/profile.png" class="w-14 h-14 rounded-full border-2 border-[#F2D7A5]/40 object-cover" @error="handleImgFallback">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-bold text-white">{{ user.nickname || 'Trader_Alex' }}</h2>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-[#F2D7A5] border border-amber-500/30 font-semibold">VIP {{ user.vipLevel || 2 }}</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-1 font-mono">UID: {{ user.id || '10086' }} | Phone: {{ user.phone || '+919876543210' }}</p>
+        </div>
+      </div>
+
+      <!-- Security PIN & Settings Group -->
+      <div class="rounded-2xl bg-[#242424] border border-white/5 divide-y divide-white/5">
+        <button @click="openPinModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🔐</span>
+            <div>
+              <p class="text-xs font-bold text-white">Payment Security PIN</p>
+              <p class="text-[10px] text-gray-400">Protect order claims and withdrawals</p>
+            </div>
+          </div>
+          <span class="text-xs text-emerald-400">Configured (123456) ›</span>
+        </button>
+
+        <button @click="openUsdtModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🪙</span>
+            <div>
+              <p class="text-xs font-bold text-white">USDT Deposit & Exchange</p>
+              <p class="text-[10px] text-gray-400">TRC20, BSC, Polygon deposit gateways</p>
+            </div>
+          </div>
+          <span class="text-xs text-gray-400">91.50 INR ›</span>
+        </button>
+
+        <button @click="openMissionsModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🎯</span>
+            <div>
+              <p class="text-xs font-bold text-white">Tasks & Reward Points</p>
+              <p class="text-[10px] text-gray-400">Daily sign-in and referral missions</p>
+            </div>
+          </div>
+          <span class="text-xs text-[#F2D7A5] font-semibold">{{ user.points || 1250 }} pts ›</span>
+        </button>
+
+        <a href="https://t.me/tradepay_support" target="_blank" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🎧</span>
+            <div>
+              <p class="text-xs font-bold text-white">Official 24/7 Support</p>
+              <p class="text-[10px] text-gray-400">Connect with customer service</p>
+            </div>
+          </div>
+          <span class="text-xs text-gray-400">Telegram ›</span>
+        </a>
+      </div>
+
+      <!-- App Info -->
+      <div class="text-center text-[10px] text-gray-500 pt-4">
+        <p>TradePay Single-Instance Web Edition v1.2.9</p>
+        <p class="mt-0.5">Render Engine Online • Sub-millisecond Order Matching</p>
+      </div>
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- BOTTOM TAB BAR (MATCHING UNI-APP ASSETS) -->
+    <!-- ======================================================== -->
+    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-[#1B1B1B]/95 backdrop-blur-md border-t border-white/10 max-w-[480px] mx-auto">
+      <div class="grid grid-cols-5 py-2">
+        <button @click="switchTab('home')" class="flex flex-col items-center justify-center gap-1 transition">
+          <img :src="activeTab === 'home' ? '/static/tab/home_active.png' : '/static/tab/home.png'" class="w-6 h-6 object-contain" @error="handleImgFallback">
+          <span class="text-[10px] font-semibold" :class="activeTab === 'home' ? 'text-[#F2D7A5]' : 'text-gray-400'">HOME</span>
+        </button>
+
+        <button @click="switchTab('payment')" class="flex flex-col items-center justify-center gap-1 transition">
+          <img :src="activeTab === 'payment' ? '/static/tab/pay_active.png' : '/static/tab/pay.png'" class="w-6 h-6 object-contain" @error="handleImgFallback">
+          <span class="text-[10px] font-semibold" :class="activeTab === 'payment' ? 'text-[#F2D7A5]' : 'text-gray-400'">PAYMENT</span>
+        </button>
+
+        <button @click="switchTab('wallet')" class="flex flex-col items-center justify-center gap-1 transition">
+          <img :src="activeTab === 'wallet' ? '/static/tab/wallet_active.png' : '/static/tab/wallet.png'" class="w-6 h-6 object-contain" @error="handleImgFallback">
+          <span class="text-[10px] font-semibold" :class="activeTab === 'wallet' ? 'text-[#F2D7A5]' : 'text-gray-400'">WALLET</span>
+        </button>
+
+        <button @click="switchTab('team')" class="flex flex-col items-center justify-center gap-1 transition">
+          <img :src="activeTab === 'team' ? '/static/tab/team_active.png' : '/static/tab/team.png'" class="w-6 h-6 object-contain" @error="handleImgFallback">
+          <span class="text-[10px] font-semibold" :class="activeTab === 'team' ? 'text-[#F2D7A5]' : 'text-gray-400'">TEAM</span>
+        </button>
+
+        <button @click="switchTab('my')" class="flex flex-col items-center justify-center gap-1 transition">
+          <img :src="activeTab === 'my' ? '/static/tab/my_active.png' : '/static/tab/my.png'" class="w-6 h-6 object-contain" @error="handleImgFallback">
+          <span class="text-[10px] font-semibold" :class="activeTab === 'my' ? 'text-[#F2D7A5]' : 'text-gray-400'">MY</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 1: CLAIM ORDER & WALLET PICKER -->
+    <!-- ======================================================== -->
+    <div v-if="modals.claim.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div class="w-full max-w-[480px] bg-[#242424] rounded-t-3xl sm:rounded-3xl p-5 border border-white/10 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+          <div>
+            <h3 class="text-sm font-bold text-white">Select Payout Receiving Wallet</h3>
+            <p class="text-[11px] text-gray-400">Order Amount: <span class="text-white font-bold">₹{{ formatMoney(selectedOrder.amount) }}</span></p>
+          </div>
+          <button @click="modals.claim.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <div class="space-y-2 max-h-60 overflow-y-auto">
+          <div v-for="w in activeWallets" :key="w.id" @click="selectedWalletId = w.id" class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition" :class="selectedWalletId === w.id ? 'bg-[#F2D7A5]/10 border-[#F2D7A5]' : 'bg-white/5 border-white/5 hover:border-white/15'">
+            <div class="flex items-center gap-2.5">
+              <img :src="getWalletIcon(w.ctType)" class="w-8 h-8 rounded-lg object-contain bg-white/5 p-1" @error="handleImgFallback">
+              <div>
+                <p class="text-xs font-bold text-white">{{ w.ctName }}</p>
+                <p class="text-[10px] text-gray-400 font-mono">{{ w.account }}</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span v-if="selectedOrder.amount >= w.minAmount && selectedOrder.amount <= w.maxAmount" class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">Eligible</span>
+              <span v-else class="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-300 font-semibold">Limit Exceeded</span>
+            </div>
+          </div>
+        </div>
+
+        <button @click="confirmClaimOrder" class="w-full py-3 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition">
+          Match & Start Order
+        </button>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 2: INR ORDER DETAILS (ACTIVE CLAIMED ORDER) -->
+    <!-- ======================================================== -->
+    <div v-if="modals.inrOrder.show" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="w-full max-w-[440px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/30 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+          <div>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-semibold">PROCESSING</span>
+            <h3 class="text-sm font-bold text-white mt-1">Pending Payment Receipt</h3>
+          </div>
+          <button @click="modals.inrOrder.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <!-- Amount Box & Countdown -->
+        <div class="p-4 rounded-2xl bg-gradient-to-br from-[#1C1C1C] to-[#242424] border border-white/5 text-center">
+          <p class="text-xs text-gray-400">Order Amount</p>
+          <h2 class="text-3xl font-extrabold text-white mt-1">₹{{ formatMoney(activeClaimedOrder.amount) }}</h2>
+          <div class="mt-2 flex items-center justify-center gap-1.5 text-xs text-amber-400 font-medium">
+            <span>⏱️ Remaining:</span>
+            <span class="font-mono font-bold">{{ formatTime(orderCountdown) }}</span>
+          </div>
+        </div>
+
+        <!-- Buyer UPI details -->
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
+            <span class="text-gray-400">Buyer UPI</span>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-white">{{ activeClaimedOrder.buyerUpi }}</span>
+              <button @click="copyText(activeClaimedOrder.buyerUpi)" class="text-[#F2D7A5] text-[10px] font-semibold">Copy</button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
+            <span class="text-gray-400">Order No</span>
+            <span class="font-mono text-gray-300">{{ activeClaimedOrder.orderNo }}</span>
+          </div>
+
+          <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
+            <span class="text-gray-400">Est. Bonus Reward</span>
+            <span class="font-bold text-emerald-400">+₹{{ formatMoney(activeClaimedOrder.totalReward) }}</span>
+          </div>
+        </div>
+
+        <!-- UTR input -->
+        <div>
+          <label class="block text-[11px] text-gray-400 mb-1">Enter Bank 12-Digit UTR / Ref No.</label>
+          <input v-model="utrInput" placeholder="e.g. 429810982312" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#F2D7A5] font-mono">
+        </div>
+
+        <div class="flex gap-2">
+          <button @click="cancelActiveOrder" class="w-1/3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-xs font-semibold hover:bg-white/10 transition">
+            Cancel
+          </button>
+          <button @click="submitActiveOrder" class="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition">
+            Confirm Receipt & Credit
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 3: ADD WALLET -->
+    <!-- ======================================================== -->
+    <div v-if="modals.addWallet.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+          <h3 class="text-sm font-bold text-white">Add Receiving Wallet / UPI</h3>
+          <button @click="modals.addWallet.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block text-gray-400 mb-1">Select Wallet Type</label>
+            <select v-model="newWallet.ctType" class="w-full px-3 py-2 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5]">
+              <option value="3">PhonePe</option>
+              <option value="5">Paytm</option>
+              <option value="2">Freecharge</option>
+              <option value="4">Mobikwik</option>
+              <option value="1">Airtel Money</option>
+              <option value="6">Amazon Pay</option>
+              <option value="10">BharatpeBiz</option>
+              <option value="11">Navi</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-gray-400 mb-1">UPI ID / VPA</label>
+            <input v-model="newWallet.account" placeholder="e.g. yourname@ybl" class="w-full px-3 py-2 rounded-xl bg-[#1B1B1B] border border-white/10 text-white font-mono focus:outline-none focus:border-[#F2D7A5]">
+          </div>
+
+          <div>
+            <label class="block text-gray-400 mb-1">Account Holder Name</label>
+            <input v-model="newWallet.name" placeholder="Full name registered on bank" class="w-full px-3 py-2 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5]">
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-400 mb-1">Min Receive (₹)</label>
+              <input v-model.number="newWallet.minAmount" type="number" class="w-full px-3 py-2 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5]">
+            </div>
+            <div>
+              <label class="block text-gray-400 mb-1">Max Receive (₹)</label>
+              <input v-model.number="newWallet.maxAmount" type="number" class="w-full px-3 py-2 rounded-xl bg-[#1B1B1B] border border-white/10 text-white focus:outline-none focus:border-[#F2D7A5]">
+            </div>
+          </div>
+        </div>
+
+        <button @click="saveNewWallet" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition">
+          Bind Wallet
+        </button>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 4: USDT RECHARGE -->
+    <!-- ======================================================== -->
+    <div v-if="modals.usdt.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+          <h3 class="text-sm font-bold text-white">USDT Deposit Gateway</h3>
+          <button @click="modals.usdt.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div class="flex gap-2">
+            <button v-for="chain in ['TRC20', 'BSC', 'Polygon']" :key="chain" @click="usdtChain = chain" class="flex-1 py-1.5 rounded-xl border text-xs font-semibold transition" :class="usdtChain === chain ? 'bg-[#F2D7A5] text-[#1B1B1B] border-[#F2D7A5]' : 'bg-white/5 border-white/5 text-gray-300'">
+              {{ chain }}
+            </button>
+          </div>
+
+          <div class="p-3 rounded-xl bg-white/5 text-center space-y-2">
+            <p class="text-[10px] text-gray-400">Current Exchange Rate</p>
+            <p class="text-base font-bold text-[#F2D7A5]">1 USDT = ₹{{ summary.usdtRechargeRate || 91.50 }} (+2% Cashback)</p>
+            <div class="p-3 bg-white rounded-xl mx-auto w-32 h-32 flex items-center justify-center">
+              <span class="text-xs text-black font-mono">QR CODE [{{ usdtChain }}]</span>
+            </div>
+            <p class="text-[10px] font-mono text-gray-400 break-all px-2">{{ getUsdtAddress(usdtChain) }}</p>
+            <button @click="copyText(getUsdtAddress(usdtChain))" class="text-[#F2D7A5] text-xs font-semibold">Copy Address</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 5: MISSIONS & TASKS -->
+    <!-- ======================================================== -->
+    <div v-if="modals.missions.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10">
+          <h3 class="text-sm font-bold text-white">Daily Missions & Rewards</h3>
+          <button @click="modals.missions.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+        </div>
+
+        <div class="space-y-2 max-h-60 overflow-y-auto">
+          <div v-for="m in missions" :key="m.id" class="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+            <div>
+              <p class="text-xs font-semibold text-white">{{ m.title }}</p>
+              <p class="text-[10px] text-emerald-400">+{{ m.reward }} Points / Score</p>
+            </div>
+            <button v-if="m.claimed" class="px-2.5 py-1 rounded-lg bg-gray-700 text-gray-400 text-[10px] font-medium" disabled>Claimed</button>
+            <button v-else-if="m.completed" @click="claimMission(m)" class="px-2.5 py-1 rounded-lg bg-[#F2D7A5] text-[#1B1B1B] text-[10px] font-bold">Claim</button>
+            <a v-else-if="m.link" :href="m.link" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 text-[10px] font-bold">Go ›</a>
+            <span v-else class="text-[10px] text-gray-500">In Progress</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Element for dcloud_beep.ogg -->
+  <audio id="beepAudio" preload="auto">
+    <source src="/sounds/dcloud_beep.ogg" type="audio/ogg">
+  </audio>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, onUnmounted } = Vue;
+
+    createApp({
+      setup() {
+        const activeTab = ref('home');
+        const hideBalance = ref(false);
+        const audioEnabled = ref(true);
+        const bannerIndex = ref(0);
+        const banners = ref([
+          '/static/banner/banner.jpg',
+          '/static/banner/ad1.png',
+          '/static/banner/ad2.png'
+        ]);
+
+        const activeNotice = ref('✨ Night Bonus Event is ON! Match orders between 22:00 - 06:00 for an extra 25% reward bonus.');
+
+        // User & State Data
+        const user = reactive({
+          id: '10086',
+          nickname: 'Trader_Alex',
+          phone: '+919876543210',
+          balance: 15420.50,
+          vipLevel: 2,
+          inviteCode: 'LP8899',
+          points: 1250
+        });
+
+        const summary = reactive({
+          balance: 15420.50,
+          rewardTotal: 3480.00,
+          pending: 0,
+          usdtRechargeRate: 91.50,
+          usdtCashbackRate: 2.0
+        });
+
+        const nightBonus = reactive({
+          inRangeNow: true,
+          startTime: '22:00',
+          endTime: '06:00'
+        });
+
+        // Wallets
+        const wallets = ref([]);
+        const activeWallets = computed(() => wallets.value.filter(w => w.status === 1));
+
+        // Hang Sales Orders
+        const hangSalesList = ref([]);
+        const sortMode = ref(0); // 0: default, 1: asc, 2: desc
+        const activeFilterKey = ref('all');
+        const filterRanges = ref([
+          { key: 'all', text: 'Top Picks', min: null, max: null },
+          { key: '500-2000', text: '500-2000', min: 500, max: 2000 },
+          { key: '2000-5000', text: '2000-5000', min: 2000, max: 5000 },
+          { key: '5000-10000', text: '5000-10000', min: 5000, max: 10000 },
+          { key: '10000-50000', text: '10000-50000', min: 10000, max: 50000 }
+        ]);
+
+        const sortLabel = computed(() => {
+          if (sortMode.value === 1) return 'Asc';
+          if (sortMode.value === 2) return 'Desc';
+          return 'Default';
+        });
+
+        // Team Data
+        const teamData = reactive({
+          commissionTotal: 4850.50,
+          yCommission: 420.00,
+          teamTurnover: 358900.00
+        });
+
+        // Missions
+        const missions = ref([]);
+
+        // Modals
+        const modals = reactive({
+          claim: { show: false },
+          inrOrder: { show: false },
+          addWallet: { show: false },
+          usdt: { show: false },
+          missions: { show: false }
+        });
+
+        const selectedOrder = ref({});
+        const selectedWalletId = ref(null);
+        const activeClaimedOrder = ref({});
+        const orderCountdown = ref(900);
+        const utrInput = ref('');
+        let timerInterval = null;
+
+        const newWallet = reactive({
+          ctType: 3,
+          account: '',
+          name: '',
+          minAmount: 500,
+          maxAmount: 20000
+        });
+
+        const usdtChain = ref('TRC20');
+
+        // Toast
+        const toast = reactive({ show: false, message: '', type: 'info' });
+        function showToast(msg, type = 'info') {
+          toast.message = msg;
+          toast.type = type;
+          toast.show = true;
+          setTimeout(() => { toast.show = false; }, 2500);
+        }
+
+        // Sound Engine
+        function playBeep() {
+          if (!audioEnabled.value) return;
+          try {
+            const audio = document.getElementById('beepAudio');
+            if (audio) {
+              audio.currentTime = 0;
+              audio.play().catch(() => playSynthBeep());
+            } else {
+              playSynthBeep();
+            }
+          } catch (e) {
+            playSynthBeep();
+          }
+        }
+
+        function playSynthBeep() {
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.25);
+          } catch (e) {}
+        }
+
+        function toggleAudio() {
+          audioEnabled.value = !audioEnabled.value;
+          showToast(audioEnabled.value ? 'Audio alerts enabled' : 'Audio muted');
+          if (audioEnabled.value) playBeep();
+        }
+
+        // Wallet icon resolver
+        function getWalletIcon(ctType) {
+          const map = {
+            1: '/static/wallet/airtel.png',
+            2: '/static/wallet/freecharge.png',
+            3: '/static/wallet/phonepe.png',
+            4: '/static/wallet/mobikwik.png',
+            5: '/static/wallet/paytm.png',
+            6: '/static/wallet/amazon.png',
+            10: '/static/wallet/bharatpebiz.png',
+            11: '/static/wallet/navi.png'
+          };
+          return map[ctType] || '/static/wallet/box.png';
+        }
+
+        function getUsdtAddress(chain) {
+          const map = {
+            TRC20: 'TLxK9y5Bsq27Pz5vF7nK9yTRC20EXAMPLE',
+            BSC: '0x71C95911e74B39d48b1968848777BSCEXAMPLE',
+            Polygon: '0x99A8c829e74B39d48b1968848POLYGONEXAMPLE'
+          };
+          return map[chain] || map.TRC20;
+        }
+
+        function formatMoney(val) {
+          const n = Number(val);
+          return Number.isFinite(n) ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+        }
+
+        function formatTime(sec) {
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function switchTab(tab) {
+          activeTab.value = tab;
+        }
+
+        function copyText(txt) {
+          if (!txt) return;
+          navigator.clipboard.writeText(String(txt)).then(() => {
+            showToast('Copied to clipboard!', 'success');
+          }).catch(() => {
+            showToast('Copied: ' + txt, 'success');
+          });
+        }
+
+        // API Calls
+        async function fetchSummary() {
+          try {
+            const res = await fetch('/app/payment/order/summary');
+            const json = await res.json();
+            if (json.code === 1000) {
+              Object.assign(summary, json.data);
+              user.balance = json.data.balance;
+            }
+          } catch (e) {}
+        }
+
+        async function fetchWallets() {
+          try {
+            const res = await fetch('/app/ct/app/collection/getWalletList', { method: 'POST' });
+            const json = await res.json();
+            if (json.code === 1000) {
+              wallets.value = json.data;
+            }
+          } catch (e) {}
+        }
+
+        async function fetchHangSales() {
+          try {
+            const chip = filterRanges.value.find(c => c.key === activeFilterKey.value);
+            const params = new URLSearchParams();
+            if (chip && chip.min != null) params.append('minAmount', chip.min);
+            if (chip && chip.max != null) params.append('maxAmount', chip.max);
+            if (sortMode.value > 0) params.append('sort', sortMode.value);
+
+            const res = await fetch('/app/payment/order?' + params.toString());
+            const json = await res.json();
+            if (json.code === 1000) {
+              hangSalesList.value = json.data.records || [];
+            }
+          } catch (e) {}
+        }
+
+        async function fetchNightBonus() {
+          try {
+            const res = await fetch('/app/payment/order/nightBonusStatus');
+            const json = await res.json();
+            if (json.code === 1000) {
+              Object.assign(nightBonus, json.data);
+            }
+          } catch (e) {}
+        }
+
+        async function fetchMissions() {
+          try {
+            const res = await fetch('/app/mission/task');
+            const json = await res.json();
+            if (json.code === 1000) {
+              missions.value = json.data;
+            }
+          } catch (e) {}
+        }
+
+        // Actions
+        function selectFilter(chip) {
+          activeFilterKey.value = chip.key;
+          fetchHangSales();
+        }
+
+        function toggleSort() {
+          sortMode.value = (sortMode.value + 1) % 3;
+          fetchHangSales();
+        }
+
+        async function toggleWalletStatus(w) {
+          const newStatus = w.status === 1 ? 0 : 1;
+          try {
+            const res = await fetch('/app/ct/app/collection/changeStatus/' + w.id, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: newStatus })
+            });
+            const json = await res.json();
+            if (json.code === 1000) {
+              w.status = newStatus;
+              showToast(`${w.ctName} is now ${newStatus === 1 ? 'Active (onSell)' : 'Paused (offSell)'}`, 'success');
+            }
+          } catch (e) {}
+        }
+
+        function openClaimModal(order) {
+          selectedOrder.value = order;
+          const eligible = activeWallets.value.find(w => order.amount >= w.minAmount && order.amount <= w.maxAmount);
+          selectedWalletId.value = eligible ? eligible.id : (activeWallets.value[0]?.id || null);
+          modals.claim.show = true;
+        }
+
+        async function confirmClaimOrder() {
+          if (!selectedWalletId.value) {
+            showToast('Please add and select an active wallet first');
+            return;
+          }
+          try {
+            const res = await fetch('/app/payment/order/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                payOrderId: selectedOrder.value.payOrderId,
+                payoutWalletId: selectedWalletId.value
+              })
+            });
+            const json = await res.json();
+            if (json.code === 1000) {
+              modals.claim.show = false;
+              activeClaimedOrder.value = json.data;
+              orderCountdown.value = json.data.expireSeconds || 900;
+              utrInput.value = '';
+              startCountdown();
+              modals.inrOrder.show = true;
+              playBeep();
+              showToast('Order matched successfully!', 'success');
+              fetchHangSales();
+            } else {
+              showToast(json.msg || 'Unable to claim order');
+            }
+          } catch (e) {
+            showToast('Failed to claim order');
+          }
+        }
+
+        function startCountdown() {
+          if (timerInterval) clearInterval(timerInterval);
+          timerInterval = setInterval(() => {
+            if (orderCountdown.value > 0) {
+              orderCountdown.value -= 1;
+            } else {
+              clearInterval(timerInterval);
+            }
+          }, 1000);
+        }
+
+        async function submitActiveOrder() {
+          try {
+            const res = await fetch('/app/payment/order/submit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                buyId: activeClaimedOrder.value.buyId,
+                utr: utrInput.value
+              })
+            });
+            const json = await res.json();
+            if (json.code === 1000) {
+              modals.inrOrder.show = false;
+              if (timerInterval) clearInterval(timerInterval);
+              playBeep();
+              showToast(`Payment confirmed! Earned ₹${formatMoney(activeClaimedOrder.value.totalReward)} bonus`, 'success');
+              fetchSummary();
+              fetchWallets();
+            } else {
+              showToast(json.msg || 'Submission error');
+            }
+          } catch (e) {
+            showToast('Submission failed');
+          }
+        }
+
+        async function cancelActiveOrder() {
+          try {
+            await fetch('/app/payment/order/cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ buyId: activeClaimedOrder.value.buyId })
+            });
+            modals.inrOrder.show = false;
+            if (timerInterval) clearInterval(timerInterval);
+            showToast('Order cancelled');
+            fetchHangSales();
+          } catch (e) {}
+        }
+
+        function openAddWalletModal() {
+          newWallet.account = '';
+          newWallet.name = '';
+          modals.addWallet.show = true;
+        }
+
+        async function saveNewWallet() {
+          if (!newWallet.account) {
+            showToast('Please enter a valid UPI / account');
+            return;
+          }
+          try {
+            const res = await fetch('/app/ct/app/collection/submit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(newWallet)
+            });
+            const json = await res.json();
+            if (json.code === 1000) {
+              modals.addWallet.show = false;
+              showToast('Wallet bound successfully!', 'success');
+              fetchWallets();
+            }
+          } catch (e) {
+            showToast('Failed to add wallet');
+          }
+        }
+
+        async function simulateIncomingOrder() {
+          try {
+            const res = await fetch('/api/sim/spawn-order', { method: 'POST' });
+            const json = await res.json();
+            if (json.code === 1000) {
+              playBeep();
+              showToast(`New matching order ₹${json.data.amount} spawned!`, 'success');
+              fetchHangSales();
+            }
+          } catch (e) {}
+        }
+
+        function openUsdtModal() {
+          modals.usdt.show = true;
+        }
+
+        function openMissionsModal() {
+          fetchMissions();
+          modals.missions.show = true;
+        }
+
+        async function claimMission(m) {
+          try {
+            const res = await fetch('/app/mission/task/receive/' + m.id, { method: 'POST' });
+            const json = await res.json();
+            if (json.code === 1000) {
+              m.claimed = true;
+              user.points += m.reward;
+              playBeep();
+              showToast(`Claimed +${m.reward} Points!`, 'success');
+            }
+          } catch (e) {}
+        }
+
+        function openPinModal() {
+          showToast('Security PIN is active: 123456');
+        }
+
+        function handleLogoError(e) {
+          e.target.style.display = 'none';
+        }
+
+        function handleImgFallback(e) {
+          e.target.style.opacity = '0.5';
+        }
+
+        // WebSocket Setup
+        let ws = null;
+        function connectWebSocket() {
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const wsUrl = `${protocol}//${window.location.host}/ws`;
+          try {
+            ws = new WebSocket(wsUrl);
+            ws.onmessage = (event) => {
+              try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'NEW_ORDER_DISPATCHED') {
+                  playBeep();
+                  showToast(data.payload.msg, 'info');
+                  fetchHangSales();
+                } else if (data.type === 'ORDER_CLAIMED') {
+                  fetchHangSales();
+                } else if (data.type === 'ORDER_COMPLETED') {
+                  fetchSummary();
+                }
+              } catch (e) {}
+            };
+            ws.onclose = () => {
+              setTimeout(connectWebSocket, 3000);
+            };
+          } catch (e) {}
+        }
+
+        onMounted(() => {
+          fetchSummary();
+          fetchWallets();
+          fetchHangSales();
+          fetchNightBonus();
+          connectWebSocket();
+
+          // Banner rotator
+          setInterval(() => {
+            bannerIndex.value = (bannerIndex.value + 1) % banners.value.length;
+          }, 3500);
+        });
+
+        onUnmounted(() => {
+          if (ws) ws.close();
+          if (timerInterval) clearInterval(timerInterval);
+        });
+
+        return {
+          activeTab,
+          hideBalance,
+          audioEnabled,
+          bannerIndex,
+          banners,
+          activeNotice,
+          user,
+          summary,
+          nightBonus,
+          wallets,
+          activeWallets,
+          hangSalesList,
+          filterRanges,
+          activeFilterKey,
+          sortLabel,
+          teamData,
+          missions,
+          modals,
+          selectedOrder,
+          selectedWalletId,
+          activeClaimedOrder,
+          orderCountdown,
+          utrInput,
+          newWallet,
+          usdtChain,
+          toast,
+          formatMoney,
+          formatTime,
+          switchTab,
+          copyText,
+          toggleAudio,
+          getWalletIcon,
+          getUsdtAddress,
+          selectFilter,
+          toggleSort,
+          toggleWalletStatus,
+          openClaimModal,
+          confirmClaimOrder,
+          submitActiveOrder,
+          cancelActiveOrder,
+          openAddWalletModal,
+          saveNewWallet,
+          simulateIncomingOrder,
+          openUsdtModal,
+          openMissionsModal,
+          claimMission,
+          openPinModal,
+          handleLogoError,
+          handleImgFallback
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
