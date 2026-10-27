@@ -230,42 +230,6 @@
         </div>
       </div>
 
-      <!-- PERMANENT OFFICIAL QR PAYMENT CARD -->
-      <div class="rounded-2xl bg-gradient-to-r from-[#242424] via-[#2A241C] to-[#242424] border border-[#F2D7A5]/35 p-4 shadow-lg space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="text-2xl">📷</span>
-            <div>
-              <div class="flex items-center gap-1.5">
-                <h3 class="text-xs font-bold text-white">Permanent Official UPI QR Codes</h3>
-                <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">VERIFIED</span>
-              </div>
-              <p class="text-[10px] text-gray-400 mt-0.5">Scan to pay instantly via PhonePe / GPay / Paytm</p>
-            </div>
-          </div>
-          <button @click="openQrPayModal" class="px-3 py-1.5 rounded-xl bg-[#F2D7A5] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition">
-            View QRs ›
-          </button>
-        </div>
-
-        <!-- QR Previews & 1-Click Pay Buttons -->
-        <div class="grid grid-cols-2 gap-2.5 pt-1">
-          <div v-for="(q, idx) in officialQrs" :key="q.id" @click="selectAndOpenQr(q.id)" class="p-2.5 rounded-xl bg-black/40 border border-white/5 hover:border-[#F2D7A5]/50 cursor-pointer transition flex items-center gap-2.5">
-            <div class="w-12 h-12 rounded-lg overflow-hidden border border-white/10 shadow flex-shrink-0 bg-white flex items-center justify-center p-0.5">
-              <img :src="q.qrDataUrl || q.screenshotUrl || q.qrImage" class="w-full h-full object-contain" alt="Official QR" @error="handleImgFallback">
-            </div>
-            <div class="overflow-hidden">
-              <p class="text-[11px] font-bold text-white truncate">Official QR {{ idx + 1 }}</p>
-              <p class="text-[9px] text-[#F2D7A5] font-mono truncate">{{ q.vpa }}</p>
-              <span class="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
-                <span>📷</span>
-                <span>Tap to scan</span>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Live Marquee Notice -->
       <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#222222] border border-white/5 text-xs text-gray-300">
         <span class="text-amber-400 animate-bounce">📢</span>
@@ -730,7 +694,7 @@
               <span class="font-mono text-xs text-[#F2D7A5]">{{ currentQr.vpa }}</span>
               <button @click="copyText(currentQr.vpa)" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
             </div>
-            <p class="text-[10px] text-gray-400">Instant Auto-Credit</p>
+            <p class="text-[10px] text-gray-400">Credited after verification</p>
           </div>
 
           <a :href="getDynamicUpiUri(currentQr, depositForm.amount)" class="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
@@ -753,8 +717,8 @@
           </div>
 
           <button @click="submitQrDeposit" :disabled="depositSubmitting" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
-            <span v-if="depositSubmitting">Verifying & Crediting...</span>
-            <span v-else>Confirm & Credit Balance</span>
+            <span v-if="depositSubmitting">Submitting...</span>
+            <span v-else>Submit for Verification</span>
           </button>
         </div>
       </div>
@@ -1121,7 +1085,7 @@
           '/static/banner/ad2.png'
         ]);
 
-        const activeNotice = ref('✨ Official UPI QR codes active! Scan & pay for instant automated balance top-up.');
+        const activeNotice = ref('✨ Official UPI QR codes active! Scan, pay, and submit your 12-digit UTR for verification.');
 
         // Official QR Codes (name/branding details intentionally omitted)
         const officialQrs = ref([
@@ -1153,7 +1117,7 @@
 
         // Auth & Token Management
         const token = ref(localStorage.getItem('tradepay_token') || '');
-        const isLoggedIn = computed(() => !!token.value && !token.value.startsWith('token_10086'));
+        const isLoggedIn = computed(() => !!token.value);
         const authMode = ref('login');
         const authLoading = ref(false);
         const authForm = reactive({
@@ -1272,7 +1236,17 @@
             headers['Authorization'] = `Bearer ${token.value}`;
           }
           headers['Content-Type'] = 'application/json';
-          return fetch(url, { ...options, headers });
+          const res = await fetch(url, { ...options, headers });
+          if (res.status === 401) {
+            token.value = '';
+            localStorage.removeItem('tradepay_token');
+            if (ws) {
+              ws.onclose = null;
+              try { ws.close(); } catch (e) { /* ignore */ }
+              ws = null;
+            }
+          }
+          return res;
         }
 
         // Sound Engine
@@ -1374,7 +1348,7 @@
             showToast('Please enter deposit amount');
             return;
           }
-          if (!depositForm.utr || depositForm.utr.length < 6) {
+          if (!depositForm.utr || !/^\d{12}$/.test(String(depositForm.utr).trim())) {
             showToast('Please enter valid 12-digit bank UTR reference');
             return;
           }
@@ -1393,7 +1367,7 @@
             if (json.code === 1000) {
               modals.qrPay.show = false;
               playBeep();
-              showToast(json.msg || `Deposit of ₹${depositForm.amount} credited successfully!`, 'success');
+              showToast(json.msg || `Deposit of ₹${depositForm.amount} submitted for verification`, 'success');
               depositForm.utr = '';
               fetchSummary();
             } else {
@@ -1431,6 +1405,7 @@
               modals.auth.show = false;
               playBeep();
               showToast(`Welcome ${json.data.nickname}! Synced with Supabase`, 'success');
+              connectWebSocket();
               fetchAll();
             } else {
               showToast(json.msg || 'Authentication failed');
@@ -1442,9 +1417,17 @@
           }
         }
 
-        function handleLogout() {
+        async function handleLogout() {
+          try {
+            await authFetch('/app/user/info/appLogout', { method: 'POST' });
+          } catch (e) { /* best effort */ }
           token.value = '';
           localStorage.removeItem('tradepay_token');
+          if (ws) {
+            ws.onclose = null;
+            try { ws.close(); } catch (e) { /* ignore */ }
+            ws = null;
+          }
           showToast('Signed out of Supabase session');
           fetchAll();
         }
@@ -1548,11 +1531,12 @@
         }
 
         function getOrderUpiUri() {
-          if (activeClaimedOrder.value?.upiUri) return activeClaimedOrder.value.upiUri;
-          const vpa = activeClaimedOrder.value?.payeeVpa || currentQr.value?.vpa || '6377276074-2@ybl';
-          const amount = Number(activeClaimedOrder.value?.amount) || 0;
-          const note = activeClaimedOrder.value?.orderNo || 'TradePay Order';
-          const encodedVpa = encodeURIComponent(vpa).replace(/%40/g, '@');
+          const order = activeClaimedOrder.value;
+          if (order && order.upiUri) return order.upiUri;
+          if (!order || !order.payeeVpa) return '';
+          const amount = Number(order.amount) || 0;
+          const note = order.orderNo || 'TradePay Order';
+          const encodedVpa = encodeURIComponent(order.payeeVpa).replace(/%40/g, '@');
           // No payee name (pn) included — keep QR payload minimal
           let uri = `upi://pay?pa=${encodedVpa}`;
           if (amount > 0) uri += `&am=${amount.toFixed(2)}&cu=INR`;
@@ -1564,6 +1548,7 @@
           if (activeClaimedOrder.value?.qrDataUrl) return activeClaimedOrder.value.qrDataUrl;
           if (activeClaimedOrder.value?.qrImageUrl) return activeClaimedOrder.value.qrImageUrl;
           const uri = getOrderUpiUri();
+          if (!uri) return '';
           return `/api/qr/image?text=${encodeURIComponent(uri)}&size=300`;
         }
 
@@ -1580,7 +1565,8 @@
           if (!w) return '';
           if (w.qrDataUrl) return w.qrDataUrl;
           if (w.qrImageUrl) return w.qrImageUrl;
-          const vpa = w.account || w.vpa || 'user@upi';
+          const vpa = w.account || w.vpa;
+          if (!vpa) return '';
           const name = w.name || w.ctName || 'User';
           const uri = `upi://pay?pa=${encodeURIComponent(vpa).replace(/%40/g, '@')}&pn=${encodeURIComponent(name)}&mode=02&purpose=00`;
           return `/api/qr/image?text=${encodeURIComponent(uri)}&size=300`;
@@ -1597,12 +1583,13 @@
         }
 
         function fetchAll() {
+          fetchOfficialQrs();
+          if (!token.value) return;
           fetchUserInfo();
           fetchSummary();
           fetchWallets();
           fetchHangSales();
           fetchNightBonus();
-          fetchOfficialQrs();
         }
 
         // Actions
@@ -1682,12 +1669,17 @@
         }
 
         async function submitActiveOrder() {
+          const cleanUtr = String(utrInput.value || '').trim();
+          if (!/^\d{12}$/.test(cleanUtr)) {
+            showToast('Please enter the 12-digit bank UTR');
+            return;
+          }
           try {
             const res = await authFetch('/app/payment/order/submit', {
               method: 'POST',
               body: JSON.stringify({
                 buyId: activeClaimedOrder.value.buyId,
-                utr: utrInput.value
+                utr: cleanUtr
               })
             });
             const json = await res.json();
@@ -1708,15 +1700,22 @@
 
         async function cancelActiveOrder() {
           try {
-            await authFetch('/app/payment/order/cancel', {
+            const res = await authFetch('/app/payment/order/cancel', {
               method: 'POST',
               body: JSON.stringify({ buyId: activeClaimedOrder.value.buyId })
             });
-            modals.inrOrder.show = false;
-            if (timerInterval) clearInterval(timerInterval);
-            showToast('Order cancelled');
-            fetchHangSales();
-          } catch (e) {}
+            const json = await res.json();
+            if (json.code === 1000) {
+              modals.inrOrder.show = false;
+              if (timerInterval) clearInterval(timerInterval);
+              showToast('Order cancelled');
+              fetchHangSales();
+            } else {
+              showToast(json.msg || 'Unable to cancel order');
+            }
+          } catch (e) {
+            showToast('Unable to cancel order');
+          }
         }
 
         function openAddWalletModal() {
@@ -1773,15 +1772,25 @@
             const json = await res.json();
             if (json.code === 1000) {
               m.claimed = true;
-              user.points += m.reward;
+              if (json.data && json.data.points != null) {
+                user.points = json.data.points;
+              } else {
+                user.points += m.reward;
+              }
               playBeep();
               showToast(`Claimed +${m.reward} Points!`, 'success');
+            } else {
+              showToast(json.msg || 'Unable to claim mission');
             }
-          } catch (e) {}
+          } catch (e) {
+            showToast('Unable to claim mission');
+          }
         }
 
         function openPinModal() {
-          showToast(`Security PIN for ${user.nickname} is active: ${user.pin || '123456'}`);
+          showToast(user.isPinSet
+            ? 'Security PIN is set. It is never displayed.'
+            : 'Security PIN is not set. Set one from account security.');
         }
 
         function handleLogoError(e) {
@@ -1832,13 +1841,30 @@
         // WebSocket Setup
         let ws = null;
         function connectWebSocket() {
+          if (!token.value) return;
+          if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
+
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
           const wsUrl = `${protocol}//${window.location.host}/ws`;
           try {
             ws = new WebSocket(wsUrl);
+            ws.onopen = () => {
+              try {
+                ws.send(JSON.stringify({ type: 'AUTH', token: token.value }));
+              } catch (e) { /* ignore */ }
+            };
             ws.onmessage = (event) => {
               try {
                 const data = JSON.parse(event.data);
+                if (data.type === 'AUTH_FAILED') {
+                  token.value = '';
+                  localStorage.removeItem('tradepay_token');
+                  ws.onclose = null;
+                  ws.close();
+                  ws = null;
+                  showToast('Session expired. Please sign in again.');
+                  return;
+                }
                 if (data.type === 'NEW_ORDER_DISPATCHED') {
                   playBeep();
                   showToast(data.payload.msg, 'info');
@@ -1851,9 +1877,12 @@
               } catch (e) {}
             };
             ws.onclose = () => {
-              setTimeout(connectWebSocket, 3000);
+              ws = null;
+              if (token.value) setTimeout(connectWebSocket, 3000);
             };
-          } catch (e) {}
+          } catch (e) {
+            ws = null;
+          }
         }
 
         onMounted(() => {
