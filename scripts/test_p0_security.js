@@ -14,9 +14,7 @@ process.env.NODE_ENV = 'test';
 const db = require('../server/engine/db');
 const orderEngine = require('../server/engine/orderEngine');
 const security = require('../server/engine/security');
-const depositEngine = require('../server/engine/depositEngine');
 const money = require('../server/engine/money');
-const webhook = require('../server/engine/webhook');
 const apiRouter = require('../server/routes/api');
 
 test.after(() => {
@@ -44,13 +42,6 @@ test('protected endpoints fail closed and public endpoints stay public', async (
     });
     assert.equal(wallets.status, 401);
 
-    const deposit = await fetch(`http://127.0.0.1:${port}/app/payment/deposit/submit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: 100, qrId: 1, utr: '123456789012' })
-    });
-    assert.equal(deposit.status, 401);
-
     const v2Submit = await fetch(`http://127.0.0.1:${port}/app/ct/app/collection/v2/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -74,10 +65,6 @@ test('protected endpoints fail closed and public endpoints stay public', async (
     assert.equal(dispatchRule.status, 401);
 
     // Marketing/configuration endpoints remain public.
-    const officialQrs = await fetch(`http://127.0.0.1:${port}/app/payment/official-qrs`);
-    assert.equal(officialQrs.status, 200);
-    assert.equal((await officialQrs.json()).code, 1000);
-
     const notices = await fetch(`http://127.0.0.1:${port}/app/news/notice`);
     assert.equal(notices.status, 200);
     assert.equal((await notices.json()).code, 1000);
@@ -231,161 +218,3 @@ test('money arithmetic is paise-exact', () => {
   assert.equal(money.equals(19.99, 19.990), true);
 });
 
-test('deposits stay pending until approved and credit exactly once', () => {
-  db.reset();
-  const user = db.get().users['10086'];
-  const before = user.balance;
-
-  const deposit = depositEngine.createDeposit({
-    userId: '10086',
-    amount: 1234.56,
-    qrId: 1,
-    vpa: 'official@ybl',
-    utr: '111111111111'
-  });
-  assert.equal(deposit.status, 'pending');
-  assert.equal(user.balance, before, 'submission must not credit the balance');
-
-  const approved = depositEngine.approveDeposit(deposit.id, 'admin-1');
-  assert.equal(approved.status, 'completed');
-  assert.equal(user.balance, money.add(before, 1234.56));
-
-  assert.throws(
-    () => depositEngine.approveDeposit(deposit.id, 'admin-1'),
-    /already approved/
-  );
-  assert.equal(user.balance, money.add(before, 1234.56));
-
-  const rejectedDeposit = depositEngine.createDeposit({
-    userId: '10086',
-    amount: 99,
-    qrId: 1,
-    vpa: 'official@ybl',
-    utr: '222222222222'
-  });
-  const rejected = depositEngine.rejectDeposit(rejectedDeposit.id, 'admin-1', 'UTR not found');
-  assert.equal(rejected.status, 'rejected');
-  assert.equal(user.balance, money.add(before, 1234.56));
-  assert.throws(
-    () => depositEngine.approveDeposit(rejectedDeposit.id, 'admin-1'),
-    /rejected/
-  );
-});
-
-test('deposit reconciliation is idempotent and amount-checked', () => {
-  db.reset();
-  const user = db.get().users['10086'];
-  const before = user.balance;
-
-  depositEngine.createDeposit({
-    userId: '10086',
-    amount: 500,
-    qrId: 1,
-    vpa: 'official@ybl',
-    utr: '333333333333'
-  });
-
-  assert.throws(
-    () => depositEngine.reconcileDeposit({ utr: '333333333333', amount: 499 }),
-    /does not match/
-  );
-
-  const first = depositEngine.reconcileDeposit({
-    utr: '333333333333',
-    amount: 500,
-    providerId: 'psp-1',
-    eventId: 'evt-1'
-  });
-  assert.equal(first.matched, true);
-  assert.equal(first.credited, true);
-  assert.equal(user.balance, money.add(before, 500));
-
-  const replay = depositEngine.reconcileDeposit({
-    utr: '333333333333',
-    amount: 500,
-    providerId: 'psp-1',
-    eventId: 'evt-1'
-  });
-  assert.equal(replay.matched, true);
-  assert.equal(replay.credited, false);
-  assert.equal(replay.duplicate, true);
-  assert.equal(user.balance, money.add(before, 500));
-});
-
-test('payment webhook verifies signatures and reconciles over HTTP', async () => {
-  db.reset();
-  const previousSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-  process.env.PAYMENT_WEBHOOK_SECRET = 'test-webhook-secret';
-
-  const app = express();
-  app.use(express.json({
-    verify: (req, res, buf) => { req.rawBody = buf; }
-  }));
-  app.use('/', apiRouter);
-  const server = app.listen(0, '127.0.0.1');
-  await new Promise(resolve => server.once('listening', resolve));
-  const { port } = server.address();
-  const url = `http://127.0.0.1:${port}/webhooks/payment`;
-
-  try {
-    depositEngine.createDeposit({
-      userId: '10086',
-      amount: 250.5,
-      qrId: 1,
-      vpa: 'official@ybl',
-      utr: '444444444444'
-    });
-
-    const payload = JSON.stringify({
-      event: 'payment.captured',
-      utr: '444444444444',
-      amount: 250.5,
-      providerId: 'psp-test',
-      eventId: 'evt-test-1'
-    });
-    const signature = 'sha256=' + crypto
-      .createHmac('sha256', 'test-webhook-secret')
-      .update(payload)
-      .digest('hex');
-
-    const call = (sig) => fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-tradepay-signature': sig
-      },
-      body: payload
-    });
-
-    const bad = await call('sha256=' + '0'.repeat(64));
-    assert.equal(bad.status, 401);
-
-    const first = await call(signature);
-    assert.equal(first.status, 200);
-    const firstJson = await first.json();
-    assert.equal(firstJson.data.credited, true);
-    assert.equal(db.get().users['10086'].balance, 250.5);
-
-    const replay = await call(signature);
-    assert.equal(replay.status, 200);
-    const replayJson = await replay.json();
-    assert.equal(replayJson.data.credited, false);
-    assert.equal(replayJson.data.duplicate, true);
-    assert.equal(db.get().users['10086'].balance, 250.5);
-  } finally {
-    await new Promise(resolve => server.close(resolve));
-    if (previousSecret === undefined) delete process.env.PAYMENT_WEBHOOK_SECRET;
-    else process.env.PAYMENT_WEBHOOK_SECRET = previousSecret;
-  }
-});
-
-test('webhook signatures are constant-time verified', () => {
-  const raw = Buffer.from('{"utr":"123456789012","amount":100}');
-  const secret = 'unit-secret';
-  const good = 'sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex');
-
-  assert.equal(webhook.verifySignature(raw, good, secret), true);
-  assert.equal(webhook.verifySignature(raw, good, 'wrong-secret'), false);
-  assert.equal(webhook.verifySignature(raw, 'not-a-signature', secret), false);
-  assert.equal(webhook.verifySignature(raw, good, ''), false);
-});

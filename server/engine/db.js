@@ -12,28 +12,6 @@ if (!fs.existsSync(DB_DIR)) {
   fs.mkdirSync(DB_DIR, { recursive: true });
 }
 
-// Official QR codes provided by user (name/branding details intentionally omitted)
-const officialQRs = [
-  {
-    id: 1,
-    vpa: "6377276074-2@ybl",
-    qrImage: "/static/qr/scr1.jpeg",
-    upiUri: "upi://pay?pa=6377276074-2@ybl&mc=0000&mode=02&purpose=00",
-    minAmount: 100,
-    maxAmount: 100000,
-    status: 1
-  },
-  {
-    id: 2,
-    vpa: "9588856526@ybl",
-    qrImage: "/static/qr/scr2.jpeg",
-    upiUri: "upi://pay?pa=9588856526@ybl&mc=0000&mode=02&purpose=00",
-    minAmount: 100,
-    maxAmount: 100000,
-    status: 1
-  }
-];
-
 // Default initial state with strictly ZERO balances. The demo account has no PIN
 // and no token; it is only reachable through an authenticated Supabase session.
 const defaultState = {
@@ -61,8 +39,6 @@ const defaultState = {
     }
   },
   revokedTokens: {},
-  deposits: [],
-  officialQRs,
   wallets: [
     {
       id: 1,
@@ -190,13 +166,13 @@ const defaultState = {
     { id: 1, title: "Daily Sign-in", reward: 20, completed: true, claimed: false },
     { id: 2, title: "Complete 1 Collection Order", reward: 50, completed: false, claimed: false },
     { id: 3, title: "Join Official Telegram Channel", reward: 100, completed: false, claimed: false, link: "https://t.me/tradepay_official" },
-    { id: 4, title: "Pay using Official QR Code", reward: 100, completed: false, claimed: false }
+    { id: 4, title: "Complete a Collection Order", reward: 100, completed: false, claimed: false }
   ],
   notices: [
     {
       id: 1,
-      title: "Official UPI QR Payments Online",
-      content: "Users can now scan and pay using the official platform UPI QR codes, then submit the 12-digit UTR for verification before the balance is credited.",
+      title: "Claim, Pay & Earn Rewards",
+      content: "Users can claim a live collection order, pay the matching customer via UPI, and submit the 12-digit UTR to get rewarded instantly.",
       createdAt: "2026-10-28"
     },
     {
@@ -253,9 +229,6 @@ function buildState(saved) {
   if (safeSaved.users && typeof safeSaved.users === 'object') {
     state.users = safeSaved.users;
   }
-  if (safeSaved.officialQRs && Array.isArray(safeSaved.officialQRs) && safeSaved.officialQRs.length) {
-    state.officialQRs = safeSaved.officialQRs;
-  }
   if (Array.isArray(safeSaved.wallets)) state.wallets = safeSaved.wallets;
   if (Array.isArray(safeSaved.hangSales)) state.hangSales = safeSaved.hangSales;
 
@@ -281,7 +254,6 @@ function buildState(saved) {
       delete order.buyerPhone;
     }
   }
-  if (Array.isArray(safeSaved.deposits)) state.deposits = safeSaved.deposits;
   if (safeSaved.revokedTokens && typeof safeSaved.revokedTokens === 'object') {
     state.revokedTokens = safeSaved.revokedTokens;
   }
@@ -383,7 +355,6 @@ process.on('exit', () => {
 
 module.exports = {
   get: () => state,
-  officialQRs,
   save,
   flush,
   reset: () => {

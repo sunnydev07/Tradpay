@@ -1476,7 +1476,6 @@
             await authFetch('/app/user/info/appLogout', { method: 'POST' });
           } catch (e) { /* best effort */ }
           token.value = '';
-          depositHistory.value = [];
           localStorage.removeItem('tradepay_token');
           if (ws) {
             ws.onclose = null;
@@ -1505,20 +1504,6 @@
             const json = await res.json();
             if (json.code === 1000) {
               Object.assign(user, json.data);
-            }
-          } catch (e) {}
-        }
-
-        async function fetchDepositHistory() {
-          if (!token.value) {
-            depositHistory.value = [];
-            return;
-          }
-          try {
-            const res = await authFetch('/app/payment/deposit/history');
-            const json = await res.json();
-            if (json.code === 1000) {
-              depositHistory.value = (json.data.records || []).slice(0, 5);
             }
           } catch (e) {}
         }
@@ -1582,36 +1567,6 @@
           } catch (e) {}
         }
 
-        async function fetchOfficialQrs() {
-          qrLoading.value = true;
-          qrError.value = false;
-          try {
-            const res = await authFetch('/app/payment/official-qrs');
-            const json = await res.json();
-            if (json.code === 1000 && Array.isArray(json.data) && json.data.length > 0) {
-              officialQrs.value = json.data;
-            }
-          } catch (e) {
-            qrError.value = true;
-          } finally {
-            qrLoading.value = false;
-          }
-        }
-
-        function getDynamicUpiUri(qr, amount) {
-          if (!qr) return '';
-          const num = Number(amount);
-          const cleanVpa = String(qr.vpa || '').trim();
-          const encodedVpa = encodeURIComponent(cleanVpa).replace(/%40/g, '@');
-          // No payee name (pn) included — keep QR payload minimal
-          let uri = `upi://pay?pa=${encodedVpa}`;
-          if (num && num > 0) {
-            uri += `&am=${num.toFixed(2)}&cu=INR`;
-          }
-          uri += '&tn=TradePay%20Deposit&mode=02&purpose=00';
-          return uri;
-        }
-
         function getOrderUpiUri() {
           const order = activeClaimedOrder.value;
           if (order && order.upiUri) return order.upiUri;
@@ -1660,20 +1615,13 @@
           return `/api/qr/image?text=${encodeURIComponent(addr)}&size=300`;
         }
 
-        function handleQrError(e) {
-          const uri = getDynamicUpiUri(currentQr.value, depositForm.amount);
-          e.target.src = `/api/qr/image?text=${encodeURIComponent(uri)}&size=300`;
-        }
-
         function fetchAll() {
-          fetchOfficialQrs();
           if (!token.value) return;
           fetchUserInfo();
           fetchSummary();
           fetchWallets();
           fetchHangSales();
           fetchNightBonus();
-          fetchDepositHistory();
           fetchTeamData();
         }
 
@@ -2040,20 +1988,11 @@
           bannerIndex,
           banners,
           activeNotice,
-          officialQrs,
-          selectedQrId,
-          qrDisplayMode,
-          qrLoading,
-          qrError,
           selectedWalletForQr,
-          currentQr,
           deferredPrompt,
           showInstallBanner,
           isAppInstalled,
           isIos,
-          depositForm,
-          depositSubmitting,
-          depositHistory,
           user,
           summary,
           nightBonus,
@@ -2103,20 +2042,13 @@
           visitMission,
           openPinModal,
           openAuthModal,
-          openQrPayModal,
-          selectAndOpenQr,
-          submitQrDeposit,
-          getDynamicUpiUri,
           getOrderUpiUri,
           getOrderQrImage,
           openOrderQrModal,
           openWalletQrModal,
           getWalletQrUrl,
           getUsdtQrUrl,
-          fetchOfficialQrs,
-          fetchDepositHistory,
           fetchTeamData,
-          handleQrError,
           installApp,
           dismissInstallBanner,
           handleInstallClick,

@@ -6,8 +6,6 @@ const supabaseService = require('../engine/supabaseService');
 const qrService = require('../engine/qrService');
 const auth = require('../engine/auth');
 const security = require('../engine/security');
-const depositEngine = require('../engine/depositEngine');
-const webhook = require('../engine/webhook');
 const money = require('../engine/money');
 
 const { extractToken } = auth;
@@ -39,7 +37,6 @@ const PUBLIC_ROUTES = new Set([
   'POST /app/user/login/sendOtp',
   'GET /app/user/rs/invite/prefill',
   'GET /app/user/active/activeInfo',
-  'GET /app/payment/official-qrs',
   'GET /app/ct/type/listEnabledCtTypes',
   'GET /app/ct/type/configCheck',
   'GET /app/app/carousel/manager/carouselManager',
@@ -148,118 +145,6 @@ router.get('/api/qr/image', async (req, res) => {
   }
 });
 
-// -------------------------------------------------------------
-// OFFICIAL QR CODES & INSTANT DEPOSITS
-// -------------------------------------------------------------
-router.get('/app/payment/official-qrs', async (req, res) => {
-  const state = db.get();
-  const rawQrs = state.officialQRs || db.officialQRs || [];
-  const amount = req.query.amount ? Number(req.query.amount) : null;
-  const note = req.query.note || null;
-  const formatted = await Promise.all(
-    rawQrs.map(qr => qrService.formatOfficialQr(qr, amount, note))
-  );
-  return ok(res, formatted);
-});
-
-router.post('/app/payment/deposit/submit', async (req, res) => {
-  const { amount, qrId, utr } = req.body || {};
-  const user = getAuthUser(req);
-
-  const state = db.get();
-  const qrs = state.officialQRs || db.officialQRs;
-  const qr = qrs.find(q => q.id === Number(qrId) && q.status === 1);
-  if (!qr) {
-    return fail(res, 'Selected deposit QR is not available', 404);
-  }
-
-  try {
-    const record = depositEngine.createDeposit({
-      userId: user.id,
-      amount,
-      qrId: qr.id,
-      vpa: qr.vpa,
-      utr,
-      // Explicit local-development opt-in only; production requires verification.
-      autoCredit: process.env.ALLOW_AUTO_DEPOSIT === 'true' && process.env.NODE_ENV !== 'production'
-    });
-
-    const msg = record.status === 'completed'
-      ? `Deposit of ₹${record.amount} credited successfully!`
-      : 'Deposit submitted for verification';
-    return ok(res, record, msg);
-  } catch (err) {
-    return fail(res, err.message, err.status || 400);
-  }
-});
-
-router.get('/app/payment/deposit/history', (req, res) => {
-  const user = getAuthUser(req);
-  const records = depositEngine.listUserDeposits(user.id);
-  return ok(res, { records, total: records.length });
-});
-
-router.get('/app/admin/deposits', (req, res) => {
-  if (!requireAdmin(req, res)) return;
-
-  try {
-    const records = depositEngine.listAllDeposits({ status: req.query.status });
-    return ok(res, { records, total: records.length });
-  } catch (err) {
-    return fail(res, err.message, err.status || 400);
-  }
-});
-
-router.post('/app/admin/deposits/approve', (req, res) => {
-  if (!requireAdmin(req, res)) return;
-
-  const { depositId } = req.body || {};
-  try {
-    const deposit = depositEngine.approveDeposit(depositId, req.user.id);
-    return ok(res, deposit, 'Deposit approved and credited');
-  } catch (err) {
-    return fail(res, err.message, err.status || 400);
-  }
-});
-
-router.post('/app/admin/deposits/reject', (req, res) => {
-  if (!requireAdmin(req, res)) return;
-
-  const { depositId, reason } = req.body || {};
-  try {
-    const deposit = depositEngine.rejectDeposit(depositId, req.user.id, reason);
-    return ok(res, deposit, 'Deposit rejected');
-  } catch (err) {
-    return fail(res, err.message, err.status || 400);
-  }
-});
-
-// Signed, provider-agnostic payment reconciliation. Retries are idempotent:
-// an already-credited deposit is reported as a duplicate and never credited twice.
-router.post('/webhooks/payment', (req, res) => {
-  const secret = String(process.env.PAYMENT_WEBHOOK_SECRET || '');
-  if (!secret) return fail(res, 'Payment webhook is not configured', 503);
-  if (!req.rawBody) return fail(res, 'Raw request body is required', 400);
-
-  const signature = req.headers['x-tradepay-signature'] || req.headers['x-webhook-signature'];
-  if (!webhook.verifySignature(req.rawBody, signature, secret)) {
-    return fail(res, 'Invalid webhook signature', 401);
-  }
-
-  const { event, utr, amount, providerId, eventId } = req.body || {};
-  if (event && event !== 'payment.captured') {
-    return ok(res, { ignored: true });
-  }
-
-  try {
-    const result = depositEngine.reconcileDeposit({ utr, amount, providerId, eventId });
-    return ok(res, result, result.credited ? 'Deposit reconciled' : 'No new deposit to credit');
-  } catch (err) {
-    return fail(res, err.message, err.status || 400);
-  }
-});
-
-// -------------------------------------------------------------
 // 1. AUTH & USER (SUPABASE INTEGRATED)
 // -------------------------------------------------------------
 router.post('/app/user/login/login', async (req, res) => {

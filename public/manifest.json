@@ -32,13 +32,6 @@
   ],
   "shortcuts": [
     {
-      "name": "Scan & Pay QR",
-      "short_name": "Scan QR",
-      "description": "Instant official UPI QR deposit",
-      "url": "/?action=scan",
-      "icons": [{ "src": "/static/logo/icon-192.png", "sizes": "192x192" }]
-    },
-    {
       "name": "Take Orders",
       "short_name": "Orders",
       "description": "View live market liquidity orders",

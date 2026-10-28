@@ -283,8 +283,7 @@ function submitOrder({ buyId, utr = '', proofUrl = '', userId }) {
 
   const duplicateUtr = Object.values(state.claimedOrders).some(o =>
     o.buyId !== order.buyId && o.utr && String(o.utr) === cleanUtr
-  ) || (state.deposits || []).some(d => String(d.utr) === cleanUtr);
-  if (duplicateUtr) {
+  );  if (duplicateUtr) {
     throw new Error('This UTR has already been used');
   }
 

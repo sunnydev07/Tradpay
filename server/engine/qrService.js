@@ -90,47 +90,19 @@ async function getQrSvg(text, options = {}) {
 }
 
 /**
- * Format an official QR record with optional custom amount and dynamic QR data
- */
-async function formatOfficialQr(qr, amount = null, note = null) {
-  if (!qr) return null;
-  const numAmount = amount ? Number(amount) : null;
-  const upiUri = buildUpiUri({
-    vpa: qr.vpa,
-    name: qr.name,
-    amount: numAmount,
-    note: note || (numAmount ? `TradePay Topup INR ${numAmount}` : 'TradePay Official Deposit')
-  });
-  const qrDataUrl = await getQrDataUrl(upiUri);
-  return {
-    ...qr,
-    amount: numAmount,
-    upiUri,
-    qrDataUrl,
-    qrImageUrl: `/api/qr/image?text=${encodeURIComponent(upiUri)}`,
-    screenshotUrl: qr.qrImage || '/static/qr/scr1.jpeg'
-  };
-}
-
-/**
  * Attach amount-specific QR and UPI URI to an order
  */
 async function attachQrToOrder(order) {
   if (!order) return order;
   const state = db.get();
-  const qrs = state.officialQRs || db.officialQRs || [];
 
-  // The payee must be the wallet selected for this order. Never fall back to
-  // an unrelated official QR: doing so routes user payments to the wrong VPA.
   const wallet = state.wallets.find(w => w.id === Number(order.payoutWalletId));
   const vpa = (wallet && (wallet.account || wallet.vpa)) || order.payoutAccount;
   if (!vpa) {
     throw new Error('Order payout account is not configured');
   }
 
-  const qrImage = (wallet && wallet.qrImage) ||
-    (qrs.find(q => q.vpa === vpa) || {}).qrImage ||
-    '/static/qr/scr1.jpeg';
+  const qrImage = (wallet && wallet.qrImage) || '/static/qr/scr1.jpeg';
   const amount = Number(order.amount);
   const note = order.orderNo || order.payOrderId || `Order ${order.id || ''}`;
   const name = wallet && !wallet.isOfficial ? (wallet.name || '') : '';
@@ -191,7 +163,6 @@ module.exports = {
   buildUpiUri,
   getQrDataUrl,
   getQrSvg,
-  formatOfficialQr,
   attachQrToOrder,
   attachQrToWallet,
   attachQrToUsdt
