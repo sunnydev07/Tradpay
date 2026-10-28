@@ -8,35 +8,40 @@
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   email text,
-  phone text,
-  nickname text default 'Trader',
-  display_name text,
-  avatar text default '/static/user/profile.png',
-  balance numeric(12, 2) default 0.00,
-  total_balance numeric(12, 2) default 0.00,
-  reward_total numeric(12, 2) default 0.00,
-  pending numeric(12, 2) default 0.00,
-  points integer default 0,
-  vip_level integer default 1,
-  invite_code text default 'LP8899',
-  is_pin_set boolean default false,
   role text default 'user',
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Ensure all required columns exist even if public.profiles was pre-existing
+alter table public.profiles add column if not exists phone text;
+alter table public.profiles add column if not exists nickname text default 'Trader';
+alter table public.profiles add column if not exists display_name text;
+alter table public.profiles add column if not exists avatar text default '/static/user/profile.png';
+alter table public.profiles add column if not exists balance numeric(12, 2) default 0.00;
+alter table public.profiles add column if not exists total_balance numeric(12, 2) default 0.00;
+alter table public.profiles add column if not exists reward_total numeric(12, 2) default 0.00;
+alter table public.profiles add column if not exists pending numeric(12, 2) default 0.00;
+alter table public.profiles add column if not exists points integer default 0;
+alter table public.profiles add column if not exists vip_level integer default 1;
+alter table public.profiles add column if not exists invite_code text default 'LP8899';
+alter table public.profiles add column if not exists is_pin_set boolean default false;
+alter table public.profiles add column if not exists updated_at timestamp with time zone default timezone('utc'::text, now()) not null;
 
 -- Enable RLS on profiles
 alter table public.profiles enable row level security;
 
 -- Policies for profiles
+drop policy if exists "Allow public read of profiles" on public.profiles;
 create policy "Allow public read of profiles"
   on public.profiles for select
   using (true);
 
+drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile"
   on public.profiles for insert
   with check (auth.uid() = id);
 
+drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id);
@@ -60,16 +65,20 @@ create table if not exists public.wallets (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+create index if not exists idx_wallets_user_id on public.wallets (user_id);
 alter table public.wallets enable row level security;
 
+drop policy if exists "Users can view their own wallets" on public.wallets;
 create policy "Users can view their own wallets"
   on public.wallets for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can insert their own wallets" on public.wallets;
 create policy "Users can insert their own wallets"
   on public.wallets for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can update their own wallets" on public.wallets;
 create policy "Users can update their own wallets"
   on public.wallets for update
   using (auth.uid() = user_id);
@@ -89,12 +98,17 @@ create table if not exists public.deposits (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+create index if not exists idx_deposits_user_id on public.deposits (user_id);
+create index if not exists idx_deposits_utr on public.deposits (utr);
+create index if not exists idx_deposits_status on public.deposits (status);
 alter table public.deposits enable row level security;
 
+drop policy if exists "Users can view their own deposits" on public.deposits;
 create policy "Users can view their own deposits"
   on public.deposits for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can submit deposits" on public.deposits;
 create policy "Users can submit deposits"
   on public.deposits for insert
   with check (auth.uid() = user_id);

@@ -55,7 +55,7 @@ async function testOrderFlow() {
 
   // 3. Inspect Order Details
   const infoRes = await testEndpoint('/app/payment/order/orderInfo?buyId=' + buyId);
-  console.log('3. Order Info status:', infoRes.data.data?.status, 'Buyer UPI:', infoRes.data.data?.buyerUpi);
+  console.log('3. Order Info status:', infoRes.data.data?.status);
 
   // 4. Submit Order (Confirm receipt with UTR)
   const submitRes = await testEndpoint('/app/payment/order/submit', 'POST', {

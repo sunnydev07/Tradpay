@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('./db');
 const money = require('./money');
 const security = require('./security');
@@ -75,7 +76,7 @@ function createDeposit({ userId, amount, qrId, vpa, utr, autoCredit = false }) {
   }
 
   const deposit = {
-    id: 'DEP' + Date.now() + Math.floor(Math.random() * 1000),
+    id: `DEP${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
     userId: String(userId),
     amount: money.fromPaise(money.toPaise(numAmount)),
     qrId: Number(qrId),
@@ -87,6 +88,9 @@ function createDeposit({ userId, amount, qrId, vpa, utr, autoCredit = false }) {
   };
 
   state.deposits.push(deposit);
+  if (state.deposits.length > 2000) {
+    state.deposits = state.deposits.slice(-1500);
+  }
 
   if (autoCredit) {
     // Explicit local-development opt-in only; production requires verification.

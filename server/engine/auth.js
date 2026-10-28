@@ -41,9 +41,9 @@ function createLocalUser(supUser) {
     points: Number(supUser.points) || 0,
     vipLevel: Number(supUser.vipLevel) || 1,
     inviteCode: supUser.inviteCode || newInviteCode(),
-    pinHash: supUser.pinHash || null,
-    pinSalt: supUser.pinSalt || null,
-    isPinSet: Boolean(supUser.isPinSet || supUser.pinHash),
+    pinHash: null,
+    pinSalt: null,
+    isPinSet: Boolean(supUser.isPinSet),
     onSellStatus: supUser.onSellStatus != null ? supUser.onSellStatus : 1,
     wallets: Array.isArray(supUser.wallets) ? supUser.wallets : [],
     claimedOrders: Array.isArray(supUser.claimedOrders) ? supUser.claimedOrders : [],
@@ -110,15 +110,18 @@ async function authenticateToken(token) {
         }
       }
     }
-    if (!user.isPinSet && (supUser.isPinSet || supUser.pinHash)) {
+    if (!user.isPinSet && supUser.isPinSet) {
       user.isPinSet = true;
-      user.pinHash = supUser.pinHash;
-      user.pinSalt = supUser.pinSalt;
     }
   }
 
-  // Cache user's active session token for cloud persistence
-  user._lastToken = token;
+  // Cache user's active session token in memory (non-enumerable so it never serializes to disk)
+  Object.defineProperty(user, '_lastToken', {
+    value: token,
+    writable: true,
+    configurable: true,
+    enumerable: false
+  });
 
   tokenCache.set(tokenHash, {
     user,

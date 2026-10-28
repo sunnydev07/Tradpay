@@ -6,7 +6,7 @@
   "id": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "background_color": "#141414",
   "theme_color": "#1B1B1B",
   "categories": ["finance", "business", "utilities"],

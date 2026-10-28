@@ -104,6 +104,13 @@ const PIN_MAX_ATTEMPTS = 5;
 
 function pinAttemptState(userId) {
   const now = Date.now();
+  if (PIN_ATTEMPTS.size > 200) {
+    for (const [id, item] of PIN_ATTEMPTS) {
+      if (item.lockedUntil < now && item.count === 0) {
+        PIN_ATTEMPTS.delete(id);
+      }
+    }
+  }
   let entry = PIN_ATTEMPTS.get(userId);
   if (!entry || entry.lockedUntil < now) {
     entry = { count: 0, lockedUntil: 0 };
@@ -376,8 +383,7 @@ router.post('/app/user/info/verifyPin', (req, res) => {
     return fail(res, 'Incorrect Security PIN', 400);
   }
 
-  attempt.count = 0;
-  attempt.lockedUntil = 0;
+  PIN_ATTEMPTS.delete(user.id);
   return ok(res, { verified: true });
 });
 
@@ -858,10 +864,12 @@ router.get('/app/user/team/details', (req, res) => {
     (sum, m) => money.add(sum, m.turnover || 0),
     0
   );
+  const totalCommission = commissionTotal || state.team.commissionTotal || 0;
+  const totalTurnover = teamTurnover || state.team.teamTurnover || 0;
   return ok(res, {
-    commissionTotal,
-    yCommission: commissionTotal,
-    teamTurnover,
+    commissionTotal: totalCommission,
+    yCommission: totalCommission,
+    teamTurnover: totalTurnover,
     memberTotal: members.length,
     activeCount: members.filter(m => m.status === 1).length,
     inviteCode: user.inviteCode || 'LP8899'
@@ -920,13 +928,13 @@ router.post('/app/user/team/members/ratio', (req, res) => {
 // -------------------------------------------------------------
 // 5. APP, NOTICES, MISSIONS & REWARDS
 // -------------------------------------------------------------
-router.post('/app/app/carousel/manager/carouselManager', (req, res) => {
-  return ok(res, [
-    { id: 1, imgUrl: '/static/banner/banner.jpg', link: '' },
-    { id: 2, imgUrl: '/static/banner/ad1.png', link: '' },
-    { id: 3, imgUrl: '/static/banner/ad2.png', link: '' }
-  ]);
-});
+const carouselList = [
+  { id: 1, imgUrl: '/static/banner/banner.jpg', link: '' },
+  { id: 2, imgUrl: '/static/banner/ad1.png', link: '' },
+  { id: 3, imgUrl: '/static/banner/ad2.png', link: '' }
+];
+router.get('/app/app/carousel/manager/carouselManager', (req, res) => ok(res, carouselList));
+router.post('/app/app/carousel/manager/carouselManager', (req, res) => ok(res, carouselList));
 
 router.get('/app/news/notice', (req, res) => {
   const state = db.get();
@@ -953,15 +961,61 @@ router.get('/app/app/official/service/getOfficialServiceData', (req, res) => {
   ]);
 });
 
+function isMissionCompletedForUser(mission, user, state) {
+  if (!mission || !user) return false;
+  const mId = Number(mission.id);
+
+  if (mId === 1) {
+    // Mission 1: Daily Sign-in -> completed for logged-in user
+    return true;
+  }
+  if (mId === 2) {
+    // Mission 2: Complete 1 Collection Order -> completed if user has completed at least 1 order
+    const hasOrder = (Array.isArray(user.claimedOrders) && user.claimedOrders.length > 0) ||
+      Object.values(state.claimedOrders || {}).some(
+        o => String(o.userId) === String(user.id) && o.status === 'completed'
+      );
+    return Boolean(hasOrder);
+  }
+  if (mId === 3) {
+    // Mission 3: Join Telegram -> completed if visited or user has flag
+    return Boolean(
+      (Array.isArray(user.visitedMissions) && user.visitedMissions.includes(mId)) ||
+      user.telegramJoined ||
+      user.socialVisited
+    );
+  }
+  if (mId === 4) {
+    // Mission 4: Pay using Official QR Code -> completed if user has at least 1 completed deposit
+    const hasDeposit = (state.deposits || []).some(
+      d => String(d.userId) === String(user.id) && d.status === 'completed'
+    );
+    return Boolean(hasDeposit);
+  }
+  return Boolean(mission.completed);
+}
+
 router.get('/app/mission/task', (req, res) => {
   const user = getAuthUser(req);
   const state = db.get();
   const claimed = new Set((user.claimedMissions || []).map(Number));
   const records = state.missions.map(m => ({
     ...m,
+    completed: isMissionCompletedForUser(m, user, state),
     claimed: claimed.has(Number(m.id))
   }));
   return ok(res, records);
+});
+
+router.post('/app/mission/task/visit/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const user = getAuthUser(req);
+  if (!Array.isArray(user.visitedMissions)) user.visitedMissions = [];
+  if (!user.visitedMissions.includes(id)) {
+    user.visitedMissions.push(id);
+    db.save();
+  }
+  return ok(res, { visited: true, missionId: id });
 });
 
 router.post('/app/mission/task/receive/:id', (req, res) => {
@@ -970,7 +1024,9 @@ router.post('/app/mission/task/receive/:id', (req, res) => {
   const state = db.get();
   const mission = state.missions.find(t => t.id === id);
   if (!mission) return fail(res, 'Mission not found', 404);
-  if (!mission.completed) return fail(res, 'Mission is not complete', 409);
+
+  const completed = isMissionCompletedForUser(mission, user, state);
+  if (!completed) return fail(res, 'Mission is not complete', 409);
 
   if (!Array.isArray(user.claimedMissions)) user.claimedMissions = [];
   if (user.claimedMissions.map(Number).includes(id)) {
@@ -980,6 +1036,11 @@ router.post('/app/mission/task/receive/:id', (req, res) => {
   user.claimedMissions.push(id);
   user.points = (Number(user.points) || 0) + (Number(mission.reward) || 0);
   db.save();
+
+  try {
+    const supabaseService = require('../engine/supabaseService');
+    supabaseService.syncUserData(user).catch(() => {});
+  } catch (e) {}
 
   return ok(res, { success: true, points: user.points });
 });

@@ -2,28 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
   <title>TradePay - Deposit Review</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
     body {
-      margin: 0; min-height: 100vh; background: #151515; color: #f5f5f5;
+      margin: 0; min-height: 100vh; min-height: 100dvh; background: #151515; color: #f5f5f5;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      overflow-x: hidden;
     }
     header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 18px 22px; border-bottom: 1px solid #2c2c2c; background: #1c1c1c;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 10px;
+      padding: calc(18px + env(safe-area-inset-top, 0px)) 22px 18px;
+      border-bottom: 1px solid #2c2c2c; background: #1c1c1c;
     }
-    h1 { font-size: 16px; margin: 0; letter-spacing: .02em; }
+    h1 { font-size: clamp(14px, 4vw, 16px); margin: 0; letter-spacing: .02em; }
     h1 span { color: #f2d7a5; }
-    a { color: #f2d7a5; }
-    main { max-width: 1100px; margin: 0 auto; padding: 22px; }
+    a { color: #f2d7a5; white-space: nowrap; }
+    main {
+      max-width: 1100px; margin: 0 auto;
+      padding: 22px 22px calc(22px + env(safe-area-inset-bottom, 0px));
+    }
     .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px; }
     button {
       border: 1px solid #3a3a3a; background: #242424; color: #eee;
       border-radius: 10px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+      min-height: 38px; touch-action: manipulation;
     }
     button:hover { background: #2e2e2e; }
     button.primary { background: #f2d7a5; border-color: #f2d7a5; color: #1b1b1b; }
@@ -33,7 +44,7 @@
     .status { color: #9ca3af; font-size: 12px; margin-left: auto; }
     .card {
       background: #1f1f1f; border: 1px solid #2f2f2f; border-radius: 14px;
-      padding: 14px 16px; margin-bottom: 10px;
+      padding: 14px 16px; margin-bottom: 10px; overflow-wrap: anywhere;
     }
     .row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
     .who { font-weight: 700; font-size: 13px; }
@@ -47,14 +58,29 @@
     .pill.completed { background: rgba(16, 185, 129, .16); color: #34d399; }
     .pill.rejected { background: rgba(239, 68, 68, .16); color: #f87171; }
     .actions { display: flex; gap: 8px; margin-top: 12px; }
+    .actions button { flex: 1 1 0; }
     .empty, .error { text-align: center; color: #9ca3af; padding: 50px 10px; font-size: 13px; }
     .error strong { color: #f87171; display: block; margin-bottom: 8px; }
     #toast {
-      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      position: fixed; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
+      max-width: calc(100vw - 24px); text-align: center;
       background: #f2d7a5; color: #1b1b1b; padding: 9px 16px; border-radius: 10px;
       font-size: 12px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity .2s;
     }
     #toast.show { opacity: 1; }
+
+    @media (max-width: 480px) {
+      header { padding: calc(14px + env(safe-area-inset-top, 0px)) 14px 14px; }
+      main { padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)); }
+      .bar { gap: 6px; margin-bottom: 14px; }
+      .bar button { flex: 1 1 auto; }
+      .status { flex-basis: 100%; margin-left: 0; text-align: right; }
+      .card { padding: 12px; }
+      .row { align-items: flex-start; gap: 8px; }
+      .actions { flex-direction: column; }
+      .actions button { width: 100%; }
+      .empty, .error { padding: 36px 8px; }
+    }
   </style>
 </head>
 <body>

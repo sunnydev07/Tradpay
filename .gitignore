@@ -6,4 +6,5 @@ data/*.backup
 data/db.json
 .env
 .env.*
+!.env.example
 *.tmp

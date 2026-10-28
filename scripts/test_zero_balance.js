@@ -7,7 +7,7 @@ async function api(path, method = 'GET', body = null, token = null) {
 
     const req = http.request({
       hostname: '127.0.0.1',
-      port: 3000,
+      port: Number(process.env.PORT) || 3000,
       path,
       method,
       headers
@@ -32,11 +32,11 @@ async function api(path, method = 'GET', body = null, token = null) {
 async function testZeroBalance() {
   console.log('--- Verifying Real Zero Initial Balance ---');
 
-  // 1. Default Guest / Initial Load
+  // 1. Verify unauthenticated request fails closed
   const guestRes = await api('/app/payment/order/summary');
-  console.log('1. Guest / Initial balance:', guestRes.data.data?.balance, 'Reward:', guestRes.data.data?.rewardTotal);
-  if (guestRes.data.data?.balance !== 0) {
-    throw new Error('Initial guest balance is not 0!');
+  console.log('1. Guest / Unauthenticated check status:', guestRes.status);
+  if (guestRes.status !== 401) {
+    throw new Error('Unauthenticated endpoint did not fail closed!');
   }
 
   // 2. Newly Registered User
@@ -46,31 +46,29 @@ async function testZeroBalance() {
     phone: uniquePhone,
     password: 'Password123!'
   });
-  const token = regRes.data.data?.token;
+  const token = regRes.data?.data?.token;
+  if (!token) throw new Error('Registration failed to return token');
 
   const userSummary = await api('/app/payment/order/summary', 'GET', null, token);
-  console.log('   New authenticated user balance:', userSummary.data.data?.balance, 'Reward:', userSummary.data.data?.rewardTotal);
-  if (userSummary.data.data?.balance !== 0) {
+  console.log('   New authenticated user balance:', userSummary.data?.data?.balance, 'Reward:', userSummary.data?.data?.rewardTotal);
+  if (userSummary.data?.data?.balance !== 0) {
     throw new Error('New user balance is not 0!');
   }
 
-  // 3. User deposits money using official QR
-  console.log('3. User scans Akshat Jain QR and deposits ₹500...');
+  // 3. User deposits money using official QR with valid 12-digit UTR
+  const randomUtr = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+  console.log('3. User submits deposit with 12-digit UTR:', randomUtr);
   const depRes = await api('/app/payment/deposit/submit', 'POST', {
     amount: 500,
     qrId: 1,
-    utr: 'UTR' + Date.now()
+    utr: randomUtr
   }, token);
-  console.log('   Deposit credited:', depRes.data.msg);
-
-  // 4. Verify balance is now ₹500
-  const afterDeposit = await api('/app/payment/order/summary', 'GET', null, token);
-  console.log('4. User balance after deposit: ₹' + afterDeposit.data.data?.balance);
-  if (afterDeposit.data.data?.balance !== 500) {
-    throw new Error('Balance was not updated correctly after deposit!');
+  console.log('   Deposit response code:', depRes.data?.code, 'Status:', depRes.data?.data?.status);
+  if (depRes.data?.code !== 1000) {
+    throw new Error('Deposit submission failed!');
   }
 
-  console.log('\n✅ Zero initial balance and deposit crediting fully verified!');
+  console.log('\n✅ Zero initial balance and secure deposit submission fully verified!');
   process.exit(0);
 }
 

@@ -22,7 +22,7 @@ A high-performance P2P Order Matching, Liquidity Dispatch, and UPI Collection We
 - **Audio Feedback**: Extracted `dcloud_beep.ogg` (5,176 bytes) authentic order notification sound with Web Audio synthesizer fallback.
 - **Visual Assets**: 77 authentic brand icons, banners, and tabs from the original app (`PhonePe`, `Paytm`, `GooglePay`, `Freecharge`, `Airtel`, `Mobikwik`, `BharatPeBiz`, etc.).
 - **P2P Matching Lifecycle**:
-  - `hangSales` -> Claim with compatible wallet -> 15-minute countdown -> Buyer UPI assignment -> Bank UTR submission -> Instant balance & reward payout.
+  - `hangSales` -> Claim with compatible wallet -> 15-minute countdown -> Bank UTR submission -> Instant balance & reward payout.
 - **Night Bonus Engine**: Automated bonus reward window (`22:00 - 06:00`) offering a **+25% bonus multiplier**.
 - **3-Tier Affiliate System**: L1 Direct (0.60%), L2 (0.30%), and L3 (0.10%) commission tree.
 
@@ -93,9 +93,20 @@ Runtime state is stored in `data/db.json` by default. Point `TRADEPAY_DB_FILE` a
 
 ---
 
-## 4. Render Deployment (Single Instance)
+## 4. Render & Supabase Deployment (Production Guide)
 
-The project includes [`render.yaml`](file:///C:/Users/sunny/Desktop/TradePay/render.yaml) and [`Dockerfile`](file:///C:/Users/sunny/Desktop/TradePay/Dockerfile) for zero-downtime deployment:
+### Step 1: Initialize Supabase Database
+1. Open the [Supabase Dashboard](https://supabase.com/dashboard).
+2. Navigate to your project -> **SQL Editor**.
+3. Open [`supabase/schema.sql`](supabase/schema.sql), copy its entire content, paste into the SQL editor, and click **Run**.
+4. This idempotently provisions:
+   - `public.profiles` with custom application attributes (balance, points, VIP level, invite code).
+   - `public.wallets` with user associations, status, and turnover tracking.
+   - `public.deposits` with UTR validation and indexes (`idx_deposits_user_id`, `idx_deposits_utr`, `idx_deposits_status`).
+   - Row Level Security (RLS) policies allowing users access only to their own wallets and deposits.
+
+### Step 2: Render Deployment
+The project includes [`render.yaml`](render.yaml) and [`Dockerfile`](Dockerfile) for zero-downtime deployment:
 
 1. Push to your GitHub repository.
 2. In [Render Dashboard](https://dashboard.render.com), select **New +** -> **Blueprint**.
@@ -108,8 +119,10 @@ The project includes [`render.yaml`](file:///C:/Users/sunny/Desktop/TradePay/ren
    - `PAYMENT_WEBHOOK_SECRET`: `<random-hmac-secret>` (optional until a PSP is connected)
    - `CORS_ORIGINS`: `https://your-custom-domain.example` (optional)
    - `PUBLIC_BASE_URL`: `https://your-service.onrender.com`
-   - `TRADEPAY_DB_FILE`: `/var/data/db.json` after mounting a disk at `/var/data`
-5. Attach a persistent disk for `TRADEPAY_DB_FILE` on a paid plan. The free plan has ephemeral storage, so balances and order state are lost on redeploy without a disk. `render.yaml` contains a commented disk block to uncomment on a paid plan.
+   - `TRADEPAY_DB_FILE`: `/var/data/db.json` (after mounting a disk at `/var/data`)
+5. **Persistent Disk Setup**:
+   - The free plan uses ephemeral disk storage (runtime state resets on restart or redeployment).
+   - For persistent runtime state across redeploys, upgrade to a paid instance (Starter plan), uncomment the `disk:` block in `render.yaml` or attach a disk mounted to `/var/data` (size: 1GB) via the Render Dashboard, and set `TRADEPAY_DB_FILE=/var/data/db.json`.
 6. Click **Apply**. In production the server refuses to start without `SUPABASE_URL` and `SUPABASE_KEY`.
 
 ---

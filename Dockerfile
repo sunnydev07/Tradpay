@@ -9,8 +9,9 @@ RUN npm ci --only=production
 # Copy application files
 COPY server/ ./server/
 COPY public/ ./public/
-# Runtime data is created at startup; never bake local tokens/PINs into an image.
+# Runtime data directory with persistent volume mount point
 RUN mkdir -p /app/data
+VOLUME ["/app/data"]
 
 # Environment
 ENV NODE_ENV=production

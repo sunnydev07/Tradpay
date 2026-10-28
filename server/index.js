@@ -1,5 +1,15 @@
 const http = require('http');
+const fs = require('fs');
 const path = require('path');
+
+// Automatically load local .env file if available in the environment
+if (typeof process.loadEnvFile === 'function') {
+  try {
+    const envPath = path.resolve(__dirname, '../.env');
+    if (fs.existsSync(envPath)) process.loadEnvFile(envPath);
+  } catch (e) { /* ignore */ }
+}
+
 const express = require('express');
 const compression = require('compression');
 const { WebSocketServer } = require('ws');
@@ -79,7 +89,16 @@ app.get('/health', (req, res) => {
 const publicDir = path.join(__dirname, '../public');
 app.use(express.static(publicDir, {
   maxAge: '1d',
-  etag: true
+  etag: true,
+  setHeaders: (res, filePath) => {
+    // Never cache the app shell or the service worker: they must always be
+    // revalidated so UI removals take effect immediately on next load.
+    if (filePath.endsWith('index.html') || filePath.endsWith('sw.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
 }));
 
 // 4. API Endpoints
@@ -100,12 +119,13 @@ const AUTH_TIMEOUT_MS = 10000;
 wss.on('connection', (ws, req) => {
   const origin = req.headers.origin;
   if (origin) {
+    let allowed = false;
     try {
-      if (new URL(origin).host !== req.headers.host) {
-        ws.close(1008, 'Origin not allowed');
-        return;
-      }
+      allowed = new URL(origin).host === req.headers.host || allowedOrigins.includes(origin);
     } catch (e) {
+      allowed = false;
+    }
+    if (!allowed) {
       ws.close(1008, 'Origin not allowed');
       return;
     }
@@ -147,14 +167,16 @@ wss.on('connection', (ws, req) => {
       ws.userId = String(user.id);
       clients.set(ws, { userId: ws.userId });
       clearTimeout(authTimer);
-      ws.send(JSON.stringify({
-        type: 'CONNECTED',
-        payload: {
-          message: 'TradePay Realtime Dispatch Engine Connected',
-          nightBonus: orderEngine.isNightBonusNow(),
-          timestamp: Date.now()
-        }
-      }));
+      try {
+        ws.send(JSON.stringify({
+          type: 'CONNECTED',
+          payload: {
+            message: 'TradePay Realtime Dispatch Engine Connected',
+            nightBonus: orderEngine.isNightBonusNow(),
+            timestamp: Date.now()
+          }
+        }));
+      } catch (e) { /* ignore */ }
       return;
     }
 
@@ -164,7 +186,9 @@ wss.on('connection', (ws, req) => {
     }
 
     if (data.type === 'PING') {
-      ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
+      try {
+        ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
+      } catch (e) { /* ignore */ }
     }
   });
 
@@ -189,7 +213,11 @@ function broadcastAll(data) {
   for (const [client, meta] of clients) {
     if (client.readyState !== 1) continue;
     if (targetUserId && meta.userId !== targetUserId) continue;
-    client.send(json);
+    try {
+      client.send(json);
+    } catch (e) {
+      console.warn('[WS] broadcast send error:', e.message);
+    }
   }
 }
 
@@ -226,13 +254,36 @@ function shutdown() {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
-// Start Server
+// Start Server helper
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`=======================================================`);
-  console.log(`🚀 TradePay High-Speed Engine running on port ${PORT}`);
-  console.log(`📡 WebSocket ready at ws://localhost:${PORT}/ws`);
-  console.log(`🌐 Web App available at http://localhost:${PORT}`);
-  console.log(`⚡ Render Health Check: http://localhost:${PORT}/health`);
-  console.log(`=======================================================`);
-});
+
+function startServer(port = PORT) {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '0.0.0.0', () => {
+      server.removeListener('error', reject);
+      console.log(`=======================================================`);
+      console.log(`🚀 TradePay High-Speed Engine running on port ${port}`);
+      console.log(`📡 WebSocket ready at ws://localhost:${port}/ws`);
+      console.log(`🌐 Web App available at http://localhost:${port}`);
+      console.log(`⚡ Render Health Check: http://localhost:${port}/health`);
+      console.log(`=======================================================`);
+      resolve(server);
+    });
+  });
+}
+
+// Only bind the port if this script is run directly from the command line.
+// When required by tests or external runners, export the handles safely.
+if (require.main === module) {
+  startServer().catch((err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[Server] Port ${PORT} is already in use.`);
+    } else {
+      console.error('[Server] Startup error:', err);
+    }
+    process.exit(1);
+  });
+}
+
+module.exports = { app, server, wss, broadcastAll, startServer };

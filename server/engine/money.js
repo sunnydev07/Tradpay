@@ -42,6 +42,14 @@ function equals(a, b) {
   return toPaise(a) === toPaise(b);
 }
 
+// Platform policy: every claimed order pays a bonus reward worth at least
+// 20% of the order amount (e.g. a ₹500 claim earns ₹100 before night bonus).
+const MIN_ORDER_REWARD_PERCENT = 20;
+
+function minimumOrderReward(amount) {
+  return percentage(amount, MIN_ORDER_REWARD_PERCENT);
+}
+
 module.exports = {
   toPaise,
   fromPaise,
@@ -49,5 +57,7 @@ module.exports = {
   subtract,
   percentage,
   multiply,
-  equals
+  equals,
+  MIN_ORDER_REWARD_PERCENT,
+  minimumOrderReward
 };

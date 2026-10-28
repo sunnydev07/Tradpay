@@ -77,6 +77,17 @@ function expireIfNeeded(state, order) {
   return true;
 }
 
+// A claimable order always pays at least 20% of its amount as bonus reward.
+function effectiveReward(order) {
+  const amount = Number(order && order.amount) || 0;
+  const reward = Number(order && order.reward) || 0;
+  return Math.max(reward, money.minimumOrderReward(amount));
+}
+
+function effectiveRewardRate(order) {
+  return Math.max(Number(order && order.rewardRate) || 0, money.MIN_ORDER_REWARD_PERCENT);
+}
+
 // Query hang sales orders with filters and sorting
 function getHangSales(params = {}) {
   const state = db.get();
@@ -100,7 +111,11 @@ function getHangSales(params = {}) {
     list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
-  return list;
+  return list.map(order => ({
+    ...order,
+    reward: effectiveReward(order),
+    rewardRate: effectiveRewardRate(order)
+  }));
 }
 
 // Claim an order (pages/payment/payment.vue -> createOrder)
@@ -148,9 +163,10 @@ async function claimOrder({ payOrderId, payoutWalletId, userId }) {
   const nightBonus = state.settings.nightBonus || {};
   const isNight = isNightBonusNow(nightBonus);
   const multiplier = Number(nightBonus.multiplier) || 1.25;
+  const baseReward = effectiveReward(order);
   let bonusAmount = 0;
   if (isNight && nightBonus.enabled) {
-    bonusAmount = money.multiply(order.reward, multiplier - 1);
+    bonusAmount = money.multiply(baseReward, multiplier - 1);
   }
 
   const buyId = generateId('BUY');
@@ -161,17 +177,16 @@ async function claimOrder({ payOrderId, payoutWalletId, userId }) {
     orderNo: order.orderNo,
     amount: order.amount,
     currency: order.currency || 'INR',
-    reward: order.reward,
+    reward: baseReward,
+    rewardRate: effectiveRewardRate(order),
     smallAmountBonus: isNight,
     smallAmountBonusAmount: bonusAmount,
-    totalReward: money.add(order.reward, bonusAmount),
+    totalReward: money.add(baseReward, bonusAmount),
     status: 'pending',
     payoutWalletId: wallet.id,
     payoutWalletName: wallet.ctName,
     payoutAccount: wallet.account,
     userId,
-    buyerUpi: 'buyer.' + Math.floor(100000 + Math.random() * 900000) + '@okhdfcbank',
-    buyerPhone: '+919' + Math.floor(100000000 + Math.random() * 900000000),
     utr: null,
     expireSeconds: 900,
     expireAt: new Date(Date.now() + 900 * 1000).toISOString(),
@@ -182,6 +197,28 @@ async function claimOrder({ payOrderId, payoutWalletId, userId }) {
   // two concurrent requests can no longer both observe the sale as pending.
   order.status = 'processing';
   state.claimedOrders[buyId] = claimedRecord;
+
+  // Bound memory and db.json size by pruning stale completed/expired orders if count exceeds 2000
+  const orderKeys = Object.keys(state.claimedOrders);
+  if (orderKeys.length > 2000) {
+    const list = orderKeys.map(k => state.claimedOrders[k]).filter(Boolean);
+    list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    const toKeep = new Set();
+    let kept = 0;
+    for (const ord of list) {
+      const isPending = ['pending', 'confirming'].includes(ord.status);
+      if (isPending || kept < 1500) {
+        toKeep.add(ord.buyId || ord.id);
+        kept++;
+      }
+    }
+    for (const k of orderKeys) {
+      if (!toKeep.has(k)) {
+        delete state.claimedOrders[k];
+      }
+    }
+  }
+
   db.save();
 
   try {
@@ -265,6 +302,10 @@ function submitOrder({ buyId, utr = '', proofUrl = '', userId }) {
     user.balance = money.add(user.balance, reward);
     user.totalBalance = user.balance;
     user.rewardTotal = money.add(user.rewardTotal, reward);
+    if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
+    if (!user.claimedOrders.includes(buyId)) {
+      user.claimedOrders.push(buyId);
+    }
   }
 
   const wallet = state.wallets.find(w => w.id === order.payoutWalletId);
@@ -335,7 +376,7 @@ function spawnSampleOrder() {
   const state = db.get();
   const amounts = [500, 800, 1200, 2000, 2500, 3500, 5000, 7500, 10000, 15000];
   const amount = amounts[Math.floor(Math.random() * amounts.length)];
-  const rate = Number((1.2 + Math.random() * 0.5).toFixed(2));
+  const rate = money.MIN_ORDER_REWARD_PERCENT;
   const reward = money.percentage(amount, rate);
   const id = generateId('PO');
 

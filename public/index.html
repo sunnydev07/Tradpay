@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>TradePay - P2P Order Matching & Liquidity Engine</title>
   
   <!-- Progressive Web App (PWA) & Mobile App Meta Tags -->
@@ -39,25 +39,40 @@
     }
   </script>
   <style>
+    html {
+      width: 100%;
+      height: 100%;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
     body {
       background-color: #0E0E0E;
       color: #FFFFFF;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       margin: 0;
       padding: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
       overflow-x: hidden;
       user-select: none;
       -webkit-font-smoothing: antialiased;
     }
 
+    body.modal-open {
+      overflow: hidden;
+    }
+
     .app-container {
+      width: 100%;
       max-width: 480px;
       min-height: 100vh;
+      min-height: 100dvh;
       margin: 0 auto;
       background: #1B1B1B;
       box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
       position: relative;
-      padding-bottom: 78px;
+      padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
     }
 
     .gold-gradient {
@@ -70,6 +85,187 @@
       -webkit-text-fill-color: transparent;
     }
 
+    /* Header: keep the brand and actions on one row on every phone width */
+    header {
+      padding-top: calc(0.75rem + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    .header-brand {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .header-brand > div {
+      min-width: 0;
+    }
+
+    .header-tagline {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-actions {
+      flex: 0 0 auto;
+      gap: 0.5rem;
+    }
+
+    .auth-name {
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Balance can contain long amounts without pushing the CTA off-screen */
+    .balance-amount {
+      font-size: clamp(1.5rem, 7vw, 1.875rem);
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    /* Profile card: long nicknames wrap instead of overflowing the card */
+    .profile-name {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .uid-line {
+      overflow-wrap: anywhere;
+    }
+
+    /* Settings rows: description shrinks, action label never breaks */
+    .menu-list > button,
+    .menu-list > a {
+      gap: 0.5rem;
+    }
+
+    .menu-list > button > div:first-child,
+    .menu-list > a > div:first-child {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .menu-list > button > div:first-child > div,
+    .menu-list > a > div:first-child > div {
+      min-width: 0;
+    }
+
+    .menu-list > button > span:last-child,
+    .menu-list > a > span:last-child {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Bottom navigation respects the iOS home indicator */
+    nav {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .app-toast {
+      top: calc(4rem + env(safe-area-inset-top, 0px)) !important;
+      max-width: calc(100vw - 2rem);
+    }
+
+    /* Modals: always reachable, even on short/landscape screens */
+    .modal-overlay {
+      padding-top: calc(1rem + env(safe-area-inset-top, 0px)) !important;
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    .modal-panel {
+      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .modal-sheet {
+      max-height: calc(100vh - env(safe-area-inset-top, 0px));
+      max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* Avoid horizontal overflow from images and long unbroken strings */
+    img {
+      max-width: 100%;
+    }
+
+    button, a, input, select, textarea {
+      touch-action: manipulation;
+    }
+
+    /* iOS zooms the page when a form control smaller than 16px is focused */
+    @supports (-webkit-touch-callout: none) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+
+    @media (max-width: 400px) {
+      header {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+
+      .header-actions {
+        gap: 0.375rem;
+      }
+
+      .online-label,
+      .mobile-app-badge {
+        display: none;
+      }
+
+      .auth-name {
+        max-width: 56px;
+      }
+
+      .install-banner {
+        padding: 0.625rem !important;
+      }
+    }
+
+    /* Ultra-narrow screens (e.g. Galaxy Fold cover display) */
+    @media (max-width: 300px) {
+      .audio-toggle {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 440px) {
+      .wallet-card-top > div:last-child {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 0.125rem;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .header-tagline,
+      .pro-badge {
+        display: none;
+      }
+
+      .app-container main {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+
+      .quick-actions {
+        gap: 0.375rem !important;
+      }
+
+      .quick-action {
+        padding-left: 0.25rem !important;
+        padding-right: 0.25rem !important;
+      }
+    }
+
     ::-webkit-scrollbar { display: none; }
     * { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -77,27 +273,27 @@
 <body>
   <div id="app" class="app-container">
     <!-- Top Header Bar -->
-    <header class="sticky top-0 z-40 bg-[#1B1B1B]/95 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <img src="/static/logo/logo.png" alt="Logo" class="w-8 h-8 rounded-lg shadow-md border border-white/10" @error="handleLogoError">
+    <header class="sticky top-0 z-40 bg-[#1B1B1B]/95 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center justify-between gap-2">
+      <div class="header-brand flex items-center gap-2">
+        <img src="/static/logo/logo.png" alt="Logo" class="w-8 h-8 rounded-lg shadow-md border border-white/10 flex-shrink-0" @error="handleLogoError">
         <div>
           <h1 class="text-base font-bold tracking-wide gold-text flex items-center gap-1.5">
             TradePay
-            <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-normal border border-amber-500/30">PRO</span>
+            <span class="pro-badge text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-normal border border-amber-500/30">PRO</span>
           </h1>
-          <p class="text-[10px] text-gray-400">High-Speed Liquidity Engine</p>
+          <p class="header-tagline text-[10px] text-gray-400">High-Speed Liquidity Engine</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="header-actions flex items-center">
         <!-- Auth Button -->
         <button @click="openAuthModal" class="px-2.5 py-1 rounded-full text-[11px] font-medium border flex items-center gap-1.5 transition" :class="isLoggedIn ? 'bg-amber-500/10 border-amber-500/30 text-[#F2D7A5]' : 'bg-white/5 border-white/15 text-gray-300 hover:bg-white/10'">
           <span>👤</span>
-          <span class="max-w-[80px] truncate">{{ isLoggedIn ? user.nickname : 'Sign In' }}</span>
+          <span class="auth-name truncate">{{ isLoggedIn ? user.nickname : 'Sign In' }}</span>
         </button>
 
         <!-- Audio status toggle -->
-        <button @click="toggleAudio" class="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition flex items-center gap-1 text-gray-300">
+        <button @click="toggleAudio" class="audio-toggle p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition flex items-center gap-1 text-gray-300">
           <span v-if="audioEnabled">🔊</span>
           <span v-else>🔇</span>
         </button>
@@ -105,31 +301,31 @@
         <!-- WebSocket status pill -->
         <div class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Online</span>
+          <span class="online-label">Online</span>
         </div>
       </div>
     </header>
 
     <!-- Global Toast Alert -->
     <transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
-      <div v-if="toast.show" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-medium shadow-2xl flex items-center gap-2 border" :class="toast.type === 'success' ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/30' : 'bg-[#2A2A2A] text-white border-white/10'">
+      <div v-if="toast.show" class="app-toast fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-medium shadow-2xl flex items-center gap-2 border" :class="toast.type === 'success' ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/30' : 'bg-[#2A2A2A] text-white border-white/10'">
         <span>{{ toast.message }}</span>
       </div>
     </transition>
 
     <!-- PWA Install Banner -->
-    <div v-if="showInstallBanner && !isAppInstalled" class="mx-4 mt-3 p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-[#242424] to-[#242424] border border-[#F2D7A5]/40 flex items-center justify-between shadow-xl">
-      <div class="flex items-center gap-2.5">
-        <img src="/static/logo/icon-192.png" class="w-9 h-9 rounded-xl object-contain bg-black/40 p-0.5 border border-white/10" alt="TradePay App">
-        <div>
-          <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+    <div v-if="showInstallBanner && !isAppInstalled" class="install-banner mx-4 mt-3 p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-[#242424] to-[#242424] border border-[#F2D7A5]/40 flex items-center justify-between gap-2 shadow-xl">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <img src="/static/logo/icon-192.png" class="w-9 h-9 rounded-xl object-contain bg-black/40 p-0.5 border border-white/10 flex-shrink-0" alt="TradePay App">
+        <div class="min-w-0">
+          <h4 class="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
             <span>Install TradePay App</span>
-            <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">MOBILE APP</span>
+            <span class="mobile-app-badge text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">MOBILE APP</span>
           </h4>
           <p class="text-[10px] text-gray-400 mt-0.5">Use as standalone app on your home screen</p>
         </div>
       </div>
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1.5 flex-shrink-0">
         <button @click="installApp" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-extrabold shadow-md hover:brightness-110 active:scale-95 transition">
           Install
         </button>
@@ -138,8 +334,8 @@
     </div>
 
     <!-- iOS Add to Home Screen Instructions Modal -->
-    <div v-if="modals.iosInstall.show" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="w-full max-w-[400px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
+    <div v-if="modals.iosInstall.show" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="modal-panel w-full max-w-[400px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div class="flex items-center gap-2">
             <img src="/static/logo/icon-192.png" class="w-8 h-8 rounded-lg object-contain">
@@ -187,7 +383,7 @@
       <!-- Balance Card -->
       <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#262626] to-[#1C1C1C] border border-[#F2D7A5]/25 p-5 shadow-xl">
         <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-[#F2D7A5]/5 rounded-full blur-2xl"></div>
-        <div class="flex items-center justify-between text-xs text-gray-400">
+        <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400">
           <div class="flex items-center gap-1.5">
             <span>Available Assets (INR)</span>
             <button @click="hideBalance = !hideBalance" class="text-gray-400 hover:text-white">
@@ -195,22 +391,17 @@
               <span v-else>👁️</span>
             </button>
           </div>
-          <div class="flex items-center gap-1.5">
-            <span v-if="isLoggedIn" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium">Supabase Sync</span>
+          <div class="flex flex-wrap items-center gap-1.5">
             <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-400/10 text-[#F2D7A5] border border-[#F2D7A5]/20 font-medium">VIP {{ user.vipLevel || 1 }}</span>
           </div>
         </div>
 
-        <div class="mt-2 flex items-baseline justify-between">
-          <h2 class="text-3xl font-extrabold tracking-tight text-white">
+        <div class="mt-2 flex flex-wrap items-end justify-between gap-2">
+          <h2 class="balance-amount font-extrabold tracking-tight text-white min-w-0">
             <span class="text-lg font-bold text-[#F2D7A5] mr-1">₹</span>
             <span v-if="!hideBalance">{{ formatMoney(summary.balance) }}</span>
             <span v-else>••••••</span>
           </h2>
-          <button @click="openQrPayModal" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition flex items-center gap-1">
-            <span>📱</span>
-            <span>+ Scan & Pay</span>
-          </button>
         </div>
 
         <!-- Quick Stats Grid in Card -->
@@ -249,41 +440,34 @@
       </div>
 
       <!-- Quick Action Buttons -->
-      <div class="grid grid-cols-4 gap-2.5">
-        <button @click="switchTab('payment')" class="flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+      <div class="quick-actions grid grid-cols-3 gap-2.5">
+        <button @click="switchTab('payment')" class="quick-action flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
           <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-lg mb-1.5 text-[#F2D7A5]">
             <img src="/static/icons/icon-order.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
             <span>⚡</span>
           </div>
-          <span class="text-[11px] font-medium text-gray-200">Take Order</span>
+          <span class="text-[11px] font-medium text-gray-200 text-center leading-tight">Take Order</span>
         </button>
 
-        <button @click="openQrPayModal" class="flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
-          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-lg mb-1.5 text-emerald-400">
-            <span class="text-xl">📷</span>
-          </div>
-          <span class="text-[11px] font-medium text-gray-200">Scan QR</span>
-        </button>
-
-        <button @click="switchTab('team')" class="flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+        <button @click="switchTab('team')" class="quick-action flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
           <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-lg mb-1.5 text-blue-400">
             <img src="/static/icons/icon-activity.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
             <span>👥</span>
           </div>
-          <span class="text-[11px] font-medium text-gray-200">Rebate</span>
+          <span class="text-[11px] font-medium text-gray-200 text-center leading-tight">Rebate</span>
         </button>
 
-        <button @click="openMissionsModal" class="flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+        <button @click="openMissionsModal" class="quick-action flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
           <div class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-lg mb-1.5 text-purple-400">
             <img src="/static/icons/icon-task.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
             <span>🎁</span>
           </div>
-          <span class="text-[11px] font-medium text-gray-200">Missions</span>
+          <span class="text-[11px] font-medium text-gray-200 text-center leading-tight">Missions</span>
         </button>
       </div>
 
-      <!-- Realtime Engine Test / Simulator Card -->
-      <div class="rounded-2xl bg-gradient-to-r from-amber-950/30 via-[#242424] to-[#242424] border border-amber-500/30 p-4">
+      <!-- Realtime Engine Test / Simulator Card (Admin only) -->
+      <div v-if="user.isAdmin" class="rounded-2xl bg-gradient-to-r from-amber-950/30 via-[#242424] to-[#242424] border border-amber-500/30 p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-xl">⚡</span>
@@ -338,9 +522,9 @@
       <!-- Hang Sales Order Cards -->
       <div class="space-y-3">
         <div v-for="order in hangSalesList" :key="order.payOrderId" class="rounded-2xl bg-[#242424] border border-white/5 p-4 hover:border-amber-500/30 transition shadow-md">
-          <div class="flex items-start justify-between">
-            <div>
-              <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span class="text-xl font-extrabold text-white">₹{{ formatMoney(order.amount) }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
                   +{{ order.rewardRate }}%
@@ -352,14 +536,14 @@
               <p class="text-[11px] text-gray-400 mt-1">Est. Reward: <span class="text-emerald-400 font-medium">+₹{{ formatMoney(order.reward) }}</span></p>
             </div>
 
-            <button @click="openClaimModal(order)" class="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition">
+            <button @click="openClaimModal(order)" class="ml-auto px-4 py-2 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition flex-shrink-0">
               Claim Order
             </button>
           </div>
 
-          <div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
+          <div class="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-400">
             <span class="text-[10px] text-gray-500">Supported:</span>
-            <div class="flex items-center gap-1.5">
+            <div class="flex flex-wrap items-center gap-1.5">
               <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">PhonePe</span>
               <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">Paytm</span>
               <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">Freecharge</span>
@@ -371,8 +555,8 @@
         <div v-if="hangSalesList.length === 0" class="py-12 text-center text-gray-500 text-xs space-y-3">
           <p class="text-3xl">📭</p>
           <p>No orders in this range right now.</p>
-          <button @click="simulateIncomingOrder" class="px-3 py-1.5 rounded-xl bg-[#242424] text-[#F2D7A5] border border-white/10 text-xs">
-            Generate Matching Order
+          <button v-if="user.isAdmin" @click="simulateIncomingOrder" class="px-3 py-1.5 rounded-xl bg-[#242424] text-[#F2D7A5] border border-white/10 text-xs">
+            Generate Matching Order (Admin)
           </button>
         </div>
       </div>
@@ -382,55 +566,33 @@
     <!-- TAB 3: WALLET -->
     <!-- ======================================================== -->
     <main v-if="activeTab === 'wallet'" class="p-4 space-y-4">
-      <div class="flex items-center justify-between">
-        <div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="min-w-0">
           <h2 class="text-base font-bold text-white">Receiving Wallets & QRs</h2>
           <p class="text-xs text-gray-400">Official verified QRs & bound UPI accounts</p>
         </div>
-        <button @click="openAddWalletModal" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition flex items-center gap-1">
+        <button @click="openAddWalletModal" class="ml-auto px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition flex items-center gap-1 flex-shrink-0">
           <span>+ Add Wallet</span>
         </button>
       </div>
 
-      <!-- Official Platform QR Wallets Banner -->
-      <div class="rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#242424] to-[#242424] border border-amber-500/30 p-3.5 space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-[#F2D7A5] flex items-center gap-1.5">
-            <span>🛡️</span>
-            <span>Official Platform Collection Accounts</span>
-          </span>
-          <button @click="openQrPayModal" class="text-[11px] text-[#F2D7A5] font-semibold underline">Show QRs</button>
-        </div>
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div v-for="(q, idx) in officialQrs" :key="q.id" @click="selectAndOpenQr(q.id)" class="p-2 rounded-xl bg-black/30 border border-white/5 flex items-center gap-2 cursor-pointer hover:border-[#F2D7A5]/40 transition">
-            <div class="w-8 h-8 rounded overflow-hidden bg-white flex-shrink-0 flex items-center justify-center p-0.5">
-              <img :src="q.qrDataUrl || q.screenshotUrl || q.qrImage" class="w-full h-full object-contain" @error="handleImgFallback">
-            </div>
-            <div class="truncate">
-              <p class="font-bold text-white text-[11px] truncate">Official QR {{ idx + 1 }}</p>
-              <p class="text-[9px] text-gray-400 font-mono truncate">{{ q.vpa }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="space-y-3">
         <div v-for="w in wallets" :key="w.id" class="rounded-2xl bg-[#242424] border border-white/5 p-4 space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <img :src="getWalletIcon(w.ctType)" class="w-10 h-10 rounded-xl object-contain bg-white/5 p-1 border border-white/5" @error="handleImgFallback">
-              <div>
-                <div class="flex items-center gap-2">
+          <div class="wallet-card-top flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              <img :src="getWalletIcon(w.ctType)" class="w-10 h-10 rounded-xl object-contain bg-white/5 p-1 border border-white/5 flex-shrink-0" @error="handleImgFallback">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
                   <h3 class="text-sm font-bold text-white">{{ w.ctName }}</h3>
                   <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" :class="w.status === 1 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'">
                     {{ w.status === 1 ? 'Active (onSell)' : 'Paused (offSell)' }}
                   </span>
                 </div>
-                <p class="text-xs text-gray-400 mt-0.5 font-mono">{{ w.account }}</p>
+                <p class="text-xs text-gray-400 mt-0.5 font-mono break-all">{{ w.account }}</p>
               </div>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-shrink-0">
               <button @click="openWalletQrModal(w)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#F2D7A5]/20 border border-white/10 hover:border-[#F2D7A5]/30 text-[#F2D7A5] text-[10px] font-semibold flex items-center gap-1 transition">
                 <span>📷 QR</span>
               </button>
@@ -460,7 +622,7 @@
     <main v-if="activeTab === 'team'" class="p-4 space-y-4">
       <div class="rounded-2xl bg-gradient-to-br from-[#262626] to-[#1C1C1C] border border-[#F2D7A5]/25 p-5 shadow-xl">
         <p class="text-xs text-gray-400">Total Team Commission</p>
-        <h2 class="text-3xl font-extrabold text-white mt-1">
+        <h2 class="text-3xl font-extrabold text-white mt-1 break-words">
           <span class="text-lg font-bold text-[#F2D7A5] mr-1">₹</span>{{ formatMoney(teamData.commissionTotal) }}
         </h2>
 
@@ -477,22 +639,22 @@
       </div>
 
       <div class="rounded-2xl bg-[#242424] border border-white/5 p-4 space-y-3">
-        <div class="flex items-center justify-between">
-          <div>
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
             <p class="text-[10px] text-gray-400">Your Invitation Code</p>
-            <p class="text-base font-bold text-[#F2D7A5] font-mono mt-0.5">{{ user.inviteCode || 'LP8899' }}</p>
+            <p class="text-base font-bold text-[#F2D7A5] font-mono mt-0.5 break-all">{{ user.inviteCode || 'LP8899' }}</p>
           </div>
-          <button @click="copyText(user.inviteCode || 'LP8899')" class="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold hover:bg-white/10 active:scale-95 transition">
+          <button @click="copyText(user.inviteCode || 'LP8899')" class="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold hover:bg-white/10 active:scale-95 transition whitespace-nowrap flex-shrink-0">
             Copy Code
           </button>
         </div>
 
-        <div class="flex items-center justify-between pt-3 border-t border-white/5">
-          <div class="overflow-hidden">
+        <div class="flex items-center justify-between gap-2 pt-3 border-t border-white/5">
+          <div class="overflow-hidden min-w-0 flex-1">
             <p class="text-[10px] text-gray-400">Invite URL</p>
             <p class="text-xs text-gray-300 truncate mt-0.5 font-mono">https://tradepay.live/#/r?code={{ user.inviteCode }}</p>
           </div>
-          <button @click="copyText('https://tradepay.live/#/r?code=' + (user.inviteCode || 'LP8899'))" class="px-3 py-1.5 rounded-xl bg-[#F2D7A5] text-[#1B1B1B] text-xs font-bold hover:brightness-110 active:scale-95 transition">
+          <button @click="copyText('https://tradepay.live/#/r?code=' + (user.inviteCode || 'LP8899'))" class="px-3 py-1.5 rounded-xl bg-[#F2D7A5] text-[#1B1B1B] text-xs font-bold hover:brightness-110 active:scale-95 transition whitespace-nowrap flex-shrink-0">
             Copy Link
           </button>
         </div>
@@ -521,36 +683,25 @@
     <!-- TAB 5: MY (PROFILE & SETTINGS) -->
     <!-- ======================================================== -->
     <main v-if="activeTab === 'my'" class="p-4 space-y-4">
-      <div class="rounded-2xl bg-[#242424] border border-white/5 p-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <img src="/static/user/profile.png" class="w-14 h-14 rounded-full border-2 border-[#F2D7A5]/40 object-cover" @error="handleImgFallback">
-          <div>
-            <div class="flex items-center gap-2">
-              <h2 class="text-base font-bold text-white">{{ user.nickname || 'Trader_Alex' }}</h2>
+      <div class="rounded-2xl bg-[#242424] border border-white/5 p-4 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-3 min-w-0 flex-1">
+          <img src="/static/user/profile.png" class="w-14 h-14 rounded-full border-2 border-[#F2D7A5]/40 object-cover flex-shrink-0" @error="handleImgFallback">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="profile-name text-base font-bold text-white">{{ user.nickname || 'Trader_Alex' }}</h2>
               <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-[#F2D7A5] border border-amber-500/30 font-semibold">VIP {{ user.vipLevel || 1 }}</span>
             </div>
-            <p class="text-xs text-gray-400 mt-1 font-mono">UID: {{ String(user.id).slice(0, 8) }}... | {{ user.phone }}</p>
+            <p class="uid-line text-xs text-gray-400 mt-1 font-mono">UID: {{ String(user.id).slice(0, 8) }}... | {{ user.phone }}</p>
           </div>
         </div>
 
-        <button @click="openAuthModal" class="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-[#F2D7A5] font-semibold hover:bg-white/10 transition">
+        <button @click="openAuthModal" class="ml-auto px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-[#F2D7A5] font-semibold hover:bg-white/10 transition whitespace-nowrap flex-shrink-0">
           {{ isLoggedIn ? 'Account' : 'Sign In' }}
         </button>
       </div>
 
-      <div class="rounded-2xl bg-[#242424] border border-white/5 divide-y divide-white/5">
-        <button @click="openQrPayModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
-          <div class="flex items-center gap-3">
-            <span class="text-lg">📱</span>
-            <div>
-              <p class="text-xs font-bold text-white">Official QR Code Deposit</p>
-              <p class="text-[10px] text-gray-400">Scan official UPI QRs; credited after verification</p>
-            </div>
-          </div>
-          <span class="text-xs text-[#F2D7A5]">UPI Deposit ›</span>
-        </button>
-
-        <button @click="openPinModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+      <div class="menu-list rounded-2xl bg-[#242424] border border-white/5 divide-y divide-white/5">
+        <button @click="openPinModal" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
           <div class="flex items-center gap-3">
             <span class="text-lg">🔐</span>
             <div>
@@ -561,7 +712,7 @@
           <span class="text-xs text-emerald-400">{{ user.isPinSet ? 'Configured ›' : 'Set Up ›' }}</span>
         </button>
 
-        <button @click="openUsdtModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+        <button @click="openUsdtModal" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
           <div class="flex items-center gap-3">
             <span class="text-lg">🪙</span>
             <div>
@@ -572,7 +723,7 @@
           <span class="text-xs text-gray-400">91.50 INR ›</span>
         </button>
 
-        <button @click="openMissionsModal" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+        <button @click="openMissionsModal" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
           <div class="flex items-center gap-3">
             <span class="text-lg">🎯</span>
             <div>
@@ -583,18 +734,7 @@
           <span class="text-xs text-[#F2D7A5] font-semibold">{{ user.points || 0 }} pts ›</span>
         </button>
 
-        <a v-if="user.isAdmin" href="/admin.html" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
-          <div class="flex items-center gap-3">
-            <span class="text-lg">🛡️</span>
-            <div>
-              <p class="text-xs font-bold text-white">Deposit Review (Admin)</p>
-              <p class="text-[10px] text-gray-400">Verify and settle pending UPI deposits</p>
-            </div>
-          </div>
-          <span class="text-xs text-[#F2D7A5]">Open ›</span>
-        </a>
-
-        <button @click="handleInstallClick" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition">
+        <button @click="handleInstallClick" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
           <div class="flex items-center gap-3">
             <span class="text-lg">📲</span>
             <div>
@@ -611,7 +751,7 @@
           <div class="flex items-center gap-3">
             <span class="text-lg">🚪</span>
             <div>
-              <p class="text-xs font-bold text-red-400">Sign Out of Supabase</p>
+              <p class="text-xs font-bold text-red-400">Sign Out</p>
               <p class="text-[10px] text-gray-400">Switch account or clear session</p>
             </div>
           </div>
@@ -658,114 +798,17 @@
     </nav>
 
     <!-- ======================================================== -->
-    <!-- MODAL: PERMANENT OFFICIAL QR PAYMENT & DEPOSIT -->
+    <!-- MODAL 0: ACCOUNT AUTH -->
     <!-- ======================================================== -->
-    <div v-if="modals.qrPay.show" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="w-full max-w-[440px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
-        <div class="flex items-center justify-between pb-3 border-b border-white/10">
-          <div>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">OFFICIAL QR</span>
-            <h3 class="text-sm font-bold text-white mt-1">Scan & Pay via UPI</h3>
-          </div>
-          <button @click="modals.qrPay.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
-        </div>
-
-        <!-- QR Selector Toggle -->
-        <div class="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-black/40 border border-white/5">
-          <button v-for="(q, idx) in officialQrs" :key="q.id" @click="selectedQrId = q.id" class="py-2 px-3 rounded-xl text-xs font-bold transition flex flex-col items-center" :class="selectedQrId === q.id ? 'bg-[#F2D7A5] text-[#1B1B1B] shadow' : 'text-gray-400 hover:text-white'">
-            <span class="truncate max-w-full">Official QR {{ idx + 1 }}</span>
-            <span class="text-[9px] font-mono opacity-80 truncate max-w-full">{{ q.vpa }}</span>
-          </button>
-        </div>
-
-        <!-- Mode Switch: Merchant Screenshot vs Dynamic QR -->
-        <div class="flex rounded-xl bg-black/50 p-1 border border-white/10">
-          <button @click="qrDisplayMode = 'screenshot'" class="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition" :class="qrDisplayMode === 'screenshot' ? 'bg-[#F2D7A5] text-[#1B1B1B] shadow' : 'text-gray-400 hover:text-white'">
-            Merchant Screenshot
-          </button>
-          <button @click="qrDisplayMode = 'generated'" class="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1" :class="qrDisplayMode === 'generated' ? 'bg-[#F2D7A5] text-[#1B1B1B] shadow' : 'text-gray-400 hover:text-white'">
-            <span>Auto-Fill ₹{{ depositForm.amount || 0 }}</span>
-            <span class="text-[9px] px-1 rounded bg-emerald-500/30 text-emerald-300 font-bold">UPI</span>
-          </button>
-        </div>
-
-        <!-- Full Screenshot or Amount QR Code Display -->
-        <div class="p-4 rounded-2xl bg-[#1A1A1A] border border-white/10 text-center space-y-3">
-          <div class="relative mx-auto rounded-2xl overflow-hidden border-2 border-[#F2D7A5]/50 shadow-2xl max-w-[260px] bg-white min-h-[200px] flex items-center justify-center p-1">
-            <div v-if="qrLoading" class="py-12 flex flex-col items-center gap-2 text-xs text-gray-500">
-              <span class="animate-spin text-2xl">⏳</span>
-              <span>Loading QR Code...</span>
-            </div>
-            <img v-else-if="qrDisplayMode === 'screenshot'" :src="currentQr.screenshotUrl || currentQr.qrImage" class="w-full h-auto object-contain block mx-auto hover:scale-105 transition-transform duration-300" alt="Official Screenshot QR" @error="handleQrError">
-            <img v-else :src="'/api/qr/image?text=' + encodeURIComponent(getDynamicUpiUri(currentQr, depositForm.amount)) + '&size=320'" class="w-full h-auto object-contain block mx-auto hover:scale-105 transition-transform duration-300" alt="Dynamic Amount QR" @error="handleQrError">
-          </div>
-
-          <div class="space-y-1">
-            <div class="flex items-center justify-center gap-1.5">
-              <span class="font-mono text-xs text-[#F2D7A5]">{{ currentQr.vpa }}</span>
-              <button @click="copyText(currentQr.vpa)" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
-            </div>
-            <p class="text-[10px] text-gray-400">Credited after verification</p>
-          </div>
-
-          <a :href="getDynamicUpiUri(currentQr, depositForm.amount)" class="inline-flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
-            <span>⚡ Open in PhonePe / GPay / Paytm (₹{{ depositForm.amount || 0 }})</span>
-          </a>
-        </div>
-
-        <!-- Deposit Proof Submission Form -->
-        <div class="p-3.5 rounded-2xl bg-black/30 border border-white/5 space-y-2.5">
-          <h4 class="text-xs font-bold text-white">Submit Paid Deposit Proof</h4>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <label class="block text-[10px] text-gray-400 mb-1">Paid Amount (₹)</label>
-              <input v-model.number="depositForm.amount" type="number" placeholder="e.g. 1500" class="w-full px-3 py-2 rounded-xl bg-[#1B1B1B] border border-white/10 text-white font-mono focus:outline-none focus:border-[#F2D7A5]">
-            </div>
-            <div>
-              <label class="block text-[10px] text-gray-400 mb-1">12-Digit Bank UTR / Ref</label>
-              <input v-model="depositForm.utr" placeholder="e.g. 429810982312" class="w-full px-3 py-2 rounded-xl bg-[#1B1B1B] border border-white/10 text-white font-mono focus:outline-none focus:border-[#F2D7A5]">
-            </div>
-          </div>
-
-          <button @click="submitQrDeposit" :disabled="depositSubmitting" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
-            <span v-if="depositSubmitting">Submitting...</span>
-            <span v-else>Submit for Verification</span>
-          </button>
-        </div>
-
-        <!-- Recent deposit submissions (credits only after verification) -->
-        <div v-if="depositHistory.length" class="p-3.5 rounded-2xl bg-black/20 border border-white/5 space-y-2">
-          <div class="flex items-center justify-between">
-            <h4 class="text-xs font-bold text-white">Recent Deposits</h4>
-            <span class="text-[10px] text-gray-500">Verified before credit</span>
-          </div>
-          <div v-for="d in depositHistory" :key="d.id" class="flex items-center justify-between text-[11px]">
-            <div class="min-w-0">
-              <span class="font-mono text-white">₹{{ d.amount }}</span>
-              <span class="text-gray-500 ml-2">{{ String(d.createdAt).slice(0, 10) }}</span>
-              <span class="block text-[10px] text-gray-500 font-mono truncate">UTR {{ d.utr }}</span>
-            </div>
-            <span class="px-2 py-0.5 rounded-full font-semibold capitalize"
-              :class="d.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400' : (d.status === 'rejected' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400')">
-              {{ d.status }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- MODAL 0: SUPABASE AUTH -->
-    <!-- ======================================================== -->
-    <div v-if="modals.auth.show" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-6 border border-[#F2D7A5]/30 space-y-4 shadow-2xl">
+    <div v-if="modals.auth.show" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-6 border border-[#F2D7A5]/30 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
             <h3 class="text-base font-bold text-white flex items-center gap-1.5">
               <span>🔐</span>
-              <span>Supabase Authentication</span>
+              <span>Account Sign In</span>
             </h3>
-            <p class="text-[11px] text-gray-400">Live cloud sync for real user data & wallets</p>
+            <p class="text-[11px] text-gray-400">Access your account, balance & wallets securely</p>
           </div>
           <button @click="modals.auth.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
         </div>
@@ -839,7 +882,7 @@
           </div>
 
           <button @click="handleAuthSubmit" :disabled="authLoading" class="w-full py-3 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition flex items-center justify-center gap-2">
-            <span v-if="authLoading">Syncing with Supabase...</span>
+            <span v-if="authLoading">Please wait...</span>
             <span v-else>{{ authMode === 'login' ? 'Sign In to Account' : 'Create Free Account' }}</span>
           </button>
 
@@ -856,7 +899,7 @@
     <!-- MODAL 1: CLAIM ORDER & WALLET PICKER -->
     <!-- ======================================================== -->
     <div v-if="modals.claim.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div class="w-full max-w-[480px] bg-[#242424] rounded-t-3xl sm:rounded-3xl p-5 border border-white/10 space-y-4">
+      <div class="modal-panel modal-sheet w-full max-w-[480px] bg-[#242424] rounded-t-3xl sm:rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
             <h3 class="text-sm font-bold text-white">Select Payout Receiving Wallet</h3>
@@ -890,8 +933,8 @@
     <!-- ======================================================== -->
     <!-- MODAL 2: INR ORDER DETAILS (WITH PAYEE QR ATTACHMENT) -->
     <!-- ======================================================== -->
-    <div v-if="modals.inrOrder.show" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="w-full max-w-[440px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/30 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div v-if="modals.inrOrder.show" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="modal-panel w-full max-w-[440px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/30 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
             <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-semibold">PROCESSING</span>
@@ -916,7 +959,7 @@
               <img :src="getOrderQrImage()" class="w-full h-full object-contain" alt="Payment QR" @error="handleImgFallback">
             </div>
             <div class="overflow-hidden">
-              <p class="text-[10px] text-[#F2D7A5] font-mono truncate">{{ activeClaimedOrder.payeeVpa || currentQr.vpa }}</p>
+              <p class="text-[10px] text-[#F2D7A5] font-mono truncate">{{ activeClaimedOrder.payeeVpa || activeClaimedOrder.payoutAccount || 'VPA Not Available' }}</p>
               <button @click="openOrderQrModal" class="text-[10px] text-emerald-400 font-semibold underline mt-0.5 flex items-center gap-1">
                 <span>🔍</span>
                 <span>Enlarge QR (₹{{ formatMoney(activeClaimedOrder.amount) }})</span>
@@ -929,14 +972,6 @@
         </div>
 
         <div class="space-y-2 text-xs">
-          <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
-            <span class="text-gray-400">Buyer UPI</span>
-            <div class="flex items-center gap-2">
-              <span class="font-mono text-white">{{ activeClaimedOrder.buyerUpi }}</span>
-              <button @click="copyText(activeClaimedOrder.buyerUpi)" class="text-[#F2D7A5] text-[10px] font-semibold">Copy</button>
-            </div>
-          </div>
-
           <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/5">
             <span class="text-gray-400">Order No</span>
             <span class="font-mono text-gray-300">{{ activeClaimedOrder.orderNo }}</span>
@@ -967,8 +1002,8 @@
     <!-- ======================================================== -->
     <!-- MODAL 2.5: ORDER QR FULLSCREEN LIGHTBOX -->
     <!-- ======================================================== -->
-    <div v-if="modals.orderQr.show" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
+    <div v-if="modals.orderQr.show" class="modal-overlay fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
             <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-bold">ORDER PAYMENT QR</span>
@@ -984,8 +1019,8 @@
 
           <div class="space-y-1">
             <div class="flex items-center justify-center gap-1.5">
-              <span class="font-mono text-xs text-[#F2D7A5]">{{ activeClaimedOrder.payeeVpa || currentQr.vpa }}</span>
-              <button @click="copyText(activeClaimedOrder.payeeVpa || currentQr.vpa)" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
+              <span class="font-mono text-xs text-[#F2D7A5]">{{ activeClaimedOrder.payeeVpa || activeClaimedOrder.payoutAccount || 'VPA Not Available' }}</span>
+              <button @click="copyText(activeClaimedOrder.payeeVpa || activeClaimedOrder.payoutAccount || '')" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
             </div>
             <p class="text-[10px] text-gray-400">Order: {{ activeClaimedOrder.orderNo }} • Time left: {{ formatTime(orderCountdown) }}</p>
           </div>
@@ -1000,8 +1035,8 @@
     <!-- ======================================================== -->
     <!-- MODAL 3: ADD WALLET -->
     <!-- ======================================================== -->
-    <div v-if="modals.addWallet.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
+    <div v-if="modals.addWallet.show" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">Add Receiving Wallet / UPI</h3>
           <button @click="modals.addWallet.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
@@ -1053,8 +1088,8 @@
     <!-- ======================================================== -->
     <!-- MODAL 4: USDT RECHARGE -->
     <!-- ======================================================== -->
-    <div v-if="modals.usdt.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
+    <div v-if="modals.usdt.show" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">USDT Deposit Gateway</h3>
           <button @click="modals.usdt.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
@@ -1083,8 +1118,8 @@
     <!-- ======================================================== -->
     <!-- MODAL 4.5: WALLET QR CODE VIEWER -->
     <!-- ======================================================== -->
-    <div v-if="modals.walletQr.show" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
+    <div v-if="modals.walletQr.show" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
             <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">RECEIVING WALLET QR</span>
@@ -1117,8 +1152,8 @@
     <!-- ======================================================== -->
     <!-- MODAL 5: MISSIONS & TASKS -->
     <!-- ======================================================== -->
-    <div v-if="modals.missions.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
+    <div v-if="modals.missions.show" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">Daily Missions & Rewards</h3>
           <button @click="modals.missions.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
@@ -1132,7 +1167,7 @@
             </div>
             <button v-if="m.claimed" class="px-2.5 py-1 rounded-lg bg-gray-700 text-gray-400 text-[10px] font-medium" disabled>Claimed</button>
             <button v-else-if="m.completed" @click="claimMission(m)" class="px-2.5 py-1 rounded-lg bg-[#F2D7A5] text-[#1B1B1B] text-[10px] font-bold">Claim</button>
-            <a v-else-if="m.link" :href="m.link" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 text-[10px] font-bold">Go ›</a>
+            <a v-else-if="m.link" :href="m.link" target="_blank" @click="visitMission(m)" class="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 text-[10px] font-bold">Go ›</a>
             <span v-else class="text-[10px] text-gray-500">In Progress</span>
           </div>
         </div>
@@ -1145,7 +1180,7 @@
   </audio>
 
   <script>
-    const { createApp, ref, reactive, computed, onMounted, onUnmounted } = Vue;
+    const { createApp, ref, reactive, computed, watch, onMounted, onUnmounted } = Vue;
 
     createApp({
       setup() {
@@ -1159,36 +1194,9 @@
           '/static/banner/ad2.png'
         ]);
 
-        const activeNotice = ref('✨ Official UPI QR codes active! Scan, pay, and submit your 12-digit UTR for verification.');
+        const activeNotice = ref('✨ Claim a live order, pay via UPI and submit your 12-digit UTR to receive your reward instantly.');
 
-        // Official QR Codes (name/branding details intentionally omitted)
-        const officialQrs = ref([
-          {
-            id: 1,
-            vpa: '6377276074-2@ybl',
-            qrImage: '/static/qr/scr1.jpeg',
-            upiUri: 'upi://pay?pa=6377276074-2@ybl&mc=0000&mode=02&purpose=00'
-          },
-          {
-            id: 2,
-            vpa: '9588856526@ybl',
-            qrImage: '/static/qr/scr2.jpeg',
-            upiUri: 'upi://pay?pa=9588856526@ybl&mc=0000&mode=02&purpose=00'
-          }
-        ]);
-        const selectedQrId = ref(1);
-        const qrDisplayMode = ref('screenshot'); // 'screenshot' or 'generated'
-        const qrLoading = ref(false);
-        const qrError = ref(false);
         const selectedWalletForQr = ref(null);
-        const currentQr = computed(() => officialQrs.value.find(q => q.id === selectedQrId.value) || officialQrs.value[0] || {});
-
-        const depositForm = reactive({
-          amount: 1000,
-          utr: ''
-        });
-        const depositSubmitting = ref(false);
-        const depositHistory = ref([]);
 
         // Auth & Token Management
         const token = ref(localStorage.getItem('tradepay_token') || '');
@@ -1276,9 +1284,16 @@
           walletQr: { show: false },
           usdt: { show: false },
           missions: { show: false },
-          qrPay: { show: false },
           iosInstall: { show: false }
         });
+
+        // Prevent the page behind a modal from scrolling on phones
+        watch(
+          () => Object.values(modals).some(modal => modal.show),
+          (isOpen) => {
+            document.body.classList.toggle('modal-open', isOpen);
+          }
+        );
 
         const selectedOrder = ref({});
         const selectedWalletId = ref(null);
@@ -1398,6 +1413,9 @@
 
         function switchTab(tab) {
           activeTab.value = tab;
+          if (tab === 'team') fetchTeamData();
+          else if (tab === 'wallet') fetchWallets();
+          else if (tab === 'payment') fetchHangSales();
         }
 
         function copyText(txt) {
@@ -1407,60 +1425,6 @@
           }).catch(() => {
             showToast('Copied: ' + txt, 'success');
           });
-        }
-
-        // QR Modal Actions
-        function openQrPayModal() {
-          modals.qrPay.show = true;
-          fetchDepositHistory();
-        }
-
-        function selectAndOpenQr(id) {
-          selectedQrId.value = id;
-          modals.qrPay.show = true;
-          fetchDepositHistory();
-        }
-
-        async function submitQrDeposit() {
-          if (!token.value) {
-            showToast('Please sign in to submit a deposit');
-            openAuthModal();
-            return;
-          }
-          if (!depositForm.amount || depositForm.amount <= 0) {
-            showToast('Please enter deposit amount');
-            return;
-          }
-          if (!depositForm.utr || !/^\d{12}$/.test(String(depositForm.utr).trim())) {
-            showToast('Please enter valid 12-digit bank UTR reference');
-            return;
-          }
-
-          depositSubmitting.value = true;
-          try {
-            const res = await authFetch('/app/payment/deposit/submit', {
-              method: 'POST',
-              body: JSON.stringify({
-                amount: depositForm.amount,
-                qrId: selectedQrId.value,
-                utr: depositForm.utr
-              })
-            });
-            const json = await res.json();
-            if (json.code === 1000) {
-              playBeep();
-              showToast(json.msg || `Deposit of ₹${depositForm.amount} submitted for verification`, 'success');
-              depositForm.utr = '';
-              fetchSummary();
-              fetchDepositHistory();
-            } else {
-              showToast(json.msg || 'Deposit submission failed');
-            }
-          } catch (e) {
-            showToast('Network error during deposit');
-          } finally {
-            depositSubmitting.value = false;
-          }
         }
 
         // Auth Actions
@@ -1494,7 +1458,7 @@
               authViewMode.value = 'info';
               modals.auth.show = false;
               playBeep();
-              showToast(`Welcome ${json.data.nickname}! Synced with Supabase`, 'success');
+              showToast(`Welcome ${json.data.nickname}!`, 'success');
               connectWebSocket();
               fetchAll();
             } else {
@@ -1519,7 +1483,7 @@
             try { ws.close(); } catch (e) { /* ignore */ }
             ws = null;
           }
-          showToast('Signed out of Supabase session');
+          showToast('Signed out successfully');
           fetchAll();
         }
 
@@ -1595,6 +1559,19 @@
           } catch (e) {}
         }
 
+        async function fetchTeamData() {
+          if (!token.value) return;
+          try {
+            const res = await authFetch('/app/user/team/details');
+            const json = await res.json();
+            if (json.code === 1000 && json.data) {
+              teamData.commissionTotal = json.data.commissionTotal || 0;
+              teamData.yCommission = json.data.yCommission || 0;
+              teamData.teamTurnover = json.data.teamTurnover || 0;
+            }
+          } catch (e) {}
+        }
+
         async function fetchMissions() {
           try {
             const res = await authFetch('/app/mission/task');
@@ -1638,10 +1615,11 @@
         function getOrderUpiUri() {
           const order = activeClaimedOrder.value;
           if (order && order.upiUri) return order.upiUri;
-          if (!order || !order.payeeVpa) return '';
+          const vpa = order?.payeeVpa || order?.payoutAccount;
+          if (!order || !vpa) return '';
           const amount = Number(order.amount) || 0;
           const note = order.orderNo || 'TradePay Order';
-          const encodedVpa = encodeURIComponent(order.payeeVpa).replace(/%40/g, '@');
+          const encodedVpa = encodeURIComponent(vpa).replace(/%40/g, '@');
           // No payee name (pn) included — keep QR payload minimal
           let uri = `upi://pay?pa=${encodedVpa}`;
           if (amount > 0) uri += `&am=${amount.toFixed(2)}&cu=INR`;
@@ -1696,6 +1674,7 @@
           fetchHangSales();
           fetchNightBonus();
           fetchDepositHistory();
+          fetchTeamData();
         }
 
         // Actions
@@ -1796,6 +1775,7 @@
               showToast(`Payment confirmed! Earned ₹${formatMoney(activeClaimedOrder.value.totalReward)} bonus`, 'success');
               fetchSummary();
               fetchWallets();
+              fetchTeamData();
             } else {
               showToast(json.msg || 'Submission error');
             }
@@ -1843,7 +1823,7 @@
             const json = await res.json();
             if (json.code === 1000) {
               modals.addWallet.show = false;
-              showToast('Wallet bound and saved to Supabase!', 'success');
+              showToast('Wallet bound and saved successfully!', 'success');
               fetchWallets();
             }
           } catch (e) {
@@ -1852,6 +1832,10 @@
         }
 
         async function simulateIncomingOrder() {
+          if (!user.isAdmin) {
+            showToast('Simulating orders requires administrator privileges');
+            return;
+          }
           try {
             const res = await authFetch('/api/sim/spawn-order', { method: 'POST' });
             const json = await res.json();
@@ -1859,8 +1843,12 @@
               playBeep();
               showToast(`New matching order ₹${json.data.amount} spawned!`, 'success');
               fetchHangSales();
+            } else {
+              showToast(json.msg || 'Unable to spawn order');
             }
-          } catch (e) {}
+          } catch (e) {
+            showToast('Failed to trigger order simulator');
+          }
         }
 
         function openUsdtModal() {
@@ -1891,6 +1879,13 @@
           } catch (e) {
             showToast('Unable to claim mission');
           }
+        }
+
+        async function visitMission(m) {
+          try {
+            await authFetch('/app/mission/task/visit/' + m.id, { method: 'POST' });
+            m.completed = true;
+          } catch (e) {}
         }
 
         function openPinModal() {
@@ -2035,6 +2030,7 @@
         onUnmounted(() => {
           if (ws) ws.close();
           if (timerInterval) clearInterval(timerInterval);
+          document.body.classList.remove('modal-open');
         });
 
         return {
@@ -2104,6 +2100,7 @@
           openUsdtModal,
           openMissionsModal,
           claimMission,
+          visitMission,
           openPinModal,
           openAuthModal,
           openQrPayModal,
@@ -2118,6 +2115,7 @@
           getUsdtQrUrl,
           fetchOfficialQrs,
           fetchDepositHistory,
+          fetchTeamData,
           handleQrError,
           installApp,
           dismissInstallBanner,

@@ -1,12 +1,17 @@
 const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const path = require('path');
 
-// Default credentials for the TradePay Supabase project.
-// Environment variables (SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_ROLE_KEY) take precedence when provided.
-const DEFAULT_SUPABASE_URL = 'https://vhzfbacpvfjdpkthxvej.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemZiYWNwdmZqZHBrdGh4dmVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MzQxNjYsImV4cCI6MjEwNTMxMDE2Nn0.iDkE1RvfZrneScBhjP9xryTsv7lKqwqMzEl6Fepe8cM';
+// Automatically load local .env file if available in the environment
+if (typeof process.loadEnvFile === 'function') {
+  try {
+    const envPath = path.resolve(__dirname, '../../.env');
+    if (fs.existsSync(envPath)) process.loadEnvFile(envPath);
+  } catch (e) { /* ignore */ }
+}
 
-const SUPABASE_URL = String(process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL).trim();
-const SUPABASE_KEY = String(process.env.SUPABASE_KEY || DEFAULT_SUPABASE_KEY).trim();
+const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim();
+const SUPABASE_KEY = String(process.env.SUPABASE_KEY || '').trim();
 const SUPABASE_SERVICE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 
 let supabase = null;
@@ -96,8 +101,6 @@ async function signUpUser({ identifier, password, nickname = '', phone = '', inv
     pending: 0.00,
     points: 0,
     isPinSet: false,
-    pinHash: null,
-    pinSalt: null,
     onSellStatus: 1,
     wallets: [],
     claimedOrders: [],
@@ -283,8 +286,6 @@ async function syncUserData(user, token = null) {
     vipLevel: Number(user.vipLevel) || 1,
     inviteCode: user.inviteCode,
     isPinSet: Boolean(user.isPinSet || user.pinHash),
-    pinHash: user.pinHash || null,
-    pinSalt: user.pinSalt || null,
     onSellStatus: user.onSellStatus != null ? user.onSellStatus : 1,
     wallets: Array.isArray(user.wallets) ? user.wallets : [],
     claimedOrders: Array.isArray(user.claimedOrders) ? user.claimedOrders : [],
@@ -322,8 +323,6 @@ async function verifyToken(token) {
       pending: metadata.pending != null ? Number(metadata.pending) : 0.00,
       points: metadata.points != null ? Number(metadata.points) : 0,
       isPinSet: Boolean(metadata.isPinSet || metadata.pinHash),
-      pinHash: metadata.pinHash || null,
-      pinSalt: metadata.pinSalt || null,
       onSellStatus: metadata.onSellStatus != null ? metadata.onSellStatus : 1,
       wallets: Array.isArray(metadata.wallets) ? metadata.wallets : [],
       claimedOrders: Array.isArray(metadata.claimedOrders) ? metadata.claimedOrders : [],

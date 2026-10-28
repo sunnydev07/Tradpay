@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const security = require('./security');
+const money = require('./money');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 const DB_FILE = process.env.TRADEPAY_DB_FILE || path.join(DATA_DIR, 'db.json');
@@ -126,8 +127,8 @@ const defaultState = {
       payOrderId: "PO20261028001",
       orderNo: "PO20261028001",
       amount: 1500.00,
-      reward: 18.00,
-      rewardRate: 1.2,
+      reward: 300.00,
+      rewardRate: 20,
       currency: "INR",
       status: "pending",
       allowedTypes: [2, 3, 4, 5],
@@ -137,8 +138,8 @@ const defaultState = {
       payOrderId: "PO20261028002",
       orderNo: "PO20261028002",
       amount: 3200.00,
-      reward: 41.60,
-      rewardRate: 1.3,
+      reward: 640.00,
+      rewardRate: 20,
       currency: "INR",
       status: "pending",
       allowedTypes: [3, 5],
@@ -148,8 +149,8 @@ const defaultState = {
       payOrderId: "PO20261028003",
       orderNo: "PO20261028003",
       amount: 5000.00,
-      reward: 75.00,
-      rewardRate: 1.5,
+      reward: 1000.00,
+      rewardRate: 20,
       currency: "INR",
       status: "pending",
       allowedTypes: [2, 3, 5],
@@ -227,6 +228,7 @@ function migrateUser(user) {
 
   // Never keep raw bearer tokens or plaintext PINs in the local store.
   delete user.token;
+  delete user._lastToken;
   if (user.pin && !user.pinHash) {
     const hashed = security.hashPin(user.pin);
     user.pinHash = hashed.hash;
@@ -256,8 +258,28 @@ function buildState(saved) {
   }
   if (Array.isArray(safeSaved.wallets)) state.wallets = safeSaved.wallets;
   if (Array.isArray(safeSaved.hangSales)) state.hangSales = safeSaved.hangSales;
+
+  // Keep every claimable order at or above the 20% minimum reward. This also
+  // upgrades older persisted orders that were created with the previous rate.
+  for (const sale of state.hangSales) {
+    if (!sale || typeof sale !== 'object') continue;
+    if (!['pending', 'processing'].includes(sale.status)) continue;
+    const minReward = money.minimumOrderReward(sale.amount);
+    if (!(Number(sale.reward) >= minReward)) sale.reward = minReward;
+    if (!(Number(sale.rewardRate) >= money.MIN_ORDER_REWARD_PERCENT)) {
+      sale.rewardRate = money.MIN_ORDER_REWARD_PERCENT;
+    }
+  }
   if (safeSaved.claimedOrders && typeof safeSaved.claimedOrders === 'object') {
     state.claimedOrders = safeSaved.claimedOrders;
+  }
+
+  // Buyer UPI / phone are never shown or used; strip any legacy persisted values.
+  for (const order of Object.values(state.claimedOrders)) {
+    if (order && typeof order === 'object') {
+      delete order.buyerUpi;
+      delete order.buyerPhone;
+    }
   }
   if (Array.isArray(safeSaved.deposits)) state.deposits = safeSaved.deposits;
   if (safeSaved.revokedTokens && typeof safeSaved.revokedTokens === 'object') {
@@ -266,6 +288,27 @@ function buildState(saved) {
   if (Array.isArray(safeSaved.missions)) state.missions = safeSaved.missions;
   if (Array.isArray(safeSaved.notices)) state.notices = safeSaved.notices;
   state.settings = mergeSettings(safeSaved.settings);
+
+  // Bring in-flight claims up to the current 20% minimum so the claim modal and
+  // the eventual payout match the new policy, not the rate they were created at.
+  const bonusMultiplier = Number(state.settings.nightBonus.multiplier) || 1.25;
+  for (const order of Object.values(state.claimedOrders)) {
+    if (!order || typeof order !== 'object') continue;
+    if (!['pending', 'confirming'].includes(order.status)) continue;
+    const baseReward = Math.max(
+      Number(order.reward) || 0,
+      money.minimumOrderReward(order.amount)
+    );
+    order.reward = baseReward;
+    order.rewardRate = Math.max(
+      Number(order.rewardRate) || 0,
+      money.MIN_ORDER_REWARD_PERCENT
+    );
+    order.smallAmountBonusAmount = order.smallAmountBonus
+      ? money.multiply(baseReward, bonusMultiplier - 1)
+      : 0;
+    order.totalReward = money.add(baseReward, order.smallAmountBonusAmount);
+  }
   state.team = {
     ...defaultState.team,
     ...(safeSaved.team && typeof safeSaved.team === 'object' ? safeSaved.team : {}),

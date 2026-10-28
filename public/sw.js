@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tradepay-pwa-v1';
+const CACHE_NAME = 'tradepay-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -34,15 +34,23 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Network-only for API, Supabase, and WebSocket routes
+  // Network-only for API, backend, and WebSocket routes
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/app/') || url.pathname.startsWith('/ws')) {
     return;
   }
 
-  // HTML navigation: Network-first, fallback to cache
+  // HTML navigation: Network-first (bypass HTTP cache), fallback to cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
+      fetch(event.request, { cache: 'no-store' })
+        .then((res) => {
+          if (res && res.status === 200) {
+            const resClone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', resClone));
+          }
+          return res;
+        })
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
