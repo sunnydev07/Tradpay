@@ -72,5 +72,14 @@ async function testZeroBalance() {
   process.exit(0);
 }
 
-require('../server/index');
-setTimeout(testZeroBalance, 1000);
+const { startServer } = require('../server/index');
+startServer().then(() => {
+  setTimeout(testZeroBalance, 300);
+}).catch((err) => {
+  if (err.code === 'EADDRINUSE') {
+    setTimeout(testZeroBalance, 300);
+  } else {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+});
