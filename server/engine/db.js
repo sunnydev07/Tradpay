@@ -90,7 +90,7 @@ const defaultState = {
       name: "Alex Trader",
       status: 1,
       minAmount: 500,
-      maxAmount: 20000,
+      maxAmount: 100000,
       dailyLimit: 100000,
       todayTurnover: 0.00,
       todayCount: 0,
@@ -131,6 +131,39 @@ const defaultState = {
       status: "pending",
       allowedTypes: [2, 3, 5],
       createdAt: new Date(Date.now() - 60000).toISOString()
+    },
+    {
+      payOrderId: "PO20261028004",
+      orderNo: "PO20261028004",
+      amount: 55000.00,
+      reward: 11000.00,
+      rewardRate: 20,
+      currency: "INR",
+      status: "pending",
+      allowedTypes: [2, 3, 4, 5],
+      createdAt: new Date(Date.now() - 75000).toISOString()
+    },
+    {
+      payOrderId: "PO20261028005",
+      orderNo: "PO20261028005",
+      amount: 75000.00,
+      reward: 15000.00,
+      rewardRate: 20,
+      currency: "INR",
+      status: "pending",
+      allowedTypes: [2, 3, 4, 5],
+      createdAt: new Date(Date.now() - 90000).toISOString()
+    },
+    {
+      payOrderId: "PO20261028006",
+      orderNo: "PO20261028006",
+      amount: 100000.00,
+      reward: 20000.00,
+      rewardRate: 20,
+      currency: "INR",
+      status: "pending",
+      allowedTypes: [2, 3, 4, 5],
+      createdAt: new Date(Date.now() - 105000).toISOString()
     }
   ],
   claimedOrders: {},
@@ -148,7 +181,8 @@ const defaultState = {
       { min: 500, max: 2000 },
       { min: 2000, max: 5000 },
       { min: 5000, max: 10000 },
-      { min: 10000, max: 50000 }
+      { min: 10000, max: 50000 },
+      { min: 50000, max: 100000 }
     ]
   },
   team: {

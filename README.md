@@ -11,7 +11,7 @@ A high-performance P2P Order Matching, Liquidity Dispatch, and UPI Collection We
 - **Data Isolation**: Every user receives their own secure JWT token, personalized wallet collection, balance tracking, transaction history, and custom referral code (`LPxxxx`).
 - **Real-Time Data Sorting**:
   - Live hang sales order sorting: **Ascending (₹)**, **Descending (₹)**, and **Default (Recency)**.
-  - Range filter chips: `500-2000`, `2000-5000`, `5000-10000`, `10000-50000`.
+  - Range filter chips: `500-2000`, `2000-5000`, `5000-10000`, `10000-50000`, `50000-100000`.
 - **Supabase Cloud Sync & Owner Visibility**: All user profiles, wallets, balances, PIN hashes, and order records automatically persist to Supabase Auth `user_metadata` and the supervised database. The project owner can inspect, manage, and audit every user directly in the Supabase Dashboard.
 - **Hashed PINs**: Security PINs are stored as scrypt hashes with per-user salts, verified with a constant-time comparison, and rate-limited after repeated failures. The PIN is never returned to the client.
 - **Paise-Exact Money**: Balances, rewards, and commissions are calculated in integer paise before being stored as rupee amounts, avoiding floating-point drift.

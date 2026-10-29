@@ -455,13 +455,14 @@ router.post('/app/payment/order/cancel', (req, res) => {
 
 router.get('/app/payment/order/history', async (req, res) => {
   const user = getAuthUser(req);
-  const state = db.get();
-  const orders = Object.values(state.claimedOrders).filter(o => String(o.userId) === String(user.id));
-  await Promise.all(orders.map(o => qrService.attachQrToOrder(o).catch(() => o)));
-  return ok(res, {
-    records: orders,
-    total: orders.length
-  });
+  const filter = String(req.query.status || req.query.filter || 'all').toLowerCase();
+  const history = orderEngine.getUserOrdersHistory({ userId: user.id, filter });
+  await Promise.all(
+    history.records
+      .filter(o => ['pending', 'confirming'].includes(o.status) && !o.qrDataUrl)
+      .map(o => qrService.attachQrToOrder(o).catch(() => o))
+  );
+  return ok(res, history);
 });
 
 router.post('/app/payment/order/changeWallet', async (req, res) => {

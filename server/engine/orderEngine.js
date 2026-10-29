@@ -198,6 +198,14 @@ async function claimOrder({ payOrderId, payoutWalletId, userId }) {
   order.status = 'processing';
   state.claimedOrders[buyId] = claimedRecord;
 
+  const user = state.users[userId];
+  if (user) {
+    if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
+    if (!user.claimedOrders.includes(buyId)) {
+      user.claimedOrders.push(buyId);
+    }
+  }
+
   // Bound memory and db.json size by pruning stale completed/expired orders if count exceeds 2000
   const orderKeys = Object.keys(state.claimedOrders);
   if (orderKeys.length > 2000) {
@@ -399,6 +407,14 @@ function verifyOrder({ buyId, adminId = 'admin', action = 'confirm', reason = ''
     order.rejectReason = String(reason || 'Bank reference number could not be verified').slice(0, 200);
     order.verifiedBy = String(adminId);
 
+    const user = state.users[order.userId];
+    if (user) {
+      if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
+      if (!user.claimedOrders.includes(buyId)) {
+        user.claimedOrders.push(buyId);
+      }
+    }
+
     restoreHangSale(state, order);
     db.save();
 
@@ -434,6 +450,70 @@ function getPendingVerifications() {
     };
   });
 }
+// Query user order history with full details, status filtering, and computed summary
+function getUserOrdersHistory({ userId, filter = 'all' }) {
+  if (!userId) {
+    return {
+      records: [],
+      total: 0,
+      summary: {
+        totalCount: 0,
+        totalCredited: 0,
+        totalVolume: 0,
+        completedCount: 0,
+        verifyingCount: 0,
+        pendingCount: 0,
+        rejectedCount: 0
+      }
+    };
+  }
+
+  const state = db.get();
+  const allUserOrders = Object.values(state.claimedOrders || {})
+    .filter(o => o && String(o.userId) === String(userId))
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  let totalCredited = 0;
+  let totalVolume = 0;
+  let pendingCount = 0;
+  let verifyingCount = 0;
+  let completedCount = 0;
+  let rejectedCount = 0;
+
+  for (const o of allUserOrders) {
+    if (o.status === 'completed') {
+      completedCount++;
+      totalCredited = money.add(totalCredited, o.totalReward || 0);
+      totalVolume = money.add(totalVolume, o.amount || 0);
+    } else if (o.status === 'verifying') {
+      verifyingCount++;
+    } else if (o.status === 'rejected') {
+      rejectedCount++;
+    } else if (o.status === 'pending' || o.status === 'confirming') {
+      pendingCount++;
+    }
+  }
+
+  let records = allUserOrders;
+  if (filter && filter !== 'all') {
+    records = allUserOrders.filter(o => o.status === filter);
+  }
+
+  return {
+    records,
+    total: records.length,
+    summary: {
+      totalCount: allUserOrders.length,
+      totalCredited,
+      totalVolume,
+      completedCount,
+      verifyingCount,
+      pendingCount,
+      rejectedCount
+    }
+  };
+}
+
 
 // Query all claimed orders for admin audit console
 function getAllOrdersForAdmin(filter = 'all') {
@@ -485,10 +565,21 @@ function cancelOrder({ buyId, userId, reason = 'User requested' }) {
 }
 
 // Create automated realistic pending order (simulated order matching pipeline)
+// Always keeps at least one high-limit order (₹50,000 - ₹100,000) in the pool
+// so every user can find a match in the 50000-100000 range.
 function spawnSampleOrder() {
   const state = db.get();
-  const amounts = [500, 800, 1200, 2000, 2500, 3500, 5000, 7500, 10000, 15000];
-  const amount = amounts[Math.floor(Math.random() * amounts.length)];
+  const amounts = [500, 800, 1200, 2000, 2500, 3500, 5000, 7500, 10000, 15000, 25000, 50000, 75000, 100000];
+  const highLimitOrders = state.hangSales.filter(o => o.status === 'pending' && o.amount >= 50000 && o.amount <= 100000);
+
+  let amount;
+  if (highLimitOrders.length === 0) {
+    // Guarantee a high-limit order exists so the 50000-100000 filter never shows empty
+    const highAmounts = [50000, 75000, 100000];
+    amount = highAmounts[Math.floor(Math.random() * highAmounts.length)];
+  } else {
+    amount = amounts[Math.floor(Math.random() * amounts.length)];
+  }
   const rate = money.MIN_ORDER_REWARD_PERCENT;
   const reward = money.percentage(amount, rate);
   const id = generateId('PO');
@@ -547,6 +638,7 @@ module.exports = {
   verifyOrder,
   getPendingVerifications,
   getAllOrdersForAdmin,
+  getUserOrdersHistory,
   cancelOrder,
   spawnSampleOrder,
   startSimulation,
