@@ -143,14 +143,7 @@ async function claimOrder({ payOrderId, payoutWalletId, userId }) {
     throw new Error('Selected wallet is not active (offSell)');
   }
 
-  const minAmount = Number(wallet.minAmount);
-  const maxAmount = Number(wallet.maxAmount);
-  if (!Number.isFinite(minAmount) || !Number.isFinite(maxAmount) || minAmount > maxAmount) {
-    throw new Error('Selected wallet has invalid payout limits');
-  }
-  if (order.amount < minAmount || order.amount > maxAmount) {
-    throw new Error(`Order amount ₹${order.amount} is outside wallet limit [₹${minAmount} - ₹${maxAmount}]`);
-  }
+  // No amount limits: users can claim orders of any amount with any wallet.
 
   const alreadyClaimed = Object.values(state.claimedOrders).some(o =>
     o.payOrderId === order.payOrderId &&
