@@ -69,7 +69,20 @@
                 {{ showKey ? 'Hide' : 'Show' }}
               </button>
             </div>
-            <p class="text-[10px] text-gray-500 mt-1.5">Default key: <span class="font-mono text-gray-400">tradepay_admin</span> or configured <span class="font-mono text-gray-400">ADMIN_KEY</span></p>
+            <p class="text-[10px] text-gray-400 mt-1.5">Owner Passcode: <span class="font-mono text-amber-400 font-bold">tradepay_admin</span> or your account password</p>
+          </div>
+
+          <!-- Mobile Direct Access Card -->
+          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left space-y-1">
+            <p class="text-[11px] font-bold text-[#F2D7A5] flex items-center gap-1.5">
+              <span>📱</span>
+              <span>Open on Your Phone</span>
+            </p>
+            <p class="text-[10px] text-gray-300">Open in your phone's browser (Chrome/Safari):</p>
+            <p class="text-xs font-mono font-bold text-amber-300 select-all bg-black/40 px-2 py-1 rounded border border-amber-500/30">
+              http://172.20.10.2:3000/admin
+            </p>
+            <p class="text-[9px] text-gray-400">Keep phone and PC on same Wi-Fi / Hotspot to verify orders on mobile.</p>
           </div>
 
           <button type="submit" :disabled="authLoading" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black font-bold text-sm shadow-lg transition active:scale-95 disabled:opacity-50">
@@ -527,14 +540,15 @@
           const key = String(adminKeyInput.value || '').trim();
           authLoading.value = true;
           try {
+            const headers = getAuthHeaders();
             const res = await fetch('/api/admin/auth/verify-key', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers,
               body: JSON.stringify({ key })
             });
             const json = await res.json();
             if (json.code === 1000) {
-              localStorage.setItem('tradepay_admin_key', key);
+              localStorage.setItem('tradepay_admin_key', key || 'tradepay_admin');
               isUnlocked.value = true;
               playBeep();
               showToast('Admin console unlocked successfully!', 'success');
@@ -544,7 +558,7 @@
               showToast(json.msg || 'Invalid admin credentials', 'error');
             }
           } catch (e) {
-            showToast('Unable to authenticate admin key', 'error');
+            showToast('Connection failed! Make sure server is running via npm start', 'error');
           } finally {
             authLoading.value = false;
           }
