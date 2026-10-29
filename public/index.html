@@ -1048,7 +1048,7 @@
               </div>
             </div>
             <div class="text-right">
-              <span class="text-[10px] text-gray-400">₹{{ w.minAmount }} - ₹{{ w.maxAmount }}</span>
+              <span class="text-[10px] text-gray-400">Active</span>
             </div>
           </div>
         </div>
@@ -2185,8 +2185,7 @@
 
         function openClaimModal(order) {
           selectedOrder.value = order;
-          const eligible = activeWallets.value.find(w => order.amount >= w.minAmount && order.amount <= w.maxAmount);
-          selectedWalletId.value = eligible ? eligible.id : (activeWallets.value[0]?.id || null);
+          selectedWalletId.value = activeWallets.value[0]?.id || null;
           modals.claim.show = true;
         }
 
