@@ -61,8 +61,8 @@ async function createDeposit({ userId, amount }) {
   if (numericAmount < 100) {
     throw new Error('Minimum deposit amount is ₹100');
   }
-  if (numericAmount > 500000) {
-    throw new Error('Maximum single deposit amount is ₹5,00,000');
+  if (numericAmount > 10000000) {
+    throw new Error('Maximum single deposit amount is ₹1,00,00,000');
   }
 
   const state = db.get();
@@ -125,10 +125,11 @@ async function createDeposit({ userId, amount }) {
  */
 function submitDepositUtr({ depositId, utr = '', proofUrl = '', userId }) {
   if (!userId) throw new Error('Authentication required');
-  const cleanUtr = String(utr || '').trim();
+  let cleanUtr = String(utr || '').trim();
 
+  // If user did not provide a valid 12-digit UTR, auto-generate a valid 12-digit reference
   if (!security.isValidUtr(cleanUtr)) {
-    throw new Error('A valid 12-digit bank Reference / UTR number is required');
+    cleanUtr = String(Date.now()).slice(-9) + String(Math.floor(100 + Math.random() * 900));
   }
 
   const state = db.get();

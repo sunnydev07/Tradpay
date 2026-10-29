@@ -1735,7 +1735,7 @@
 
   
     <!-- ======================================================== -->
-    <!-- MODAL 7: DEPOSIT (INR TOP-UP & KEYWORDS / QR VERIFICATION) -->
+    <!-- MODAL 7: DEPOSIT (OFFICIAL QR CODE & INSTANT PAYMENT REVIEW) -->
     <!-- ======================================================== -->
     <div v-if="modals.deposit.show" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[440px] max-h-[92vh] sm:max-h-[85vh] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-[#F2D7A5]/30 flex flex-col shadow-2xl overflow-hidden">
@@ -1748,7 +1748,7 @@
             </div>
             <div>
               <h3 class="text-sm font-bold text-white">Deposit / Top Up Balance</h3>
-              <p class="text-[11px] text-gray-400">Instant UPI payment with admin ledger credit</p>
+              <p class="text-[11px] text-gray-400">Scan QR to pay • Owner confirms on admin panel</p>
             </div>
           </div>
           <button @click="modals.deposit.show = false" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">✕</button>
@@ -1757,139 +1757,137 @@
         <!-- Scrollable Modal Body -->
         <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
 
-          <!-- STEP 1: SELECT AMOUNT -->
-          <div v-if="modals.deposit.step === 1" class="space-y-4">
-            <div>
-              <label class="block text-xs font-semibold text-gray-300 mb-1.5">Enter Deposit Amount (INR)</label>
-              <div class="relative">
-                <span class="absolute left-3.5 top-3 text-lg font-bold text-[#F2D7A5]">₹</span>
-                <input type="number" v-model.number="modals.deposit.amount" min="100" max="500000" placeholder="e.g. 1000" class="w-full pl-9 pr-4 py-3 rounded-xl bg-black/40 border border-white/15 text-lg font-mono font-bold text-white placeholder-gray-600 focus:outline-none focus:border-[#F2D7A5]">
-              </div>
-              <p class="text-[10px] text-gray-400 mt-1">Min: ₹100 • Max single deposit: ₹5,00,000</p>
-            </div>
+          <!-- STEP 1: DIRECT QR CODE & PAYMENT CONFIRMATION (INSTANT SCAN) -->
+          <div v-if="modals.deposit.step === 1" class="space-y-4 text-center">
 
-            <!-- Quick Presets -->
-            <div>
-              <label class="block text-[11px] font-semibold text-gray-400 mb-2">Quick Select Amount</label>
-              <div class="grid grid-cols-4 gap-2">
-                <button v-for="amt in [100, 500, 1000, 2000, 5000, 10000, 25000, 50000]" :key="amt" @click="modals.deposit.amount = amt" class="py-2 px-1 rounded-xl text-xs font-mono font-bold border transition" :class="modals.deposit.amount === amt ? 'bg-[#F2D7A5] text-black border-[#F2D7A5] shadow-md' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'">
-                  ₹{{ amt >= 1000 ? (amt / 1000) + 'K' : amt }}
-                </button>
+            <!-- Official QR Code Card (Prominently & Instantly Displayed) -->
+            <div class="p-4 rounded-2xl bg-white border-4 border-[#F2D7A5]/40 max-w-[230px] mx-auto shadow-2xl space-y-2">
+              <img :src="activeDepositOrder?.qrCodeDataUrl || '/static/qr/scr2.jpeg'" class="w-full h-auto object-contain block mx-auto rounded-lg" alt="TradePay Official QR Code">
+              <div class="pt-1 border-t border-gray-200">
+                <p class="text-[10px] font-extrabold text-gray-800 uppercase tracking-wider flex items-center justify-center gap-1">
+                  <span>⚡</span>
+                  <span>Scan with any UPI App</span>
+                </p>
+                <p class="text-[9px] text-gray-500 font-medium">GPay • PhonePe • Paytm • BHIM • CRED</p>
               </div>
             </div>
 
-            <div class="p-3 rounded-xl bg-white/5 border border-white/5 space-y-1.5 text-xs text-gray-300">
-              <div class="flex items-center gap-1.5 text-[#F2D7A5] font-semibold">
-                <span>🛡️</span>
-                <span>Direct Official Deposit</span>
-              </div>
-              <p class="text-[11px] text-gray-400">Funds are deposited directly to TradePay Official receiving accounts. Zero transaction fees.</p>
-            </div>
-
-            <button @click="proceedToDepositPayment" :disabled="modals.deposit.loading || !modals.deposit.amount || modals.deposit.amount < 100" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2">
-              <span v-if="modals.deposit.loading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span v-else>Proceed to Pay & Generate QR →</span>
-            </button>
-          </div>
-
-          <!-- STEP 2: PAYMENT DETAILS & QR ("KEYWORDS OPEN") -->
-          <div v-else-if="modals.deposit.step === 2" class="space-y-4 text-center">
-            <div class="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-1">
-              <p class="text-xs text-gray-300">Total Payable Amount</p>
-              <h2 class="text-3xl font-extrabold text-white font-mono text-emerald-400">₹{{ formatMoney(activeDepositOrder?.amount || modals.deposit.amount) }}</h2>
-              <p class="text-[10px] text-gray-400 font-mono">Deposit ID: {{ activeDepositOrder?.depositId }}</p>
-            </div>
-
-            <!-- Dynamic QR Code Card -->
-            <div class="p-4 rounded-2xl bg-white border-4 border-emerald-500/30 max-w-[240px] mx-auto shadow-2xl space-y-2">
-              <img :src="activeDepositOrder?.qrCodeDataUrl || activeDepositOrder?.qrImage || '/static/qr/scr2.jpeg'" class="w-full h-auto object-contain block mx-auto rounded-lg" alt="Deposit Payment QR">
-              <p class="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Scan with any UPI App</p>
-            </div>
-
-            <!-- Payee UPI Copy Card -->
-            <div class="p-3 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between gap-2">
-              <div class="text-left min-w-0">
-                <span class="text-[10px] text-gray-400 block">Official UPI ID</span>
+            <!-- Payee Official UPI ID Copy Card -->
+            <div class="p-3 rounded-xl bg-black/50 border border-white/10 flex items-center justify-between gap-2 text-left">
+              <div class="min-w-0">
+                <span class="text-[10px] text-gray-400 block font-medium">Official UPI ID</span>
                 <span class="font-mono text-xs font-bold text-white truncate block">{{ activeDepositOrder?.payeeVpa || '9588856526@ybl' }}</span>
               </div>
-              <button @click="copyText(activeDepositOrder?.payeeVpa || '9588856526@ybl')" class="px-2.5 py-1.5 rounded-lg bg-[#F2D7A5] text-black text-xs font-bold shadow hover:brightness-110 active:scale-95 transition flex items-center gap-1 flex-shrink-0">
+              <button @click="copyText(activeDepositOrder?.payeeVpa || '9588856526@ybl')" class="px-3 py-1.5 rounded-lg bg-[#F2D7A5] text-black text-xs font-bold shadow hover:brightness-110 active:scale-95 transition flex items-center gap-1 flex-shrink-0">
                 <span>📋</span>
                 <span>Copy UPI</span>
               </button>
             </div>
 
             <!-- 1-Click Pay in UPI App on Mobile -->
-            <a v-if="activeDepositOrder?.upiUri" :href="activeDepositOrder.upiUri" class="block w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-[#F2D7A5] text-center transition">
+            <a :href="'upi://pay?pa=' + encodeURIComponent(activeDepositOrder?.payeeVpa || '9588856526@ybl') + '&pn=TradePay%20Official&am=' + (modals.deposit.amount || 1000) + '&cu=INR&tn=TradePay%20Deposit'" class="block w-full py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold text-emerald-400 text-center transition">
               ⚡ Open in UPI App (GPay / PhonePe / Paytm)
             </a>
 
-            <!-- Step-by-Step Instructions -->
-            <div class="text-left p-3 rounded-xl bg-white/5 border border-white/5 space-y-1.5 text-xs text-gray-300">
-              <p class="font-bold text-white flex items-center gap-1.5">
-                <span>📌</span>
-                <span>How to Complete Deposit:</span>
-              </p>
-              <ol class="list-decimal list-inside text-[11px] text-gray-400 space-y-1 pl-1">
-                <li>Scan the QR code or pay to the UPI ID above via PhonePe / GPay / Paytm.</li>
-                <li>After payment, copy the <strong class="text-white">12-digit UPI Reference / UTR Number</strong> from the payment receipt.</li>
-                <li>Enter the 12-digit UTR below and click <strong class="text-emerald-400">"I Have Paid"</strong>.</li>
-              </ol>
+            <!-- Enter Deposit Amount -->
+            <div class="text-left space-y-1.5">
+              <label class="block text-xs font-semibold text-gray-300">Enter Deposit Amount (INR)</label>
+              <div class="relative">
+                <span class="absolute left-3.5 top-2.5 text-lg font-bold text-[#F2D7A5]">₹</span>
+                <input type="number" v-model.number="modals.deposit.amount" min="100" placeholder="1000" class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-lg font-mono font-bold text-white placeholder-gray-600 focus:outline-none focus:border-[#F2D7A5]">
+              </div>
+              <p class="text-[10px] text-gray-400">Min: ₹100 • Zero transaction fees</p>
             </div>
 
-            <!-- UTR Input -->
+            <!-- Quick Presets -->
+            <div class="text-left space-y-1.5">
+              <label class="block text-[11px] font-semibold text-gray-400">Quick Select Amount</label>
+              <div class="grid grid-cols-4 gap-1.5">
+                <button v-for="amt in [100, 500, 1000, 2000, 5000, 10000, 25000, 50000]" :key="amt" @click="modals.deposit.amount = amt" class="py-2 px-1 rounded-xl text-xs font-mono font-bold border transition text-center" :class="modals.deposit.amount === amt ? 'bg-[#F2D7A5] text-black border-[#F2D7A5] shadow-md' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'">
+                  ₹{{ amt >= 1000 ? (amt / 1000) + 'K' : amt }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Bank Reference / UTR Input (Optional) -->
             <div class="text-left space-y-1.5">
               <div class="flex items-center justify-between">
-                <label class="block text-xs font-bold text-white">12-Digit Bank Reference No. (UTR)</label>
-                <span class="text-[10px] font-mono" :class="depositUtrInput.length === 12 ? 'text-emerald-400 font-bold' : 'text-gray-400'">{{ depositUtrInput.length }}/12 digits</span>
+                <label class="block text-xs font-bold text-white">Bank Reference / 12-Digit UTR <span class="text-gray-400 font-normal">(Optional)</span></label>
+                <span class="text-[10px] font-mono" :class="depositUtrInput.length === 12 ? 'text-emerald-400 font-bold' : 'text-gray-400'">{{ depositUtrInput.length ? depositUtrInput.length + '/12' : '' }}</span>
               </div>
-              <input type="text" v-model="depositUtrInput" maxlength="12" placeholder="e.g. 987654321012" class="w-full px-4 py-3 rounded-xl bg-black/60 border text-center font-mono text-base font-extrabold tracking-widest text-white placeholder-gray-600 focus:outline-none transition" :class="depositUtrInput.length === 12 ? 'border-emerald-400 bg-emerald-950/20' : 'border-white/15 focus:border-[#F2D7A5]'">
-              <p class="text-[10px] text-gray-400">Found in your bank receipt as "UPI Ref No", "UTR", or "Transaction ID"</p>
+              <input type="text" v-model="depositUtrInput" maxlength="12" placeholder="e.g. 12-digit UTR from payment receipt" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border text-center font-mono text-sm font-bold tracking-wider text-white placeholder-gray-600 focus:outline-none transition" :class="depositUtrInput.length === 12 ? 'border-emerald-400 bg-emerald-950/20' : 'border-white/15 focus:border-[#F2D7A5]'">
+              <p class="text-[10px] text-gray-400">Paste the 12-digit UPI Ref/UTR from your receipt or click Confirm Payment directly.</p>
             </div>
 
-            <!-- Submit I Have Paid Button -->
-            <div class="flex items-center gap-2 pt-2">
-              <button @click="modals.deposit.step = 1" class="w-1/3 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10 transition">
-                ← Change
-              </button>
-              <button @click="submitDepositPayment" :disabled="modals.deposit.loading || depositUtrInput.length !== 12" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5">
-                <span v-if="modals.deposit.loading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                <span v-else>✅ I Have Paid (Submit UTR)</span>
-              </button>
-            </div>
+            <!-- Single Prominent Action Button -->
+            <button @click="submitDepositPayment" :disabled="modals.deposit.loading || !modals.deposit.amount || modals.deposit.amount < 100" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/25 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2">
+              <span v-if="modals.deposit.loading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span v-else>✅ Confirm Payment / Payment Done →</span>
+            </button>
           </div>
 
-          <!-- STEP 3: UNDER VERIFICATION CONFIRMATION -->
-          <div v-else-if="modals.deposit.step === 3" class="space-y-4 text-center py-4">
+          <!-- STEP 2: REQUEST REVIEW STARTED / UNDER VERIFICATION -->
+          <div v-else-if="modals.deposit.step === 2" class="space-y-4 text-center py-3">
             <div class="w-16 h-16 rounded-3xl bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-center text-3xl mx-auto shadow-inner text-amber-300 animate-pulse">
               ⏳
             </div>
             <div>
-              <h3 class="text-base font-extrabold text-white">Deposit Under Verification</h3>
-              <p class="text-xs text-gray-400 mt-1 max-w-xs mx-auto">Your payment reference has been submitted to the admin console for instant bank verification.</p>
+              <div class="inline-block px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-2">
+                Under Owner Review
+              </div>
+              <h3 class="text-base font-extrabold text-white">Request Review Started</h3>
+              <p class="text-xs text-gray-400 mt-1 max-w-xs mx-auto">Your payment has been sent to the admin console. Waiting for owner confirmation.</p>
             </div>
 
             <div class="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2 text-left text-xs font-mono">
               <div class="flex justify-between border-b border-white/5 pb-2">
-                <span class="text-gray-400 font-sans">Amount:</span>
+                <span class="text-gray-400 font-sans">Deposit Amount:</span>
                 <span class="text-emerald-400 font-bold text-sm">₹{{ formatMoney(activeDepositOrder?.amount || modals.deposit.amount) }}</span>
               </div>
               <div class="flex justify-between border-b border-white/5 pb-2">
-                <span class="text-gray-400 font-sans">UTR Ref No:</span>
-                <span class="text-[#F2D7A5] font-bold">{{ activeDepositOrder?.utr || depositUtrInput }}</span>
+                <span class="text-gray-400 font-sans">Ref No / UTR:</span>
+                <span class="text-[#F2D7A5] font-bold">{{ activeDepositOrder?.utr || depositUtrInput || 'Processing' }}</span>
+              </div>
+              <div class="flex justify-between border-b border-white/5 pb-2">
+                <span class="text-gray-400 font-sans">Order ID:</span>
+                <span class="text-gray-300">{{ activeDepositOrder?.depositId || activeDepositOrder?.id }}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-gray-400 font-sans">Status:</span>
-                <span class="text-amber-400 font-bold uppercase">Verifying by Admin</span>
+                <span class="text-gray-400 font-sans">Review Status:</span>
+                <span class="text-amber-400 font-bold uppercase">Pending Owner Approval</span>
               </div>
             </div>
 
-            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 text-left flex items-start gap-2">
-              <span>💡</span>
-              <p class="text-[11px]">As soon as the admin confirms your payment, <strong class="text-white">₹{{ formatMoney(activeDepositOrder?.amount || modals.deposit.amount) }}</strong> will be automatically credited to your Available Balance.</p>
+            <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 text-left flex items-start gap-2">
+              <span>🛡️</span>
+              <p class="text-[11px]">Only the owner can confirm from the admin panel. Once verified by the owner, <strong class="text-white">₹{{ formatMoney(activeDepositOrder?.amount || modals.deposit.amount) }}</strong> will be automatically credited to your balance.</p>
             </div>
 
-            <button @click="modals.deposit.show = false" class="w-full py-3 rounded-xl bg-[#F2D7A5] text-[#1B1B1B] font-bold text-xs shadow hover:brightness-110 active:scale-95 transition">
-              Done (View on Dashboard)
+            <div class="space-y-2 pt-2">
+              <button @click="modals.deposit.show = false" class="w-full py-3 rounded-xl bg-[#F2D7A5] text-[#1B1B1B] font-bold text-xs shadow hover:brightness-110 active:scale-95 transition">
+                Done (View on Dashboard)
+              </button>
+              <button @click="modals.deposit.step = 1; depositUtrInput = ''" class="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10 transition">
+                Make Another Deposit
+              </button>
+            </div>
+          </div>
+
+          <!-- STEP 3: DEPOSIT VERIFIED & CREDITED (LIVE CONFIRMATION) -->
+          <div v-else-if="modals.deposit.step === 3" class="space-y-4 text-center py-4">
+            <div class="w-16 h-16 rounded-3xl bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-3xl mx-auto shadow-inner text-emerald-400 animate-bounce">
+              ✅
+            </div>
+            <div>
+              <div class="inline-block px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-2">
+                Owner Verified & Approved
+              </div>
+              <h3 class="text-lg font-extrabold text-white">Payment Confirmed!</h3>
+              <p class="text-xs text-gray-400 mt-1">₹{{ formatMoney(activeDepositOrder?.amount || modals.deposit.amount) }} has been credited to your Available Balance.</p>
+            </div>
+
+            <button @click="modals.deposit.show = false" class="w-full py-3 rounded-xl bg-emerald-500 text-black font-extrabold text-xs shadow hover:brightness-110 active:scale-95 transition">
+              Awesome (View Balance)
             </button>
           </div>
 
@@ -2545,59 +2543,42 @@
         }
 
         
-        // Deposit Feature Handlers
+        // Deposit Feature Handlers (Direct QR & Review Start)
         function openDepositModal(amt) {
-          modals.deposit.step = 1;
-          modals.deposit.amount = amt || 1000;
-          depositUtrInput.value = '';
+          if (activeDeposit.value && activeDeposit.value.status === 'verifying') {
+            modals.deposit.step = 2; // Show active review status
+            activeDepositOrder.value = activeDeposit.value;
+          } else {
+            modals.deposit.step = 1;
+            modals.deposit.amount = amt || 1000;
+            depositUtrInput.value = '';
+          }
           modals.deposit.show = true;
         }
 
-        async function proceedToDepositPayment() {
+        async function submitDepositPayment() {
           if (!modals.deposit.amount || modals.deposit.amount < 100) {
             showToast('Minimum deposit amount is ₹100', 'error');
             return;
           }
           modals.deposit.loading = true;
           try {
-            const res = await authFetch('/app/deposit/create', {
-              method: 'POST',
-              body: JSON.stringify({ amount: modals.deposit.amount })
-            });
-            const json = await res.json();
-            if (json.code === 1000) {
-              activeDepositOrder.value = json.data;
-              modals.deposit.step = 2; // Keywords / QR view opens
-            } else {
-              showToast(json.msg || 'Unable to generate deposit details', 'error');
-            }
-          } catch (e) {
-            showToast('Failed to create deposit order', 'error');
-          } finally {
-            modals.deposit.loading = false;
-          }
-        }
-
-        async function submitDepositPayment() {
-          if (!depositUtrInput.value || depositUtrInput.value.trim().length !== 12) {
-            showToast('Please enter a valid 12-digit UTR', 'error');
-            return;
-          }
-          modals.deposit.loading = true;
-          try {
-            const res = await authFetch('/app/deposit/submit', {
+            const res = await authFetch('/app/deposit/request-review', {
               method: 'POST',
               body: JSON.stringify({
-                depositId: activeDepositOrder.value?.id || activeDepositOrder.value?.depositId,
-                utr: depositUtrInput.value.trim()
+                amount: modals.deposit.amount,
+                utr: depositUtrInput.value ? depositUtrInput.value.trim() : ''
               })
             });
             const json = await res.json();
             if (json.code === 1000) {
               activeDeposit.value = json.data;
-              modals.deposit.step = 3;
-              showToast('Deposit submitted for admin verification!', 'success');
+              activeDepositOrder.value = json.data;
+              modals.deposit.step = 2; // Request Review Started!
+              showToast('Deposit review request started! Waiting for owner verification.', 'success');
               fetchTransactionsHistory(true);
+              fetchSummary();
+              fetchUserInfo();
             } else {
               showToast(json.msg || 'Submission failed', 'error');
             }
@@ -2607,6 +2588,7 @@
             modals.deposit.loading = false;
           }
         }
+        const proceedToDepositPayment = submitDepositPayment;
 
         // Withdrawal Feature Handlers
         function openWithdrawalModal() {
@@ -3091,6 +3073,9 @@
                   playBeep();
                   showToast(data.payload?.msg || 'Deposit verified and balance credited!', 'success');
                   activeDeposit.value = null;
+                  if (modals.deposit.show) {
+                    modals.deposit.step = 3;
+                  }
                   fetchSummary();
                   fetchUserInfo();
                   fetchTransactionsHistory(true);

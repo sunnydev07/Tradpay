@@ -1119,10 +1119,26 @@ router.post('/app/deposit/submit', (req, res) => {
   const user = getAuthUser(req);
   const { depositId, utr, proofUrl } = req.body || {};
   if (!depositId) return fail(res, 'depositId is required', 400);
-  if (!utr) return fail(res, '12-digit UTR is required', 400);
   try {
     const updated = paymentEngine.submitDepositUtr({ depositId, utr, proofUrl, userId: user.id });
     return ok(res, updated, 'Deposit submitted for verification');
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.post('/app/deposit/request-review', async (req, res) => {
+  const user = getAuthUser(req);
+  const { amount, utr, proofUrl } = req.body || {};
+  try {
+    const deposit = await paymentEngine.createDeposit({ userId: user.id, amount });
+    const updated = paymentEngine.submitDepositUtr({
+      depositId: deposit.id,
+      utr,
+      proofUrl,
+      userId: user.id
+    });
+    return ok(res, updated, 'Deposit submitted for admin verification');
   } catch (err) {
     return fail(res, err.message, 400);
   }
