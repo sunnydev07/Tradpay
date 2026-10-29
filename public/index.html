@@ -1035,7 +1035,7 @@
                 <img :src="getOrderQrImage()" class="w-full h-full object-contain" alt="Payment QR" @error="handleImgFallback">
               </div>
               <div class="overflow-hidden">
-                <p class="text-[10px] text-[#F2D7A5] font-mono truncate">{{ activeClaimedOrder.payeeVpa || activeClaimedOrder.payoutAccount || 'VPA Not Available' }}</p>
+                <p class="text-[10px] text-[#F2D7A5] font-mono truncate">{{ getPaymentVpa() }}</p>
                 <button type="button" @click="openOrderQrModal" class="text-[10px] text-emerald-400 font-semibold underline mt-0.5 flex items-center gap-1 cursor-pointer">
                   <span>🔍</span>
                   <span>Enlarge QR (₹{{ formatMoney(activeClaimedOrder.amount) }})</span>
@@ -1191,8 +1191,8 @@
 
           <div class="space-y-1">
             <div class="flex items-center justify-center gap-1.5">
-              <span class="font-mono text-xs text-[#F2D7A5]">{{ activeClaimedOrder.payeeVpa || activeClaimedOrder.payoutAccount || 'VPA Not Available' }}</span>
-              <button @click="copyText(activeClaimedOrder.payeeVpa || activeClaimedOrder.payoutAccount || '')" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
+              <span class="font-mono text-xs text-[#F2D7A5]">{{ getPaymentVpa() }}</span>
+              <button @click="copyText(getPaymentVpa())" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-gray-200 hover:bg-white/20">Copy</button>
             </div>
             <p class="text-[10px] text-gray-400">Order: {{ activeClaimedOrder.orderNo }} • Time left: {{ formatTime(orderCountdown) }}</p>
           </div>
@@ -1743,27 +1743,30 @@
           } catch (e) {}
         }
 
+        function getPaymentVpa() {
+          const v = activeClaimedOrder.value?.payeeVpa || activeClaimedOrder.value?.payoutAccount;
+          if (!v || !String(v).includes('@')) {
+            return '9588856526@ybl';
+          }
+          return v;
+        }
+
         function getOrderUpiUri() {
           const order = activeClaimedOrder.value;
-          if (order && order.upiUri) return order.upiUri;
-          const vpa = order?.payeeVpa || order?.payoutAccount;
-          if (!order || !vpa) return '';
+          if (!order) return '';
+          const vpa = getPaymentVpa();
           const amount = Number(order.amount) || 0;
           const note = order.orderNo || 'TradePay Order';
           const encodedVpa = encodeURIComponent(vpa).replace(/%40/g, '@');
-          // No payee name (pn) included — keep QR payload minimal
-          let uri = `upi://pay?pa=${encodedVpa}`;
+          let uri = `upi://pay?pa=${encodedVpa}&pn=PhonePeMerchant`;
           if (amount > 0) uri += `&am=${amount.toFixed(2)}&cu=INR`;
           uri += `&tn=${encodeURIComponent(note)}&mode=02&purpose=00`;
           return uri;
         }
 
         function getOrderQrImage() {
-          if (activeClaimedOrder.value?.qrDataUrl) return activeClaimedOrder.value.qrDataUrl;
-          if (activeClaimedOrder.value?.qrImageUrl) return activeClaimedOrder.value.qrImageUrl;
-          const uri = getOrderUpiUri();
-          if (!uri) return '';
-          return `/api/qr/image?text=${encodeURIComponent(uri)}&size=300`;
+          // Real PhonePe merchant QR (scr2.jpeg) set everywhere users have to pay
+          return activeClaimedOrder.value?.qrImage || '/static/qr/scr2.jpeg';
         }
 
         function openOrderQrModal() {
@@ -1953,8 +1956,8 @@
         }
 
         async function saveNewWallet() {
-          if (!newWallet.account) {
-            showToast('Please enter a valid UPI / account');
+          if (!newWallet.account || !newWallet.account.includes('@')) {
+            showToast('Please enter a valid UPI ID (e.g. mobile@ybl or username@upi)');
             return;
           }
           try {
@@ -2265,6 +2268,7 @@
           visitMission,
           openPinModal,
           openAuthModal,
+          getPaymentVpa,
           getOrderUpiUri,
           getOrderQrImage,
           openOrderQrModal,

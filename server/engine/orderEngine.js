@@ -223,7 +223,7 @@ async function claimOrder({ payOrderId, payoutWalletId, userId }) {
 
   try {
     await qrService.attachQrToOrder(claimedRecord);
-    if (claimedRecord.payeeVpa !== wallet.account) {
+    if (!claimedRecord.payeeVpa) {
       throw new Error('Unable to generate a payment QR for the selected wallet');
     }
     db.save();

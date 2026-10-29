@@ -578,8 +578,8 @@ async function createCollectionWallet(req, res) {
   const state = db.get();
 
   const cleanAccount = String(account || '').trim();
-  if (!cleanAccount || cleanAccount.length > 120 || /\s/.test(cleanAccount)) {
-    return fail(res, 'Please enter a valid UPI / account', 400);
+  if (!cleanAccount || cleanAccount.length > 120 || /\s/.test(cleanAccount) || !cleanAccount.includes('@')) {
+    return fail(res, 'Please enter a valid UPI ID (e.g. 9876543210@ybl or username@upi)', 400);
   }
 
   const min = Number(minAmount);

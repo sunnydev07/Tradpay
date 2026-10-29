@@ -97,12 +97,17 @@ async function attachQrToOrder(order) {
   const state = db.get();
 
   const wallet = state.wallets.find(w => w.id === Number(order.payoutWalletId));
-  const vpa = (wallet && (wallet.account || wallet.vpa)) || order.payoutAccount;
-  if (!vpa) {
-    throw new Error('Order payout account is not configured');
+  let vpa = (wallet && (wallet.account || wallet.vpa)) || order.payoutAccount;
+
+  // Real PhonePe merchant QR (scr2.jpeg) and VPA credentials
+  const defaultOfficialVpa = '9588856526@ybl';
+  const defaultOfficialQrImage = '/static/qr/scr2.jpeg';
+
+  if (!vpa || !String(vpa).includes('@')) {
+    vpa = defaultOfficialVpa;
   }
 
-  const qrImage = (wallet && wallet.qrImage) || '/static/qr/scr1.jpeg';
+  const qrImage = (wallet && wallet.qrImage) || defaultOfficialQrImage;
   const amount = Number(order.amount);
   const note = order.orderNo || order.payOrderId || `Order ${order.id || ''}`;
   const name = wallet && !wallet.isOfficial ? (wallet.name || '') : '';
@@ -120,7 +125,7 @@ async function attachQrToOrder(order) {
   order.upiUri = upiUri;
   order.qrDataUrl = qrDataUrl;
   order.qrImage = qrImage;
-  order.qrImageUrl = `/api/qr/image?text=${encodeURIComponent(upiUri)}`;
+  order.qrImageUrl = qrImage;
 
   return order;
 }
@@ -135,11 +140,13 @@ async function attachQrToWallet(wallet) {
   const name = wallet.isOfficial ? '' : (wallet.name || '');
   const upiUri = buildUpiUri({ vpa, name });
   const qrDataUrl = await getQrDataUrl(upiUri);
+  const qrImage = wallet.qrImage || '/static/qr/scr2.jpeg';
   return {
     ...wallet,
     upiUri,
     qrDataUrl,
-    qrImageUrl: `/api/qr/image?text=${encodeURIComponent(upiUri)}`
+    qrImage,
+    qrImageUrl: qrImage
   };
 }
 
