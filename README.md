@@ -1,4 +1,4 @@
-# TradePay / LinkPay - Reverse Engineered P2P Engine & Fast Web App
+# TradePay - Reverse Engineered P2P Engine & Fast Web App
 
 A high-performance P2P Order Matching, Liquidity Dispatch, and UPI Collection Web Application reverse-engineered from the Android application (`linkpay.apk`). Rebuilt with an ultra-fast Node.js backend engine, **Supabase Authentication & Real Data Management**, and optimized for single-instance hosting on [Render](https://render.com).
 

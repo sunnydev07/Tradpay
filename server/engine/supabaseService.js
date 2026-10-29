@@ -87,7 +87,7 @@ async function signUpUser({ identifier, password, nickname = '', phone = '', inv
   const digitsOnly = identifierValue.replace(/\D/g, '');
   const userPhone = phone || (digitsOnly.length >= 10 ? digitsOnly : '');
   const cleanNick = nickname || ('Trader_' + Math.floor(1000 + Math.random() * 9000));
-  const finalInviteCode = inviteCode || ('LP' + Math.floor(1000 + Math.random() * 9000));
+  const finalInviteCode = inviteCode || ('TP' + Math.floor(1000 + Math.random() * 9000));
 
   const initialMetadata = {
     nickname: cleanNick,
@@ -203,7 +203,7 @@ async function signInUser({ identifier, password }) {
       nickname: metadata.nickname || 'Trader',
       phone: metadata.phone || data.user.phone || '',
       avatar: metadata.avatar || '/static/user/profile.png',
-      inviteCode: metadata.inviteCode || 'LP8899',
+      inviteCode: metadata.inviteCode || 'TP8899',
       vipLevel: Number(metadata.vipLevel) || 1,
       balance: metadata.balance != null ? Number(metadata.balance) : 0.00,
       totalBalance: metadata.totalBalance != null ? Number(metadata.totalBalance) : 0.00,

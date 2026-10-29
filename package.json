@@ -1,7 +1,7 @@
 {
-  "name": "tradepay-linkpay-web",
+  "name": "tradepay-web",
   "version": "1.0.0",
-  "description": "High-performance TradePay / LinkPay P2P Order Matching & Collection Platform recreated from Android APK",
+  "description": "High-performance TradePay P2P Order Matching & Collection Platform recreated from Android APK",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
@@ -12,7 +12,6 @@
   },
   "keywords": [
     "tradepay",
-    "linkpay",
     "p2p-engine",
     "render"
   ],

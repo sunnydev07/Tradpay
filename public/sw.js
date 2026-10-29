@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tradepay-pwa-v2';
+const CACHE_NAME = 'tradepay-pwa-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   '/static/logo/logo.png',
   '/static/logo/icon-192.png',
   '/static/logo/icon-512.png',
+  '/static/logo/icon-maskable-512.png',
   '/sounds/dcloud_beep.ogg'
 ];
 

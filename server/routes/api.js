@@ -242,7 +242,7 @@ router.post('/app/user/login/sendOtp', (req, res) => {
 });
 
 router.get('/app/user/rs/invite/prefill', (req, res) => {
-  return ok(res, { inviteCode: 'LP8899' });
+  return ok(res, { inviteCode: 'TP8899' });
 });
 
 router.get('/app/user/info', (req, res) => {
@@ -333,10 +333,10 @@ router.post('/app/user/info/offSell/:id', (req, res) => {
 router.get('/app/user/info/getInviterUrl', (req, res) => {
   const user = getAuthUser(req);
   const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
-  const url = `${baseUrl}/#/register?inviteCode=${encodeURIComponent(user.inviteCode || 'LP8899')}`;
+  const url = `${baseUrl}/#/register?inviteCode=${encodeURIComponent(user.inviteCode || 'TP8899')}`;
   return ok(res, {
     url,
-    inviteCode: user.inviteCode || 'LP8899',
+    inviteCode: user.inviteCode || 'TP8899',
     qrCode: url
   });
 });
@@ -778,7 +778,7 @@ router.get('/app/user/team/details', (req, res) => {
     teamTurnover: totalTurnover,
     memberTotal: members.length,
     activeCount: members.filter(m => m.status === 1).length,
-    inviteCode: user.inviteCode || 'LP8899'
+    inviteCode: user.inviteCode || 'TP8899'
   });
 });
 
@@ -808,7 +808,7 @@ router.get('/app/user/team/subMembers', (req, res) => {
 
 router.get('/app/user/team/invites', (req, res) => {
   const user = getAuthUser(req);
-  const code = user.inviteCode || 'LP8899';
+  const code = user.inviteCode || 'TP8899';
   const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
   return ok(res, {
     inviteCode: code,

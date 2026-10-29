@@ -28,7 +28,7 @@ const defaultState = {
       pending: 0.00,
       points: 0,
       vipLevel: 1,
-      inviteCode: "LP8899",
+      inviteCode: "TP8899",
       pinHash: null,
       pinSalt: null,
       isPinSet: false,
@@ -251,7 +251,7 @@ function migrateUser(user) {
   if (typeof user.newcomerRewardClaimed !== 'boolean') user.newcomerRewardClaimed = false;
   if (!Array.isArray(user.wallets)) user.wallets = [];
   if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
-  if (!user.inviteCode) user.inviteCode = 'LP' + Math.floor(1000 + Math.random() * 9000);
+  if (!user.inviteCode) user.inviteCode = 'TP' + Math.floor(1000 + Math.random() * 9000);
   if (!user.avatar) user.avatar = '/static/user/profile.png';
   return user;
 }

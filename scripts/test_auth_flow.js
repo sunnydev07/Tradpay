@@ -38,7 +38,7 @@ async function runAuthFlowTests() {
       phone,
       password,
       nickname: 'Trader_' + phone.slice(-4),
-      inviteCode: 'LP8899'
+      inviteCode: 'TP8899'
     });
     assert.equal(regRes.status, 200, 'Registration HTTP status should be 200');
     assert.equal(regRes.json?.code, 1000, 'API response code should be 1000');
