@@ -16,6 +16,7 @@ const { WebSocketServer } = require('ws');
 
 const apiRouter = require('./routes/api');
 const orderEngine = require('./engine/orderEngine');
+const paymentEngine = require('./engine/paymentEngine');
 const auth = require('./engine/auth');
 const db = require('./engine/db');
 const supabaseService = require('./engine/supabaseService');
@@ -242,6 +243,7 @@ wss.on('close', () => clearInterval(heartbeat));
 
 // Hook broadcaster into order engine
 orderEngine.setBroadcaster(broadcastAll);
+paymentEngine.setBroadcaster(broadcastAll);
 
 // Start background order dispatch simulator
 orderEngine.startSimulation();

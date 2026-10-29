@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>TradePay Admin Console • UTR Verification & Audit</title>
+  <title>TradePay Admin Console • UTR Verification, Deposits & Withdrawals</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -57,7 +57,7 @@
             🛡️
           </div>
           <h2 class="text-xl font-extrabold text-white">Database Owner Console</h2>
-          <p class="text-xs text-gray-400">Restricted audit environment for bank reference verification & ledger credits</p>
+          <p class="text-xs text-gray-400">Restricted audit environment for bank reference verification, deposits & withdrawals</p>
         </div>
 
         <form @submit.prevent="unlockConsole" class="space-y-4">
@@ -70,19 +70,6 @@
               </button>
             </div>
             <p class="text-[10px] text-gray-400 mt-1.5">Enter your secret owner passcode to unlock</p>
-          </div>
-
-          <!-- Mobile Direct Access Card -->
-          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left space-y-1">
-            <p class="text-[11px] font-bold text-[#F2D7A5] flex items-center gap-1.5">
-              <span>📱</span>
-              <span>Open on Your Phone</span>
-            </p>
-            <p class="text-[10px] text-gray-300">Open in your phone's browser (Chrome/Safari):</p>
-            <p class="text-xs font-mono font-bold text-amber-300 select-all bg-black/40 px-2 py-1 rounded border border-amber-500/30">
-              http://172.20.10.2:3000/admin
-            </p>
-            <p class="text-[9px] text-gray-400">Keep phone and PC on same Wi-Fi / Hotspot to verify orders on mobile.</p>
           </div>
 
           <button type="submit" :disabled="authLoading" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black font-bold text-sm shadow-lg transition active:scale-95 disabled:opacity-50">
@@ -110,7 +97,7 @@
             <h1 class="text-lg sm:text-xl font-extrabold text-white tracking-tight">TradePay Audit & Verification Console</h1>
             <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold uppercase tracking-wider">Owner Console</span>
           </div>
-          <p class="text-xs text-gray-400 mt-0.5">Authorize & Credit submitted UTR Bank Reference numbers in real-time</p>
+          <p class="text-xs text-gray-400 mt-0.5">Authorize & Credit Deposits, Process Withdrawals & Verify UTR References</p>
         </div>
       </div>
 
@@ -143,56 +130,56 @@
     <!-- METRIC SUMMARY TILES -->
     <!-- ========================================== -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      <!-- 1. Pending Verification -->
-      <div class="p-4 rounded-2xl bg-[#17171A] border transition duration-300" :class="stats.pendingCount > 0 ? 'border-amber-500/50 amber-glow bg-gradient-to-br from-[#1C1A14] to-[#17171A]' : 'border-white/5'">
+      <!-- 1. Pending Match Orders -->
+      <div class="p-4 rounded-2xl bg-[#17171A] border transition duration-300 cursor-pointer" :class="stats.pendingCount > 0 ? 'border-amber-500/50 amber-glow bg-gradient-to-br from-[#1C1A14] to-[#17171A]' : 'border-white/5'" @click="currentTab = 'pending'">
         <div class="flex items-center justify-between text-xs text-gray-400">
-          <span>Pending Verification</span>
+          <span>Match Verifications</span>
           <span class="text-base">⏳</span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
           <h2 class="text-2xl sm:text-3xl font-extrabold text-white font-mono">{{ stats.pendingCount }}</h2>
           <span class="text-xs text-amber-400 font-semibold">orders</span>
         </div>
-        <p class="text-[11px] text-gray-400 mt-1">₹{{ formatMoney(stats.pendingAmount) }} waiting for credit</p>
+        <p class="text-[11px] text-gray-400 mt-1">₹{{ formatMoney(stats.pendingAmount) }} volume</p>
       </div>
 
-      <!-- 2. Approved Today -->
-      <div class="p-4 rounded-2xl bg-[#17171A] border border-white/5">
+      <!-- 2. Pending Deposits -->
+      <div class="p-4 rounded-2xl bg-[#17171A] border transition duration-300 cursor-pointer" :class="pendingDeposits.length > 0 ? 'border-emerald-500/50 shadow-lg shadow-emerald-500/10 bg-gradient-to-br from-[#13221A] to-[#17171A]' : 'border-white/5'" @click="currentTab = 'deposits'">
         <div class="flex items-center justify-between text-xs text-gray-400">
-          <span>Confirmed & Credited</span>
-          <span class="text-base text-emerald-400">✅</span>
+          <span>Deposit Requests</span>
+          <span class="text-base text-emerald-400">📥</span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono">{{ stats.completedCount }}</h2>
-          <span class="text-xs text-gray-400">verified</span>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono">{{ pendingDeposits.length }}</h2>
+          <span class="text-xs text-gray-400">pending</span>
         </div>
-        <p class="text-[11px] text-gray-400 mt-1">₹{{ formatMoney(stats.completedAmount) }} total volume</p>
+        <p class="text-[11px] text-gray-400 mt-1">₹{{ formatMoney(stats.pendingDepositsAmount || 0) }} waiting to credit</p>
       </div>
 
-      <!-- 3. Rewards Distributed -->
-      <div class="p-4 rounded-2xl bg-[#17171A] border border-white/5">
+      <!-- 3. Pending Withdrawals -->
+      <div class="p-4 rounded-2xl bg-[#17171A] border transition duration-300 cursor-pointer" :class="pendingWithdrawals.length > 0 ? 'border-blue-500/50 shadow-lg shadow-blue-500/10 bg-gradient-to-br from-[#131B26] to-[#17171A]' : 'border-white/5'" @click="currentTab = 'withdrawals'">
         <div class="flex items-center justify-between text-xs text-gray-400">
-          <span>Total Bonuses Credited</span>
-          <span class="text-base text-yellow-400">🎁</span>
+          <span>Withdrawal Requests</span>
+          <span class="text-base text-blue-400">📤</span>
         </div>
-        <div class="mt-2 flex items-baseline gap-1.5">
-          <span class="text-lg font-bold text-yellow-400">₹</span>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-white font-mono">{{ formatMoney(stats.totalRewards) }}</h2>
+        <div class="mt-2 flex items-baseline gap-2">
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-blue-400 font-mono">{{ pendingWithdrawals.length }}</h2>
+          <span class="text-xs text-gray-400">pending</span>
         </div>
-        <p class="text-[11px] text-gray-400 mt-1">Directly added to user wallets</p>
+        <p class="text-[11px] text-gray-400 mt-1">₹{{ formatMoney(stats.pendingWithdrawalsAmount || 0) }} waiting for payout</p>
       </div>
 
-      <!-- 4. Total Orders & Users -->
+      <!-- 4. Total Users & Volume -->
       <div class="p-4 rounded-2xl bg-[#17171A] border border-white/5">
         <div class="flex items-center justify-between text-xs text-gray-400">
           <span>System Users</span>
-          <span class="text-base text-blue-400">👥</span>
+          <span class="text-base text-purple-400">👥</span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
           <h2 class="text-2xl sm:text-3xl font-extrabold text-white font-mono">{{ stats.totalUsers }}</h2>
           <span class="text-xs text-gray-400">registered</span>
         </div>
-        <p class="text-[11px] text-gray-400 mt-1">{{ stats.totalOrders }} total transactions</p>
+        <p class="text-[11px] text-gray-400 mt-1">₹{{ formatMoney(stats.completedAmount) }} total settled</p>
       </div>
     </div>
 
@@ -202,16 +189,31 @@
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#17171A] border border-white/10">
       <!-- Tabs -->
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <!-- Tab 1: Deposits -->
+        <button @click="currentTab = 'deposits'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'deposits' ? 'bg-emerald-500 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
+          <span>📥 Deposit Verifications</span>
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold" :class="currentTab === 'deposits' ? 'bg-black/25 text-black' : 'bg-emerald-500/20 text-emerald-400'">{{ pendingDeposits.length }}</span>
+        </button>
+
+        <!-- Tab 2: Withdrawals -->
+        <button @click="currentTab = 'withdrawals'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'withdrawals' ? 'bg-blue-500 text-white shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
+          <span>📤 Withdrawal Requests</span>
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold" :class="currentTab === 'withdrawals' ? 'bg-black/25 text-white' : 'bg-blue-500/20 text-blue-300'">{{ pendingWithdrawals.length }}</span>
+        </button>
+
+        <!-- Tab 3: Match Orders -->
         <button @click="currentTab = 'pending'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'pending' ? 'bg-amber-500 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
-          <span>⏳ Pending Verifications</span>
+          <span>⏳ Match Orders</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold" :class="currentTab === 'pending' ? 'bg-black/25 text-black' : 'bg-amber-500/20 text-amber-400'">{{ pendingOrders.length }}</span>
         </button>
 
+        <!-- Tab 4: All Orders Audit -->
         <button @click="currentTab = 'all'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap" :class="currentTab === 'all' ? 'bg-[#F2D7A5] text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
-          <span>📋 All Orders Audit</span>
+          <span>📋 All Orders</span>
         </button>
 
-        <button @click="currentTab = 'completed'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap" :class="currentTab === 'completed' ? 'bg-emerald-500 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
+        <!-- Tab 5: Completed -->
+        <button @click="currentTab = 'completed'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap" :class="currentTab === 'completed' ? 'bg-gray-200 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
           <span>✅ Completed ({{ completedOrders.length }})</span>
         </button>
       </div>
@@ -219,7 +221,7 @@
       <!-- Search & Refresh -->
       <div class="flex items-center gap-2">
         <div class="relative flex-1 sm:w-64">
-          <input v-model="searchQuery" placeholder="Search UTR / Order / User..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 font-mono">
+          <input v-model="searchQuery" placeholder="Search UTR / ID / User / Phone..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 font-mono">
           <span class="absolute left-2.5 top-2 text-xs text-gray-500">🔍</span>
         </div>
         <button @click="fetchData" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1">
@@ -230,12 +232,316 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- TAB 1: PENDING VERIFICATION QUEUE -->
+    <!-- TAB: DEPOSIT VERIFICATIONS -->
+    <!-- ========================================== -->
+    <div v-if="currentTab === 'deposits'" class="space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            <span>📥 Pending Deposits Queue</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-mono font-bold">{{ filteredPendingDeposits.length }} awaiting credit</span>
+          </h2>
+          <p class="text-[11px] text-gray-400 mt-0.5">When users deposit via UPI and submit their 12-digit UTR, review and credit their wallet balance here</p>
+        </div>
+      </div>
+
+      <div v-if="filteredPendingDeposits.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
+        <div class="text-4xl">✨</div>
+        <h3 class="text-base font-bold text-white">All Clear! No Pending Deposits</h3>
+        <p class="text-xs text-gray-400 max-w-md mx-auto">When users deposit funds to the official UPI and submit their 12-digit UTR bank reference number, their request will appear here for verification and instant balance credit.</p>
+      </div>
+
+      <!-- Pending Deposits Cards -->
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div v-for="dep in filteredPendingDeposits" :key="dep.id" class="p-5 rounded-2xl bg-[#17171A] border-2 border-emerald-500/40 hover:border-emerald-500/70 transition shadow-xl space-y-4">
+          <!-- Card Top Bar -->
+          <div class="flex items-start justify-between gap-2 border-b border-white/5 pb-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-extrabold uppercase tracking-wider">Deposit Verification</span>
+                <span class="text-xs font-mono text-gray-400">{{ dep.depositId || dep.id }}</span>
+              </div>
+              <h3 class="text-xs text-gray-300 mt-1">Submitted: <span class="font-semibold text-white">{{ formatRelativeTime(dep.submittedAt || dep.createdAt) }}</span></h3>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-gray-400">Deposit Amount</span>
+              <p class="text-2xl font-extrabold text-emerald-400 font-mono">₹{{ formatMoney(dep.amount) }}</p>
+            </div>
+          </div>
+
+          <!-- PROMINENT UTR BOX -->
+          <div class="p-3.5 rounded-xl bg-black/60 border border-emerald-400/40 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-emerald-300 flex items-center gap-1">
+                <span>🏦</span>
+                <span>Bank 12-Digit Reference No. (UTR)</span>
+              </span>
+              <button @click="copyText(dep.utr)" class="px-2.5 py-0.5 rounded bg-emerald-400/15 hover:bg-emerald-400/30 text-emerald-300 text-[10px] font-bold transition flex items-center gap-1">
+                <span>📋</span>
+                <span>Copy UTR</span>
+              </button>
+            </div>
+            <div class="font-mono text-lg sm:text-xl font-extrabold text-white tracking-widest bg-[#121214] p-2 rounded-lg border border-white/5 text-center select-all">
+              {{ dep.utr || 'No UTR Submitted' }}
+            </div>
+            <p class="text-[10px] text-gray-400 text-center">Verify this UTR in your receiving UPI / Bank Statement</p>
+          </div>
+
+          <!-- Trader & Receiving Details -->
+          <div class="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-white/5">
+            <div>
+              <p class="text-[10px] text-gray-400">Trader</p>
+              <p class="font-bold text-white truncate">{{ dep.userNickname || 'Trader' }}</p>
+              <p class="text-[10px] font-mono text-gray-400">{{ dep.userPhone || dep.userId }}</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-400">Receiving Official UPI</p>
+              <p class="font-bold text-[#F2D7A5] truncate font-mono">{{ dep.payeeVpa || '9588856526@ybl' }}</p>
+              <p class="text-[10px] text-gray-400">TradePay Official</p>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center gap-2 pt-1">
+            <button @click="promptRejectDeposit(dep)" :disabled="actionLoading === dep.id" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+              ❌ Reject
+            </button>
+
+            <button @click="confirmDeposit(dep)" :disabled="actionLoading === dep.id" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <span v-if="actionLoading === dep.id">Crediting Balance...</span>
+              <span v-else>✅ Confirm & Credit ₹{{ formatMoney(dep.amount) }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- All Deposits Audit Table -->
+      <div class="mt-8 space-y-3">
+        <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">All Deposits Audit History</h3>
+        <div class="overflow-x-auto rounded-2xl bg-[#17171A] border border-white/5">
+          <table class="w-full text-left text-xs text-gray-300">
+            <thead class="bg-black/40 text-[10px] uppercase font-bold text-gray-400 border-b border-white/10">
+              <tr>
+                <th class="p-3">Status</th>
+                <th class="p-3">Deposit ID / Date</th>
+                <th class="p-3">Trader</th>
+                <th class="p-3">Amount</th>
+                <th class="p-3">Submitted UTR</th>
+                <th class="p-3">Receiving UPI</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 font-mono">
+              <tr v-for="dep in displayedDeposits" :key="dep.id" class="hover:bg-white/[0.02]">
+                <td class="p-3 whitespace-nowrap">
+                  <span v-if="dep.status === 'completed'" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">CREDITED</span>
+                  <span v-else-if="dep.status === 'verifying'" class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px] animate-pulse">VERIFYING</span>
+                  <span v-else-if="dep.status === 'rejected'" class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold text-[10px]">REJECTED</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-white/10 text-gray-400 font-bold text-[10px]">{{ dep.status.toUpperCase() }}</span>
+                </td>
+                <td class="p-3 whitespace-nowrap">
+                  <div class="font-bold text-white">{{ dep.depositId || dep.id }}</div>
+                  <div class="text-[10px] text-gray-500">{{ formatDate(dep.createdAt) }}</div>
+                </td>
+                <td class="p-3 whitespace-nowrap font-sans">
+                  <div class="font-semibold text-white">{{ dep.userNickname || 'Trader' }}</div>
+                  <div class="text-[10px] text-gray-500 font-mono">{{ dep.userPhone || dep.userId }}</div>
+                </td>
+                <td class="p-3 whitespace-nowrap font-bold text-emerald-400">+₹{{ formatMoney(dep.amount) }}</td>
+                <td class="p-3 whitespace-nowrap font-bold text-white">
+                  <div class="flex items-center gap-1.5">
+                    <span>{{ dep.utr || '—' }}</span>
+                    <button v-if="dep.utr" @click="copyText(dep.utr)" class="text-[10px] text-gray-400 hover:text-white">📋</button>
+                  </div>
+                </td>
+                <td class="p-3 whitespace-nowrap text-gray-400 font-mono">{{ dep.payeeVpa || 'Official UPI' }}</td>
+                <td class="p-3 whitespace-nowrap text-right">
+                  <button v-if="dep.status === 'verifying'" @click="confirmDeposit(dep)" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                    Credit
+                  </button>
+                  <span v-else class="text-[10px] text-gray-500">{{ dep.verifiedBy ? 'By ' + dep.verifiedBy : '—' }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB: WITHDRAWAL REQUESTS -->
+    <!-- ========================================== -->
+    <div v-if="currentTab === 'withdrawals'" class="space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            <span>📤 Pending Withdrawal Requests</span>
+            <span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-xs font-mono font-bold">{{ filteredPendingWithdrawals.length }} awaiting payout</span>
+          </h2>
+          <p class="text-[11px] text-gray-400 mt-0.5">Pay user via UPI or Bank IMPS, then click "Confirm Payment Sent" to settle</p>
+        </div>
+      </div>
+
+      <div v-if="filteredPendingWithdrawals.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
+        <div class="text-4xl">✨</div>
+        <h3 class="text-base font-bold text-white">All Clear! No Pending Withdrawals</h3>
+        <p class="text-xs text-gray-400 max-w-md mx-auto">When traders request to cash out their balance, their payout details and account information will appear here for your confirmation.</p>
+      </div>
+
+      <!-- Pending Withdrawals Cards -->
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div v-for="wth in filteredPendingWithdrawals" :key="wth.id" class="p-5 rounded-2xl bg-[#17171A] border-2 border-blue-500/40 hover:border-blue-500/70 transition shadow-xl space-y-4">
+          <!-- Card Top Bar -->
+          <div class="flex items-start justify-between gap-2 border-b border-white/5 pb-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-extrabold uppercase tracking-wider">Withdrawal Request</span>
+                <span class="text-xs font-mono text-gray-400">{{ wth.withdrawalId || wth.id }}</span>
+              </div>
+              <h3 class="text-xs text-gray-300 mt-1">Requested: <span class="font-semibold text-white">{{ formatRelativeTime(wth.createdAt) }}</span></h3>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-gray-400">Payout Amount</span>
+              <p class="text-2xl font-extrabold text-blue-400 font-mono">₹{{ formatMoney(wth.amount) }}</p>
+            </div>
+          </div>
+
+          <!-- PAYOUT DETAILS BOX -->
+          <div class="p-3.5 rounded-xl bg-black/60 border border-blue-400/40 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-blue-300 flex items-center gap-1">
+                <span>{{ wth.payoutType === 'bank' ? '🏦 Bank IMPS Transfer' : '📱 UPI Instant Transfer' }}</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold uppercase">{{ wth.payoutType }}</span>
+            </div>
+
+            <!-- UPI Payout Info -->
+            <div v-if="wth.payoutType === 'upi'" class="space-y-1">
+              <div class="flex items-center justify-between bg-[#121214] p-2.5 rounded-lg border border-white/5">
+                <div>
+                  <span class="text-[10px] text-gray-500 block">User UPI ID (VPA)</span>
+                  <span class="font-mono text-sm sm:text-base font-bold text-white select-all">{{ wth.payoutDetails?.upiId }}</span>
+                </div>
+                <button @click="copyText(wth.payoutDetails?.upiId)" class="px-2.5 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs font-bold transition flex items-center gap-1">
+                  <span>📋</span>
+                  <span>Copy UPI</span>
+                </button>
+              </div>
+              <p class="text-[10px] text-gray-400">Account Holder: <strong class="text-white">{{ wth.payoutDetails?.accountName || wth.userNickname }}</strong></p>
+            </div>
+
+            <!-- Bank Payout Info -->
+            <div v-else class="space-y-1.5">
+              <div class="flex items-center justify-between bg-[#121214] p-2.5 rounded-lg border border-white/5">
+                <div>
+                  <span class="text-[10px] text-gray-500 block">Account Number</span>
+                  <span class="font-mono text-sm sm:text-base font-bold text-white select-all">{{ wth.payoutDetails?.accountNumber }}</span>
+                </div>
+                <button @click="copyText(wth.payoutDetails?.accountNumber)" class="px-2.5 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs font-bold transition flex items-center gap-1">
+                  <span>📋</span>
+                  <span>Copy A/C</span>
+                </button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                <div>
+                  <span class="text-gray-500">IFSC Code:</span>
+                  <span class="font-mono font-bold text-[#F2D7A5] ml-1 select-all">{{ wth.payoutDetails?.ifsc }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500">Bank:</span>
+                  <span class="font-semibold text-white ml-1">{{ wth.payoutDetails?.bankName || 'Bank' }}</span>
+                </div>
+              </div>
+              <p class="text-[10px] text-gray-400">Beneficiary: <strong class="text-white">{{ wth.payoutDetails?.accountName || wth.userNickname }}</strong></p>
+            </div>
+          </div>
+
+          <!-- Trader Context -->
+          <div class="flex items-center justify-between text-xs p-3 rounded-xl bg-white/5">
+            <div>
+              <p class="text-[10px] text-gray-400">Trader</p>
+              <p class="font-bold text-white">{{ wth.userNickname || 'Trader' }} <span class="text-gray-500 font-mono text-[10px]">({{ wth.userPhone || wth.userId }})</span></p>
+            </div>
+            <div class="text-right">
+              <p class="text-[10px] text-gray-400">Balance Remaining</p>
+              <p class="font-mono font-bold text-white">₹{{ formatMoney(wth.userBalance) }}</p>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center gap-2 pt-1">
+            <button @click="promptRejectWithdrawal(wth)" :disabled="actionLoading === wth.id" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+              ❌ Reject & Refund
+            </button>
+
+            <button @click="promptConfirmWithdrawal(wth)" :disabled="actionLoading === wth.id" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <span v-if="actionLoading === wth.id">Confirming Payout...</span>
+              <span v-else>💸 Confirm Payment Sent</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- All Withdrawals Audit Table -->
+      <div class="mt-8 space-y-3">
+        <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider">All Withdrawals Audit History</h3>
+        <div class="overflow-x-auto rounded-2xl bg-[#17171A] border border-white/5">
+          <table class="w-full text-left text-xs text-gray-300">
+            <thead class="bg-black/40 text-[10px] uppercase font-bold text-gray-400 border-b border-white/10">
+              <tr>
+                <th class="p-3">Status</th>
+                <th class="p-3">Withdrawal ID / Date</th>
+                <th class="p-3">Trader</th>
+                <th class="p-3">Amount</th>
+                <th class="p-3">Payout Method</th>
+                <th class="p-3">Account / VPA</th>
+                <th class="p-3">Bank Ref / TxRef</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 font-mono">
+              <tr v-for="wth in displayedWithdrawals" :key="wth.id" class="hover:bg-white/[0.02]">
+                <td class="p-3 whitespace-nowrap">
+                  <span v-if="wth.status === 'completed'" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">PAID & SETTLED</span>
+                  <span v-else-if="wth.status === 'pending'" class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px] animate-pulse">PENDING REVIEW</span>
+                  <span v-else-if="wth.status === 'rejected'" class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold text-[10px]">REJECTED & REFUNDED</span>
+                  <span v-else class="px-2 py-0.5 rounded bg-white/10 text-gray-400 font-bold text-[10px]">{{ wth.status.toUpperCase() }}</span>
+                </td>
+                <td class="p-3 whitespace-nowrap">
+                  <div class="font-bold text-white">{{ wth.withdrawalId || wth.id }}</div>
+                  <div class="text-[10px] text-gray-500">{{ formatDate(wth.createdAt) }}</div>
+                </td>
+                <td class="p-3 whitespace-nowrap font-sans">
+                  <div class="font-semibold text-white">{{ wth.userNickname || 'Trader' }}</div>
+                  <div class="text-[10px] text-gray-500 font-mono">{{ wth.userPhone || wth.userId }}</div>
+                </td>
+                <td class="p-3 whitespace-nowrap font-bold text-blue-400">-₹{{ formatMoney(wth.amount) }}</td>
+                <td class="p-3 whitespace-nowrap text-gray-300 font-sans uppercase text-[10px]">{{ wth.payoutType }}</td>
+                <td class="p-3 whitespace-nowrap text-white font-mono">
+                  {{ wth.payoutType === 'bank' ? wth.payoutDetails?.accountNumber : wth.payoutDetails?.upiId }}
+                </td>
+                <td class="p-3 whitespace-nowrap text-gray-400 font-mono">{{ wth.txRef || (wth.rejectReason ? 'Rej: ' + wth.rejectReason : '—') }}</td>
+                <td class="p-3 whitespace-nowrap text-right">
+                  <button v-if="wth.status === 'pending'" @click="promptConfirmWithdrawal(wth)" class="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-[10px] font-bold">
+                    Mark Paid
+                  </button>
+                  <span v-else class="text-[10px] text-gray-500">{{ wth.processedBy ? 'By ' + wth.processedBy : '—' }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: PENDING MATCH VERIFICATION QUEUE -->
     <!-- ========================================== -->
     <div v-if="currentTab === 'pending'" class="space-y-4">
       <div v-if="filteredPendingOrders.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
         <div class="text-4xl">✨</div>
-        <h3 class="text-base font-bold text-white">All Clear! No Pending Verifications</h3>
+        <h3 class="text-base font-bold text-white">All Clear! No Pending Match Verifications</h3>
         <p class="text-xs text-gray-400 max-w-md mx-auto">When traders make UPI payments and click "Confirm Receipt & Credit", their 12-digit bank UTR numbers will immediately appear here for your review and authorization.</p>
         <button @click="spawnSampleTestOrder" class="mt-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-[#F2D7A5] text-xs font-semibold transition">
           + Spawn Test HangSale Order
@@ -300,7 +606,7 @@
               <span>QR</span>
             </button>
 
-            <button @click="promptReject(order)" :disabled="actionLoading === order.buyId" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+            <button @click="promptRejectOrder(order)" :disabled="actionLoading === order.buyId" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
               ❌ Reject
             </button>
 
@@ -314,9 +620,9 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- TAB 2 & 3: ALL ORDERS & AUDIT HISTORY -->
+    <!-- TAB: ALL ORDERS AUDIT -->
     <!-- ========================================== -->
-    <div v-else class="space-y-4">
+    <div v-if="currentTab === 'all' || currentTab === 'completed'" class="space-y-4">
       <div class="overflow-x-auto rounded-2xl bg-[#17171A] border border-white/5">
         <table class="w-full text-left text-xs text-gray-300">
           <thead class="bg-black/40 text-[10px] uppercase font-bold text-gray-400 border-b border-white/10">
@@ -348,24 +654,14 @@
                 <div class="text-[10px] text-gray-500 font-mono">{{ order.userPhone }}</div>
               </td>
               <td class="p-3 whitespace-nowrap font-bold text-white">₹{{ formatMoney(order.amount) }}</td>
-              <td class="p-3 whitespace-nowrap font-bold text-emerald-400">+₹{{ formatMoney(order.totalReward) }}</td>
-              <td class="p-3 whitespace-nowrap">
-                <div v-if="order.utr" class="flex items-center gap-1.5">
-                  <span class="font-bold text-amber-300">{{ order.utr }}</span>
-                  <button @click="copyText(order.utr)" class="text-[10px] text-gray-400 hover:text-white">📋</button>
-                </div>
-                <span v-else class="text-gray-600">—</span>
-              </td>
-              <td class="p-3 whitespace-nowrap font-sans">
-                <div class="text-gray-300">{{ order.payoutAccount }}</div>
-                <div class="text-[10px] text-gray-500">{{ order.payoutWalletName }}</div>
-              </td>
-              <td class="p-3 whitespace-nowrap text-right font-sans">
-                <div v-if="order.status === 'verifying'" class="flex items-center justify-end gap-1.5">
-                  <button @click="confirmAndCredit(order)" class="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[11px]">Verify</button>
-                  <button @click="promptReject(order)" class="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-[11px]">Reject</button>
-                </div>
-                <span v-else class="text-[10px] text-gray-500">Resolved</span>
+              <td class="p-3 whitespace-nowrap text-emerald-400 font-bold">+₹{{ formatMoney(order.totalReward) }}</td>
+              <td class="p-3 whitespace-nowrap text-amber-300 font-bold">{{ order.utr || '—' }}</td>
+              <td class="p-3 whitespace-nowrap text-gray-400 font-mono">{{ order.payoutAccount }}</td>
+              <td class="p-3 whitespace-nowrap text-right">
+                <button v-if="order.status === 'verifying'" @click="confirmAndCredit(order)" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                  Credit
+                </button>
+                <span v-else class="text-[10px] text-gray-500">{{ order.verifiedBy ? 'By ' + order.verifiedBy : '—' }}</span>
               </td>
             </tr>
           </tbody>
@@ -374,36 +670,65 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL: REJECT ORDER WITH REASON -->
+    <!-- MODAL: REJECT CONFIRMATION -->
     <!-- ========================================== -->
-    <div v-if="rejectModal.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="w-full max-w-md bg-[#1B1B1E] border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4">
+    <div v-if="rejectModal.show" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="w-full max-w-md bg-[#1B1B1E] border border-red-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
-            <span class="text-lg">❌</span>
-            <h3 class="text-sm font-bold text-white">Reject Bank Reference (UTR)</h3>
+            <span class="text-xl">⚠️</span>
+            <h3 class="text-base font-bold text-white">Reject {{ rejectModal.type === 'deposit' ? 'Deposit' : (rejectModal.type === 'withdrawal' ? 'Withdrawal' : 'Order') }}</h3>
           </div>
           <button @click="rejectModal.show = false" class="text-gray-400 hover:text-white">✕</button>
         </div>
 
         <p class="text-xs text-gray-300">
-          Order <span class="font-mono font-bold text-white">{{ rejectModal.order?.orderNo }}</span> (UTR: <span class="font-mono text-amber-300">{{ rejectModal.order?.utr }}</span>) will be rejected.
+          <span v-if="rejectModal.type === 'withdrawal'">This will cancel the withdrawal request and <strong class="text-emerald-400">automatically refund ₹{{ formatMoney(rejectModal.item?.amount) }}</strong> back to user's wallet.</span>
+          <span v-else>Please state the reason for rejecting reference / UTR <strong>{{ rejectModal.item?.utr }}</strong>:</span>
         </p>
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1">Select Rejection Reason</label>
-          <select v-model="rejectModal.reason" class="w-full px-3 py-2 rounded-xl bg-[#141416] border border-white/10 text-xs text-white focus:outline-none focus:border-red-400">
-            <option value="UTR not found in bank statement">UTR not found in bank statement</option>
-            <option value="Incorrect transfer amount received">Incorrect transfer amount received</option>
-            <option value="Duplicate or recycled reference number">Duplicate or recycled reference number</option>
-            <option value="Payment reversed or on hold by bank">Payment reversed or on hold by bank</option>
-            <option value="Fake or unverified receipt">Fake or unverified receipt</option>
-          </select>
+          <label class="block text-xs font-semibold text-gray-400 mb-1">Rejection Reason</label>
+          <input v-model="rejectModal.reason" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500">
         </div>
 
         <div class="flex gap-2 pt-2">
           <button @click="rejectModal.show = false" class="w-1/2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10">Cancel</button>
           <button @click="executeReject" class="w-1/2 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow transition">Confirm Rejection</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: CONFIRM WITHDRAWAL PAYOUT -->
+    <!-- ========================================== -->
+    <div v-if="payoutModal.show" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="w-full max-w-md bg-[#1B1B1E] border border-blue-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">💸</span>
+            <h3 class="text-base font-bold text-white">Confirm Withdrawal Payout</h3>
+          </div>
+          <button @click="payoutModal.show = false" class="text-gray-400 hover:text-white">✕</button>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+          <p class="text-[11px] text-gray-400">Payout Amount</p>
+          <p class="text-2xl font-bold font-mono text-blue-400">₹{{ formatMoney(payoutModal.withdrawal?.amount) }}</p>
+          <p class="text-xs text-gray-300">
+            Destination: <strong class="text-white">{{ payoutModal.withdrawal?.payoutType === 'bank' ? payoutModal.withdrawal?.payoutDetails?.accountNumber : payoutModal.withdrawal?.payoutDetails?.upiId }}</strong>
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 mb-1">Bank Reference / IMPS TxRef (Optional)</label>
+          <input v-model="payoutModal.txRef" placeholder="e.g. IMPS129845789012" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-400 font-mono">
+          <p class="text-[10px] text-gray-400 mt-1">Beneficiary user will receive this reference number in their app</p>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button @click="payoutModal.show = false" class="w-1/3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10">Cancel</button>
+          <button @click="executeConfirmWithdrawal" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow transition">Mark Paid & Complete</button>
         </div>
       </div>
     </div>
@@ -456,7 +781,7 @@
         const authLoading = ref(false);
         const audioEnabled = ref(true);
 
-        const currentTab = ref('pending');
+        const currentTab = ref('deposits');
         const searchQuery = ref('');
         const actionLoading = ref(null);
 
@@ -467,16 +792,35 @@
           completedAmount: 0,
           totalRewards: 0,
           totalOrders: 0,
-          totalUsers: 0
+          totalUsers: 0,
+          pendingDepositsCount: 0,
+          pendingDepositsAmount: 0,
+          completedDepositsCount: 0,
+          completedDepositsAmount: 0,
+          pendingWithdrawalsCount: 0,
+          pendingWithdrawalsAmount: 0,
+          completedWithdrawalsCount: 0,
+          completedWithdrawalsAmount: 0
         });
 
         const pendingOrders = ref([]);
         const allOrders = ref([]);
+        const pendingDeposits = ref([]);
+        const allDeposits = ref([]);
+        const pendingWithdrawals = ref([]);
+        const allWithdrawals = ref([]);
 
         const rejectModal = reactive({
           show: false,
-          order: null,
+          type: 'order', // 'order', 'deposit', 'withdrawal'
+          item: null,
           reason: 'UTR not found in bank statement'
+        });
+
+        const payoutModal = reactive({
+          show: false,
+          withdrawal: null,
+          txRef: ''
         });
 
         const qrModal = reactive({
@@ -573,31 +917,143 @@
         async function fetchData() {
           if (!isUnlocked.value) return;
           try {
+            const headers = getAuthHeaders();
+
             // Stats
-            const statsRes = await fetch('/api/admin/stats', { headers: getAuthHeaders() });
+            const statsRes = await fetch('/api/admin/stats', { headers });
             const statsJson = await statsRes.json();
             if (statsJson.code === 1000) {
               Object.assign(stats, statsJson.data);
             }
 
-            // Pending Queue
-            const pendRes = await fetch('/api/admin/orders/pending', { headers: getAuthHeaders() });
+            // Pending Match Queue
+            const pendRes = await fetch('/api/admin/orders/pending', { headers });
             const pendJson = await pendRes.json();
             if (pendJson.code === 1000) {
               pendingOrders.value = pendJson.data.records || [];
             }
 
             // All Orders Audit
-            const allRes = await fetch('/api/admin/orders/all', { headers: getAuthHeaders() });
+            const allRes = await fetch('/api/admin/orders/all', { headers });
             const allJson = await allRes.json();
             if (allJson.code === 1000) {
               allOrders.value = allJson.data.records || [];
+            }
+
+            // Pending Deposits
+            const depRes = await fetch('/api/admin/deposits/pending', { headers });
+            const depJson = await depRes.json();
+            if (depJson.code === 1000) {
+              pendingDeposits.value = depJson.data.records || [];
+            }
+
+            // All Deposits
+            const allDepRes = await fetch('/api/admin/deposits/all', { headers });
+            const allDepJson = await allDepRes.json();
+            if (allDepJson.code === 1000) {
+              allDeposits.value = allDepJson.data.records || [];
+            }
+
+            // Pending Withdrawals
+            const wthRes = await fetch('/api/admin/withdrawals/pending', { headers });
+            const wthJson = await wthRes.json();
+            if (wthJson.code === 1000) {
+              pendingWithdrawals.value = wthJson.data.records || [];
+            }
+
+            // All Withdrawals
+            const allWthRes = await fetch('/api/admin/withdrawals/all', { headers });
+            const allWthJson = await allWthRes.json();
+            if (allWthJson.code === 1000) {
+              allWithdrawals.value = allWthJson.data.records || [];
             }
           } catch (e) {
             console.error('Failed to load admin data:', e);
           }
         }
 
+        // DEPOSIT ACTIONS
+        async function confirmDeposit(dep) {
+          if (!confirm(`Verify Ref No. "${dep.utr}" and credit ₹${formatMoney(dep.amount)} to user "${dep.userNickname || dep.userId}"?`)) {
+            return;
+          }
+          actionLoading.value = dep.id;
+          try {
+            const res = await fetch('/api/admin/deposit/verify', {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({
+                depositId: dep.id,
+                action: 'confirm'
+              })
+            });
+            const json = await res.json();
+            if (json.code === 1000) {
+              playBeep();
+              showToast(`Deposit ₹${formatMoney(dep.amount)} verified! Balance credited to user.`, 'success');
+              fetchData();
+            } else {
+              showToast(json.msg || 'Verification failed', 'error');
+            }
+          } catch (e) {
+            showToast('Network error during verification', 'error');
+          } finally {
+            actionLoading.value = null;
+          }
+        }
+
+        function promptRejectDeposit(dep) {
+          rejectModal.type = 'deposit';
+          rejectModal.item = dep;
+          rejectModal.reason = 'UTR / payment not found in bank statement';
+          rejectModal.show = true;
+        }
+
+        // WITHDRAWAL ACTIONS
+        function promptConfirmWithdrawal(wth) {
+          payoutModal.withdrawal = wth;
+          payoutModal.txRef = 'IMPS' + Date.now();
+          payoutModal.show = true;
+        }
+
+        async function executeConfirmWithdrawal() {
+          const wth = payoutModal.withdrawal;
+          if (!wth) return;
+          actionLoading.value = wth.id;
+          try {
+            const res = await fetch('/api/admin/withdraw/verify', {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({
+                withdrawalId: wth.id,
+                action: 'confirm',
+                txRef: payoutModal.txRef
+              })
+            });
+            const json = await res.json();
+            if (json.code === 1000) {
+              payoutModal.show = false;
+              playBeep();
+              showToast(`Withdrawal of ₹${formatMoney(wth.amount)} marked paid & complete!`, 'success');
+              fetchData();
+            } else {
+              showToast(json.msg || 'Action failed', 'error');
+            }
+          } catch (e) {
+            showToast('Network error during confirmation', 'error');
+          } finally {
+            actionLoading.value = null;
+          }
+        }
+
+        function promptRejectWithdrawal(wth) {
+          rejectModal.type = 'withdrawal';
+          rejectModal.item = wth;
+          rejectModal.reason = 'Invalid bank/UPI details or transfer returned';
+          rejectModal.show = true;
+        }
+
+        // MATCH ORDER ACTIONS
         async function confirmAndCredit(order) {
           if (!confirm(`Verify Ref No. "${order.utr}" and immediately credit ₹${formatMoney(order.totalReward)} bonus to trader "${order.userNickname || order.userId}"?`)) {
             return;
@@ -627,30 +1083,38 @@
           }
         }
 
-        function promptReject(order) {
-          rejectModal.order = order;
+        function promptRejectOrder(order) {
+          rejectModal.type = 'order';
+          rejectModal.item = order;
           rejectModal.reason = 'UTR not found in bank statement';
           rejectModal.show = true;
         }
 
         async function executeReject() {
-          const order = rejectModal.order;
-          if (!order) return;
-          actionLoading.value = order.buyId;
+          const item = rejectModal.item;
+          if (!item) return;
+          actionLoading.value = item.id || item.buyId;
           try {
-            const res = await fetch('/api/admin/order/verify', {
+            let url = '/api/admin/order/verify';
+            let body = { buyId: item.buyId, action: 'reject', rejectReason: rejectModal.reason };
+
+            if (rejectModal.type === 'deposit') {
+              url = '/api/admin/deposit/verify';
+              body = { depositId: item.id, action: 'reject', rejectReason: rejectModal.reason };
+            } else if (rejectModal.type === 'withdrawal') {
+              url = '/api/admin/withdraw/verify';
+              body = { withdrawalId: item.id, action: 'reject', rejectReason: rejectModal.reason };
+            }
+
+            const res = await fetch(url, {
               method: 'POST',
               headers: getAuthHeaders(),
-              body: JSON.stringify({
-                buyId: order.buyId,
-                action: 'reject',
-                rejectReason: rejectModal.reason
-              })
+              body: JSON.stringify(body)
             });
             const json = await res.json();
             if (json.code === 1000) {
               rejectModal.show = false;
-              showToast(`Order ${order.orderNo} rejected`, 'info');
+              showToast(`${rejectModal.type.toUpperCase()} rejected successfully`, 'info');
               fetchData();
             } else {
               showToast(json.msg || 'Rejection failed', 'error');
@@ -684,7 +1148,7 @@
         function copyText(txt) {
           if (!txt) return;
           navigator.clipboard.writeText(String(txt)).then(() => {
-            showToast('UTR copied: ' + txt, 'success');
+            showToast('Copied: ' + txt, 'success');
           }).catch(() => {
             showToast('Copied: ' + txt, 'success');
           });
@@ -721,6 +1185,64 @@
               String(o.orderNo || '').toLowerCase().includes(q) ||
               String(o.userPhone || '').toLowerCase().includes(q) ||
               String(o.userNickname || '').toLowerCase().includes(q)
+            );
+          }
+          return list;
+        });
+
+        const filteredPendingDeposits = computed(() => {
+          let list = pendingDeposits.value;
+          if (searchQuery.value) {
+            const q = searchQuery.value.toLowerCase().trim();
+            list = list.filter(d =>
+              String(d.utr || '').toLowerCase().includes(q) ||
+              String(d.depositId || d.id || '').toLowerCase().includes(q) ||
+              String(d.userPhone || '').toLowerCase().includes(q) ||
+              String(d.userNickname || '').toLowerCase().includes(q)
+            );
+          }
+          return list;
+        });
+
+        const displayedDeposits = computed(() => {
+          let list = allDeposits.value;
+          if (searchQuery.value) {
+            const q = searchQuery.value.toLowerCase().trim();
+            list = list.filter(d =>
+              String(d.utr || '').toLowerCase().includes(q) ||
+              String(d.depositId || d.id || '').toLowerCase().includes(q) ||
+              String(d.userPhone || '').toLowerCase().includes(q) ||
+              String(d.userNickname || '').toLowerCase().includes(q)
+            );
+          }
+          return list;
+        });
+
+        const filteredPendingWithdrawals = computed(() => {
+          let list = pendingWithdrawals.value;
+          if (searchQuery.value) {
+            const q = searchQuery.value.toLowerCase().trim();
+            list = list.filter(w =>
+              String(w.withdrawalId || w.id || '').toLowerCase().includes(q) ||
+              String(w.userPhone || '').toLowerCase().includes(q) ||
+              String(w.userNickname || '').toLowerCase().includes(q) ||
+              String(w.payoutDetails?.upiId || '').toLowerCase().includes(q) ||
+              String(w.payoutDetails?.accountNumber || '').toLowerCase().includes(q)
+            );
+          }
+          return list;
+        });
+
+        const displayedWithdrawals = computed(() => {
+          let list = allWithdrawals.value;
+          if (searchQuery.value) {
+            const q = searchQuery.value.toLowerCase().trim();
+            list = list.filter(w =>
+              String(w.withdrawalId || w.id || '').toLowerCase().includes(q) ||
+              String(w.userPhone || '').toLowerCase().includes(q) ||
+              String(w.userNickname || '').toLowerCase().includes(q) ||
+              String(w.payoutDetails?.upiId || '').toLowerCase().includes(q) ||
+              String(w.payoutDetails?.accountNumber || '').toLowerCase().includes(q)
             );
           }
           return list;
@@ -763,11 +1285,19 @@
             ws.onmessage = (event) => {
               try {
                 const data = JSON.parse(event.data);
-                if (data.type === 'ADMIN_ORDER_NEEDS_VERIFICATION' || data.type === 'ORDER_VERIFYING') {
+                if (data.type === 'ADMIN_DEPOSIT_NEEDS_VERIFICATION') {
                   playBeep();
-                  showToast(`🚨 New UTR Verification Request: ₹${formatMoney(data.payload?.amount || 0)} (Ref #${data.payload?.utr || ''})`, 'info');
+                  showToast(`📥 New Deposit Verification: ₹${formatMoney(data.payload?.amount || 0)} (Ref #${data.payload?.utr || ''})`, 'info');
                   fetchData();
-                } else if (data.type === 'ORDER_COMPLETED' || data.type === 'ORDER_CLAIMED') {
+                } else if (data.type === 'ADMIN_WITHDRAWAL_NEEDS_ACTION') {
+                  playBeep();
+                  showToast(`📤 New Withdrawal Request: ₹${formatMoney(data.payload?.amount || 0)} via ${String(data.payload?.payoutType || 'UPI').toUpperCase()}`, 'info');
+                  fetchData();
+                } else if (data.type === 'ADMIN_ORDER_NEEDS_VERIFICATION' || data.type === 'ORDER_VERIFYING') {
+                  playBeep();
+                  showToast(`🚨 New Match UTR Verification: ₹${formatMoney(data.payload?.amount || 0)} (Ref #${data.payload?.utr || ''})`, 'info');
+                  fetchData();
+                } else if (data.type === 'ORDER_COMPLETED' || data.type === 'ORDER_CLAIMED' || data.type === 'DEPOSIT_COMPLETED' || data.type === 'WITHDRAWAL_COMPLETED') {
                   fetchData();
                 }
               } catch (e) {}
@@ -779,11 +1309,9 @@
         }
 
         onMounted(() => {
-          // If already has valid key or token, attempt unlock immediately
           if (adminKeyInput.value) {
             unlockConsole();
           } else {
-            // Check if user is logged in as admin via token
             const token = localStorage.getItem('tradepay_token');
             if (token) {
               fetch('/api/admin/stats', { headers: getAuthHeaders() })
@@ -802,7 +1330,7 @@
           // Polling interval for fresh queue
           setInterval(() => {
             if (isUnlocked.value) fetchData();
-          }, 8000);
+          }, 6000);
         });
 
         onUnmounted(() => {
@@ -821,18 +1349,32 @@
           stats,
           pendingOrders,
           allOrders,
+          pendingDeposits,
+          allDeposits,
+          pendingWithdrawals,
+          allWithdrawals,
           filteredPendingOrders,
+          filteredPendingDeposits,
+          displayedDeposits,
+          filteredPendingWithdrawals,
+          displayedWithdrawals,
           completedOrders,
           displayedHistoryOrders,
           rejectModal,
+          payoutModal,
           qrModal,
           toast,
           unlockConsole,
           lockConsole,
           toggleAudio,
           fetchData,
+          confirmDeposit,
+          promptRejectDeposit,
+          promptConfirmWithdrawal,
+          executeConfirmWithdrawal,
+          promptRejectWithdrawal,
           confirmAndCredit,
-          promptReject,
+          promptRejectOrder,
           executeReject,
           openQrModal,
           spawnSampleTestOrder,

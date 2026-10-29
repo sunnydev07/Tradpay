@@ -33,6 +33,9 @@ const defaultState = {
       pinSalt: null,
       isPinSet: false,
       onSellStatus: 1,
+      totalDeposited: 0.00,
+      totalWithdrawn: 0.00,
+      pendingWithdrawal: 0.00,
       claimedMissions: [],
       newcomerRewardClaimed: false,
       createdAt: new Date().toISOString()
@@ -167,6 +170,8 @@ const defaultState = {
     }
   ],
   claimedOrders: {},
+  deposits: {},
+  withdrawals: {},
   settings: {
     usdtRechargeRate: 91.50,
     usdtCashbackRate: 2.0,
@@ -248,6 +253,9 @@ function migrateUser(user) {
   delete user.pin;
 
   if (!Array.isArray(user.claimedMissions)) user.claimedMissions = [];
+  if (typeof user.totalDeposited !== 'number') user.totalDeposited = 0;
+  if (typeof user.totalWithdrawn !== 'number') user.totalWithdrawn = 0;
+  if (typeof user.pendingWithdrawal !== 'number') user.pendingWithdrawal = 0;
   if (typeof user.newcomerRewardClaimed !== 'boolean') user.newcomerRewardClaimed = false;
   if (!Array.isArray(user.wallets)) user.wallets = [];
   if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
@@ -304,6 +312,22 @@ function buildState(saved) {
 
   if (safeSaved.claimedOrders && typeof safeSaved.claimedOrders === 'object') {
     state.claimedOrders = safeSaved.claimedOrders;
+  }
+  if (safeSaved.deposits && typeof safeSaved.deposits === 'object' && !Array.isArray(safeSaved.deposits)) {
+    state.deposits = safeSaved.deposits;
+  } else if (Array.isArray(safeSaved.deposits)) {
+    state.deposits = {};
+    for (const d of safeSaved.deposits) { if (d && d.id) state.deposits[d.id] = d; }
+  } else {
+    state.deposits = {};
+  }
+  if (safeSaved.withdrawals && typeof safeSaved.withdrawals === 'object' && !Array.isArray(safeSaved.withdrawals)) {
+    state.withdrawals = safeSaved.withdrawals;
+  } else if (Array.isArray(safeSaved.withdrawals)) {
+    state.withdrawals = {};
+    for (const w of safeSaved.withdrawals) { if (w && w.id) state.withdrawals[w.id] = w; }
+  } else {
+    state.withdrawals = {};
   }
 
   // Buyer UPI / phone are never shown or used; strip any legacy persisted values.

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../engine/db');
 const orderEngine = require('../engine/orderEngine');
+const paymentEngine = require('../engine/paymentEngine');
 const supabaseService = require('../engine/supabaseService');
 const qrService = require('../engine/qrService');
 const auth = require('../engine/auth');
@@ -375,6 +376,9 @@ router.get('/app/payment/order/summary', (req, res) => {
     totalBalance: user.totalBalance || user.balance,
     rewardTotal: user.rewardTotal || 0,
     pending: pendingAmount,
+    totalDeposited: user.totalDeposited || 0,
+    totalWithdrawn: user.totalWithdrawn || 0,
+    pendingWithdrawal: user.pendingWithdrawal || 0,
     usdtRechargeRate: state.settings.usdtRechargeRate,
     usdtCashbackRate: state.settings.usdtCashbackRate,
     wallet: user.balance
@@ -1094,6 +1098,162 @@ router.get('/api/admin/stats', async (req, res) => {
     totalOrders: allOrders.length,
     totalUsers: Object.keys(state.users || {}).length
   });
+});
+
+
+// -------------------------------------------------------------
+// DEPOSIT & WITHDRAWAL USER ENDPOINTS
+// -------------------------------------------------------------
+router.post('/app/deposit/create', async (req, res) => {
+  const user = getAuthUser(req);
+  const { amount } = req.body || {};
+  try {
+    const deposit = await paymentEngine.createDeposit({ userId: user.id, amount });
+    return ok(res, deposit, 'Deposit order created');
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.post('/app/deposit/submit', (req, res) => {
+  const user = getAuthUser(req);
+  const { depositId, utr, proofUrl } = req.body || {};
+  if (!depositId) return fail(res, 'depositId is required', 400);
+  if (!utr) return fail(res, '12-digit UTR is required', 400);
+  try {
+    const updated = paymentEngine.submitDepositUtr({ depositId, utr, proofUrl, userId: user.id });
+    return ok(res, updated, 'Deposit submitted for verification');
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.get('/app/deposit/active', (req, res) => {
+  const user = getAuthUser(req);
+  const state = db.get();
+  const active = Object.values(state.deposits || {})
+    .filter(d => String(d.userId) === String(user.id) && (d.status === 'pending' || d.status === 'verifying'))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+  return ok(res, active);
+});
+
+router.get('/app/deposit/list', (req, res) => {
+  const user = getAuthUser(req);
+  const records = paymentEngine.getUserDeposits(user.id);
+  return ok(res, records);
+});
+
+router.post('/app/withdraw/request', (req, res) => {
+  const user = getAuthUser(req);
+  const { amount, payoutType, payoutDetails, pin } = req.body || {};
+  try {
+    const withdrawal = paymentEngine.requestWithdrawal({
+      userId: user.id,
+      amount,
+      payoutType,
+      payoutDetails,
+      pin
+    });
+    return ok(res, withdrawal, 'Withdrawal request submitted successfully');
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.get('/app/withdraw/list', (req, res) => {
+  const user = getAuthUser(req);
+  const records = paymentEngine.getUserWithdrawals(user.id);
+  return ok(res, records);
+});
+
+router.get('/app/user/transactions/all', (req, res) => {
+  const user = getAuthUser(req);
+  const records = paymentEngine.getUserUnifiedTransactions(user.id);
+  return ok(res, records);
+});
+
+// -------------------------------------------------------------
+// DEPOSIT & WITHDRAWAL ADMIN VERIFICATION ENDPOINTS
+// -------------------------------------------------------------
+router.get('/api/admin/deposits/pending', async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const records = paymentEngine.getPendingDeposits();
+  return ok(res, { records, total: records.length });
+});
+
+router.get('/api/admin/deposits/all', async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const filter = req.query.status || 'all';
+  const records = paymentEngine.getAllDepositsForAdmin(filter);
+  return ok(res, { records, total: records.length });
+});
+
+router.post('/api/admin/deposit/verify', async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { depositId, action, rejectReason } = req.body || {};
+  if (!depositId) return fail(res, 'depositId is required', 400);
+  if (!['confirm', 'reject'].includes(action)) {
+    return fail(res, 'action must be "confirm" or "reject"', 400);
+  }
+  try {
+    const updated = paymentEngine.verifyDeposit({
+      depositId,
+      adminId: req.user?.id || 'admin',
+      action,
+      reason: rejectReason
+    });
+    return ok(
+      res,
+      updated,
+      action === 'confirm' ? 'Deposit verified & balance credited successfully' : 'Deposit rejected'
+    );
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.get('/api/admin/withdrawals/pending', async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const records = paymentEngine.getPendingWithdrawals();
+  return ok(res, { records, total: records.length });
+});
+
+router.get('/api/admin/withdrawals/all', async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const filter = req.query.status || 'all';
+  const records = paymentEngine.getAllWithdrawalsForAdmin(filter);
+  return ok(res, { records, total: records.length });
+});
+
+router.post('/api/admin/withdraw/verify', async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { withdrawalId, action, txRef, rejectReason } = req.body || {};
+  if (!withdrawalId) return fail(res, 'withdrawalId is required', 400);
+  if (!['confirm', 'reject'].includes(action)) {
+    return fail(res, 'action must be "confirm" or "reject"', 400);
+  }
+  try {
+    const updated = paymentEngine.verifyWithdrawal({
+      withdrawalId,
+      adminId: req.user?.id || 'admin',
+      action,
+      txRef,
+      reason: rejectReason
+    });
+    return ok(
+      res,
+      updated,
+      action === 'confirm' ? 'Withdrawal confirmed & marked paid' : 'Withdrawal rejected & refunded to user'
+    );
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
 });
 
 module.exports = router;
