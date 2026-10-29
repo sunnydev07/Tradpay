@@ -277,6 +277,31 @@ function buildState(saved) {
       sale.rewardRate = money.MIN_ORDER_REWARD_PERCENT;
     }
   }
+
+  // Ensure there is always at least one high-limit order (₹50,000 - ₹100,000)
+  // available so the 50000-100000 filter never shows empty for any user.
+  const highLimitPending = state.hangSales.filter(
+    o => o.status === 'pending' && o.amount >= 50000 && o.amount <= 100000
+  );
+  if (highLimitPending.length === 0) {
+    const seedAmounts = [55000, 75000, 100000];
+    for (const amount of seedAmounts) {
+      const now = new Date();
+      const id = `PO${now.toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)}${Math.floor(1000 + Math.random() * 9000)}`;
+      state.hangSales.push({
+        payOrderId: id,
+        orderNo: id,
+        amount,
+        reward: money.percentage(amount, money.MIN_ORDER_REWARD_PERCENT),
+        rewardRate: money.MIN_ORDER_REWARD_PERCENT,
+        currency: 'INR',
+        status: 'pending',
+        allowedTypes: [2, 3, 4, 5],
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
   if (safeSaved.claimedOrders && typeof safeSaved.claimedOrders === 'object') {
     state.claimedOrders = safeSaved.claimedOrders;
   }
