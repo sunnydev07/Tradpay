@@ -434,29 +434,37 @@
       </div>
 
       <!-- Quick Action Buttons -->
-      <div class="quick-actions grid grid-cols-3 gap-2.5">
-        <button @click="switchTab('payment')" class="quick-action flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
-          <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-lg mb-1.5 text-[#F2D7A5]">
-            <img src="/static/icons/icon-order.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
+      <div class="quick-actions grid grid-cols-4 gap-2">
+        <button @click="switchTab('payment')" class="quick-action flex flex-col items-center p-2.5 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-base mb-1 text-[#F2D7A5]">
+            <img src="/static/icons/icon-order.png" class="w-5 h-5 object-contain" @error="e=>e.target.style.display='none'">
             <span>⚡</span>
           </div>
-          <span class="text-[11px] font-medium text-gray-200 text-center leading-tight">Take Order</span>
+          <span class="text-[10px] font-medium text-gray-200 text-center leading-tight">Take Order</span>
         </button>
 
-        <button @click="switchTab('team')" class="quick-action flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
-          <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-lg mb-1.5 text-blue-400">
-            <img src="/static/icons/icon-activity.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
+        <button @click="openTransactionsHistoryModal('all')" class="quick-action flex flex-col items-center p-2.5 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-base mb-1 text-emerald-400 relative">
+            <span>📜</span>
+            <span v-if="historySummary.verifyingCount > 0" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+          </div>
+          <span class="text-[10px] font-medium text-gray-200 text-center leading-tight">History</span>
+        </button>
+
+        <button @click="switchTab('team')" class="quick-action flex flex-col items-center p-2.5 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+          <div class="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-base mb-1 text-blue-400">
+            <img src="/static/icons/icon-activity.png" class="w-5 h-5 object-contain" @error="e=>e.target.style.display='none'">
             <span>👥</span>
           </div>
-          <span class="text-[11px] font-medium text-gray-200 text-center leading-tight">Rebate</span>
+          <span class="text-[10px] font-medium text-gray-200 text-center leading-tight">Rebate</span>
         </button>
 
-        <button @click="openMissionsModal" class="quick-action flex flex-col items-center p-3 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
-          <div class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-lg mb-1.5 text-purple-400">
-            <img src="/static/icons/icon-task.png" class="w-6 h-6 object-contain" @error="e=>e.target.style.display='none'">
+        <button @click="openMissionsModal" class="quick-action flex flex-col items-center p-2.5 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition">
+          <div class="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center text-base mb-1 text-purple-400">
+            <img src="/static/icons/icon-task.png" class="w-5 h-5 object-contain" @error="e=>e.target.style.display='none'">
             <span>🎁</span>
           </div>
-          <span class="text-[11px] font-medium text-gray-200 text-center leading-tight">Missions</span>
+          <span class="text-[10px] font-medium text-gray-200 text-center leading-tight">Missions</span>
         </button>
       </div>
 
@@ -646,6 +654,80 @@
           </div>
         </div>
       </div>
+
+      <!-- Payment & Transactions History Section in Wallet Tab -->
+      <div class="mt-6 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+              <span>📜 Payment Transactions History</span>
+              <span v-if="historySummary.totalCount > 0" class="text-[10px] px-2 py-0.2 rounded-full bg-white/10 text-gray-300 font-mono font-semibold">{{ historySummary.totalCount }}</span>
+            </h3>
+            <p class="text-[10px] text-gray-400">All submitted bank reference numbers, verifications & credits</p>
+          </div>
+          <button @click="openTransactionsHistoryModal('all')" class="text-xs text-[#F2D7A5] hover:underline font-semibold flex items-center gap-0.5">
+            <span>View All</span>
+            <span>›</span>
+          </button>
+        </div>
+
+        <!-- Empty state or list -->
+        <div v-if="userTransactions.length === 0" class="rounded-2xl bg-[#242424] border border-white/5 p-6 text-center text-gray-400 space-y-2">
+          <span class="text-3xl block opacity-40">🧾</span>
+          <p class="text-xs font-medium text-gray-300">No payment transactions recorded yet</p>
+          <p class="text-[10px] text-gray-500">Claim an order from the Payment tab to start earning credits.</p>
+          <button @click="switchTab('payment')" class="mt-1 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow">
+            Take an Order Now →
+          </button>
+        </div>
+
+        <div v-else class="space-y-2.5">
+          <div v-for="tx in userTransactions.slice(0, 3)" :key="tx.buyId" @click="openTransactionsHistoryModal('all')" class="rounded-2xl bg-[#242424] border border-white/5 p-3.5 hover:border-white/15 transition cursor-pointer space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="text-[10px] text-gray-400">Order:</span>
+                <span class="text-xs font-mono font-bold text-white truncate">{{ tx.orderNo }}</span>
+              </div>
+              <span v-if="tx.status === 'completed'" class="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+                ✅ Credited
+              </span>
+              <span v-else-if="tx.status === 'verifying'" class="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold animate-pulse">
+                ⏳ Verifying Ref No.
+              </span>
+              <span v-else-if="tx.status === 'rejected'" class="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[10px] font-bold">
+                ❌ Rejected
+              </span>
+              <span v-else class="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-bold">
+                ⏱️ Pending
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between text-xs pt-1 border-t border-white/5">
+              <div>
+                <span class="text-[10px] text-gray-400 block">Amount Paid</span>
+                <span class="font-bold text-white">₹{{ formatMoney(tx.amount) }}</span>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] text-gray-400 block">Reward Credits</span>
+                <span class="font-bold text-emerald-400">+₹{{ formatMoney(tx.totalReward) }}</span>
+              </div>
+            </div>
+
+            <div v-if="tx.utr" class="text-[10px] text-gray-400 flex items-center justify-between bg-white/5 px-2.5 py-1.5 rounded-lg">
+              <span>Ref No (UTR): <strong class="text-[#F2D7A5] font-mono">{{ tx.utr }}</strong></span>
+              <span class="text-[9px] text-gray-500">{{ formatDateTime(tx.submittedAt || tx.createdAt) }}</span>
+            </div>
+
+            <div v-if="tx.status === 'rejected' && tx.rejectReason" class="text-[10px] text-rose-300 bg-rose-950/40 border border-rose-500/30 px-2.5 py-1.5 rounded-lg">
+              ⚠️ Reason: {{ tx.rejectReason }}
+            </div>
+          </div>
+
+          <button v-if="userTransactions.length > 3" @click="openTransactionsHistoryModal('all')" class="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-[#F2D7A5] text-center transition">
+            View All {{ userTransactions.length }} Transactions History →
+          </button>
+        </div>
+      </div>
     </main>
 
     <!-- ======================================================== -->
@@ -733,6 +815,22 @@
       </div>
 
       <div class="menu-list rounded-2xl bg-[#242424] border border-white/5 divide-y divide-white/5">
+        <button @click="openTransactionsHistoryModal('all')" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">📜</span>
+            <div>
+              <p class="text-xs font-bold text-white">Payment & Transaction History</p>
+              <p class="text-[10px] text-gray-400">View all claimed payments, verification status & credits</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span v-if="historySummary.verifyingCount > 0" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold animate-pulse">
+              {{ historySummary.verifyingCount }} Pending
+            </span>
+            <span class="text-xs text-[#F2D7A5] font-semibold">{{ historySummary.totalCount || 0 }} records ›</span>
+          </div>
+        </button>
+
         <button @click="openPinModal" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
           <div class="flex items-center gap-3">
             <span class="text-lg">🔐</span>
@@ -1320,6 +1418,185 @@
           </div>
         </div>
       </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 6: TRANSACTION HISTORY -->
+    <!-- ======================================================== -->
+    <div v-if="modals.transactions.show" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div class="modal-panel modal-sheet w-full max-w-[500px] max-h-[92vh] sm:max-h-[85vh] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-[#242424] flex-shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-lg text-[#F2D7A5]">
+              📜
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <span>Transactions & Payment History</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-gray-300 font-mono font-semibold">{{ historySummary.totalCount }}</span>
+              </h3>
+              <p class="text-[11px] text-gray-400">Complete record of payments, verifications & rewards</p>
+            </div>
+          </div>
+          <button @click="modals.transactions.show = false" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">✕</button>
+        </div>
+
+        <!-- Summary Metrics Bar -->
+        <div class="grid grid-cols-3 gap-2 p-3 bg-[#181818] border-b border-white/5 flex-shrink-0 text-center">
+          <div class="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <p class="text-[10px] text-gray-400">Total Credits Earned</p>
+            <p class="text-xs font-bold text-emerald-400 mt-0.5">+₹{{ formatMoney(historySummary.totalCredited) }}</p>
+          </div>
+          <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <p class="text-[10px] text-gray-400">Under Verification</p>
+            <p class="text-xs font-bold text-[#F2D7A5] mt-0.5">{{ historySummary.verifyingCount }} orders</p>
+          </div>
+          <div class="p-2 rounded-xl bg-white/5 border border-white/5">
+            <p class="text-[10px] text-gray-400">Total Volume Paid</p>
+            <p class="text-xs font-bold text-white mt-0.5">₹{{ formatMoney(historySummary.totalVolume) }}</p>
+          </div>
+        </div>
+
+        <!-- Filter Tabs & Search -->
+        <div class="p-3 border-b border-white/5 space-y-2.5 flex-shrink-0 bg-[#212121]">
+          <!-- Filter Tabs -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <button @click="historyFilter = 'all'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px]" :class="historyFilter === 'all' ? 'bg-[#F2D7A5] text-black shadow-md' : 'bg-white/5 text-gray-400 hover:text-white'">
+              All ({{ historySummary.totalCount }})
+            </button>
+            <button @click="historyFilter = 'completed'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'completed' ? 'bg-emerald-500 text-black shadow-md' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'">
+              <span>✅ Credited ({{ historySummary.completedCount }})</span>
+            </button>
+            <button @click="historyFilter = 'verifying'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'verifying' ? 'bg-amber-500 text-black shadow-md' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'">
+              <span>⏳ Verifying ({{ historySummary.verifyingCount }})</span>
+            </button>
+            <button @click="historyFilter = 'rejected'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'rejected' ? 'bg-rose-500 text-white shadow-md' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20'">
+              <span>❌ Rejected ({{ historySummary.rejectedCount }})</span>
+            </button>
+            <button @click="historyFilter = 'pending'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'pending' ? 'bg-blue-500 text-white shadow-md' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20'">
+              <span>⏱️ Pending ({{ historySummary.pendingCount }})</span>
+            </button>
+          </div>
+
+          <!-- Search Input -->
+          <div class="relative">
+            <span class="absolute left-3 top-2.5 text-gray-500 text-xs">🔍</span>
+            <input v-model="historySearch" placeholder="Search by UTR, Order No, or Account..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-[#141414] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#F2D7A5] font-mono">
+            <button v-if="historySearch" @click="historySearch = ''" class="absolute right-2.5 top-2 text-gray-400 hover:text-white text-xs">✕</button>
+          </div>
+        </div>
+
+        <!-- Orders Scroll Area -->
+        <div class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 min-h-[220px]">
+          <!-- Loading State -->
+          <div v-if="historyLoading" class="p-8 text-center text-gray-400 space-y-2">
+            <div class="w-6 h-6 border-2 border-[#F2D7A5] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p class="text-xs">Fetching transactions...</p>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="filteredTransactions.length === 0" class="p-8 text-center text-gray-400 space-y-2">
+            <span class="text-3xl block opacity-40">📜</span>
+            <p class="text-xs font-semibold text-gray-300">No transactions found</p>
+            <p class="text-[11px] text-gray-500">
+              <span v-if="historySearch">No records match "{{ historySearch }}"</span>
+              <span v-else>No transactions under selected status</span>
+            </p>
+          </div>
+
+          <!-- List of Transaction Cards -->
+          <div v-else v-for="tx in filteredTransactions" :key="tx.buyId" class="rounded-2xl bg-[#242424] border p-4 space-y-3 transition" :class="tx.status === 'completed' ? 'border-emerald-500/25 bg-gradient-to-br from-[#242424] to-[#1c241e]' : (tx.status === 'rejected' ? 'border-rose-500/30 bg-gradient-to-br from-[#242424] to-[#281b1c]' : (tx.status === 'verifying' ? 'border-amber-500/30 bg-gradient-to-br from-[#242424] to-[#272118]' : 'border-white/10'))">
+            
+            <!-- Card Header: Order No & Status Badge -->
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="text-xs text-gray-400">Order:</span>
+                <span class="text-xs font-mono font-bold text-white truncate">{{ tx.orderNo }}</span>
+              </div>
+
+              <!-- Status Badge -->
+              <span v-if="tx.status === 'completed'" class="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                <span>✅</span> Credited
+              </span>
+              <span v-else-if="tx.status === 'verifying'" class="px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold flex items-center gap-1 animate-pulse">
+                <span>⏳</span> Verifying Ref No.
+              </span>
+              <span v-else-if="tx.status === 'rejected'" class="px-2.5 py-1 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-300 text-[10px] font-bold flex items-center gap-1">
+                <span>❌</span> Rejected
+              </span>
+              <span v-else-if="tx.status === 'pending' || tx.status === 'confirming'" class="px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-bold flex items-center gap-1">
+                <span>⏱️</span> Awaiting Payment
+              </span>
+              <span v-else class="px-2.5 py-1 rounded-full bg-gray-700 text-gray-300 text-[10px] font-semibold">
+                {{ tx.status }}
+              </span>
+            </div>
+
+            <!-- Financials: Paid vs Reward -->
+            <div class="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-black/30 border border-white/5">
+              <div>
+                <p class="text-[10px] text-gray-400">Order Amount Paid</p>
+                <p class="text-sm font-extrabold text-white mt-0.5">₹{{ formatMoney(tx.amount) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[10px] text-gray-400">Bonus / Credits Given</p>
+                <p class="text-sm font-extrabold mt-0.5" :class="tx.status === 'completed' ? 'text-emerald-400' : (tx.status === 'rejected' ? 'text-gray-500 line-through' : 'text-[#F2D7A5]')">
+                  +₹{{ formatMoney(tx.totalReward) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Reference Number (UTR) -->
+            <div v-if="tx.utr" class="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="text-[10px] text-gray-400">Bank Reference No. (UTR)</p>
+                <p class="text-xs font-mono font-bold text-[#F2D7A5] tracking-wider truncate mt-0.5">{{ tx.utr }}</p>
+              </div>
+              <button @click="copyTransactionUtr(tx.utr, tx.buyId)" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[10px] font-semibold text-gray-200 transition flex items-center gap-1 flex-shrink-0">
+                <span v-if="copiedUtrKey === tx.buyId" class="text-emerald-400">✓ Copied</span>
+                <span v-else>Copy</span>
+              </button>
+            </div>
+
+            <!-- Rejection Notice Banner (if rejected) -->
+            <div v-if="tx.status === 'rejected'" class="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40 text-xs space-y-1">
+              <div class="flex items-center gap-1.5 text-rose-300 font-bold text-[11px]">
+                <span>⚠️ Rejection Notice:</span>
+              </div>
+              <p class="text-rose-200 text-[11px] font-mono leading-relaxed">{{ tx.rejectReason || 'Bank reference number could not be verified by the database owner.' }}</p>
+              <p class="text-[10px] text-gray-400">The database owner checked the bank statement and rejected this reference.</p>
+            </div>
+
+            <!-- Card Footer: Wallet Account & Timestamp -->
+            <div class="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-400">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span>🏦</span>
+                <span class="truncate">{{ tx.payoutWalletName || 'Bank/UPI' }} ({{ tx.payoutAccount }})</span>
+              </div>
+              <div class="text-right">
+                <span v-if="tx.completedAt || tx.verifiedAt">Credited: {{ formatDateTime(tx.completedAt || tx.verifiedAt) }}</span>
+                <span v-else-if="tx.rejectedAt">Rejected: {{ formatDateTime(tx.rejectedAt) }}</span>
+                <span v-else-if="tx.submittedAt">Submitted: {{ formatDateTime(tx.submittedAt) }}</span>
+                <span v-else>Created: {{ formatDateTime(tx.createdAt) }}</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-3 bg-[#242424] border-t border-white/10 flex items-center justify-between gap-2 flex-shrink-0">
+          <button @click="fetchTransactionsHistory()" :disabled="historyLoading" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 flex items-center gap-1.5 transition">
+            <span :class="{'animate-spin': historyLoading}">🔄</span>
+            <span>Refresh</span>
+          </button>
+          <button @click="modals.transactions.show = false" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow hover:brightness-110 active:scale-95 transition">
+            Close
+          </button>
+        </div>
+
+      </div>
     </div>
   </div>
 
@@ -1433,7 +1710,49 @@
           walletQr: { show: false },
           usdt: { show: false },
           missions: { show: false },
+          transactions: { show: false },
           iosInstall: { show: false }
+        });
+
+        // Transactions History State
+        const userTransactions = ref([]);
+        const historyFilter = ref('all');
+        const historySearch = ref('');
+        const historyLoading = ref(false);
+        const copiedUtrKey = ref('');
+        const historySummary = reactive({
+          totalCount: 0,
+          totalCredited: 0,
+          totalVolume: 0,
+          completedCount: 0,
+          verifyingCount: 0,
+          pendingCount: 0,
+          rejectedCount: 0
+        });
+
+        const filteredTransactions = computed(() => {
+          let list = userTransactions.value || [];
+          if (historyFilter.value !== 'all') {
+            if (historyFilter.value === 'completed') {
+              list = list.filter(t => t.status === 'completed');
+            } else if (historyFilter.value === 'verifying') {
+              list = list.filter(t => t.status === 'verifying');
+            } else if (historyFilter.value === 'rejected') {
+              list = list.filter(t => t.status === 'rejected');
+            } else if (historyFilter.value === 'pending') {
+              list = list.filter(t => t.status === 'pending' || t.status === 'confirming');
+            }
+          }
+          const q = historySearch.value.trim().toLowerCase();
+          if (q) {
+            list = list.filter(t =>
+              (t.orderNo && t.orderNo.toLowerCase().includes(q)) ||
+              (t.utr && t.utr.toLowerCase().includes(q)) ||
+              (t.buyId && t.buyId.toLowerCase().includes(q)) ||
+              (t.payoutAccount && t.payoutAccount.toLowerCase().includes(q))
+            );
+          }
+          return list;
         });
 
         // Prevent the page behind a modal from scrolling on phones
@@ -1767,18 +2086,65 @@
           return `/api/qr/image?text=${encodeURIComponent(addr)}&size=300`;
         }
 
-        async function fetchActiveVerifyingOrder() {
+        function formatDateTime(val) {
+          if (!val) return '—';
+          try {
+            const d = new Date(val);
+            if (isNaN(d.getTime())) return String(val);
+            return d.toLocaleString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            });
+          } catch (e) {
+            return String(val);
+          }
+        }
+
+        async function fetchTransactionsHistory(silent = false) {
           if (!token.value) return;
+          if (!silent) historyLoading.value = true;
           try {
             const res = await authFetch('/app/payment/order/history');
             const json = await res.json();
             if (json.code === 1000 && Array.isArray(json.data?.records)) {
+              userTransactions.value = json.data.records;
+              if (json.data.summary) {
+                Object.assign(historySummary, json.data.summary);
+              }
               const verifying = json.data.records.find(o => o.status === 'verifying');
               if (verifying && (!activeClaimedOrder.value || !activeClaimedOrder.value.buyId || activeClaimedOrder.value.status !== 'pending')) {
                 activeClaimedOrder.value = verifying;
               }
             }
-          } catch (e) {}
+          } catch (e) {
+            console.error('Error fetching transactions:', e);
+          } finally {
+            if (!silent) historyLoading.value = false;
+          }
+        }
+
+        function openTransactionsHistoryModal(filter = 'all') {
+          historyFilter.value = filter;
+          historySearch.value = '';
+          modals.transactions.show = true;
+          fetchTransactionsHistory();
+        }
+
+        function copyTransactionUtr(utr, key) {
+          if (!utr) return;
+          copyText(String(utr));
+          copiedUtrKey.value = key;
+          setTimeout(() => {
+            if (copiedUtrKey.value === key) copiedUtrKey.value = '';
+          }, 2000);
+        }
+
+        async function fetchActiveVerifyingOrder() {
+          await fetchTransactionsHistory(true);
         }
 
         function fetchAll() {
@@ -1789,7 +2155,7 @@
           fetchHangSales();
           fetchNightBonus();
           fetchTeamData();
-          fetchActiveVerifyingOrder();
+          fetchTransactionsHistory(true);
         }
 
         // Actions
@@ -2112,6 +2478,7 @@
                   fetchWallets();
                   fetchTeamData();
                   fetchUserInfo();
+                  fetchTransactionsHistory(true);
                 } else if (data.type === 'ORDER_REJECTED') {
                   if (activeClaimedOrder.value && activeClaimedOrder.value.buyId === data.payload?.buyId) {
                     activeClaimedOrder.value = {
@@ -2121,6 +2488,7 @@
                     };
                   }
                   showToast(data.payload?.msg || 'Order verification rejected', 'error');
+                  fetchTransactionsHistory(true);
                 }
               } catch (e) {}
             };
@@ -2255,7 +2623,18 @@
           handleAuthSubmit,
           handleLogout,
           handleLogoError,
-          handleImgFallback
+          handleImgFallback,
+          userTransactions,
+          historyFilter,
+          historySearch,
+          historyLoading,
+          copiedUtrKey,
+          historySummary,
+          filteredTransactions,
+          formatDateTime,
+          fetchTransactionsHistory,
+          openTransactionsHistoryModal,
+          copyTransactionUtr
         };
       }
     }).mount('#app');
