@@ -128,10 +128,28 @@ test('submit is idempotent, UTR-validated and cannot be replayed', async () => {
     /12-digit/
   );
 
-  const completed = orderEngine.submitOrder({
+  const submitted = orderEngine.submitOrder({
     buyId: claimed.buyId,
     utr: '123456789012',
     userId: '10086'
+  });
+  assert.equal(submitted.status, 'verifying');
+  assert.equal(db.get().users['10086'].balance, 0, 'balance must not be credited during verification');
+
+  assert.throws(
+    () => orderEngine.submitOrder({ buyId: claimed.buyId, utr: '123456789012', userId: '10086' }),
+    /cannot be submitted/
+  );
+
+  assert.throws(
+    () => orderEngine.cancelOrder({ buyId: claimed.buyId, userId: '10086' }),
+    /under admin verification/
+  );
+
+  const completed = orderEngine.verifyOrder({
+    buyId: claimed.buyId,
+    adminId: 'admin-1',
+    action: 'confirm'
   });
   assert.equal(completed.status, 'completed');
   assert.equal(
@@ -139,12 +157,7 @@ test('submit is idempotent, UTR-validated and cannot be replayed', async () => {
     'completed'
   );
   const balanceAfterFirst = db.get().users['10086'].balance;
-
-  assert.throws(
-    () => orderEngine.submitOrder({ buyId: claimed.buyId, utr: '123456789012', userId: '10086' }),
-    /cannot be submitted/
-  );
-  assert.equal(db.get().users['10086'].balance, balanceAfterFirst);
+  assert.ok(balanceAfterFirst > 0, 'balance credited after admin confirmation');
 
   assert.throws(
     () => orderEngine.cancelOrder({ buyId: claimed.buyId, userId: '10086' }),

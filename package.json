@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node server/index.js",
-    "test": "node --test scripts/test_p0_security.js && node scripts/test_auth_flow.js",
+    "test": "node --test scripts/test_p0_security.js && node --test scripts/test_verification_panel.js && node scripts/test_auth_flow.js",
+    "test:unit": "node --test scripts/test_p0_security.js && node --test scripts/test_verification_panel.js",
     "test:auth": "node scripts/test_auth_flow.js"
   },
   "keywords": [

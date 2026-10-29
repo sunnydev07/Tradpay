@@ -154,7 +154,7 @@ async function claimOrder({ payOrderId, payoutWalletId, userId }) {
 
   const alreadyClaimed = Object.values(state.claimedOrders).some(o =>
     o.payOrderId === order.payOrderId &&
-    ['pending', 'confirming', 'completed'].includes(o.status)
+    ['pending', 'confirming', 'verifying', 'completed'].includes(o.status)
   );
   if (alreadyClaimed) {
     throw new Error('Order is no longer available or already taken');
@@ -206,7 +206,7 @@ async function claimOrder({ payOrderId, payoutWalletId, userId }) {
     const toKeep = new Set();
     let kept = 0;
     for (const ord of list) {
-      const isPending = ['pending', 'confirming'].includes(ord.status);
+      const isPending = ['pending', 'confirming', 'verifying'].includes(ord.status);
       if (isPending || kept < 1500) {
         toKeep.add(ord.buyId || ord.id);
         kept++;
@@ -287,60 +287,173 @@ function submitOrder({ buyId, utr = '', proofUrl = '', userId }) {
     throw new Error('This UTR has already been used');
   }
 
-  order.status = 'completed';
+  order.status = 'verifying';
   order.utr = cleanUtr;
   order.proofUrl = typeof proofUrl === 'string' ? proofUrl.slice(0, 500) : '';
-  order.completedAt = new Date().toISOString();
-
-  const sale = state.hangSales.find(o => o.payOrderId === order.payOrderId);
-  if (sale) sale.status = 'completed';
-
-  const user = state.users[order.userId];
-  if (user) {
-    const reward = Number(order.totalReward) || 0;
-    user.balance = money.add(user.balance, reward);
-    user.totalBalance = user.balance;
-    user.rewardTotal = money.add(user.rewardTotal, reward);
-    if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
-    if (!user.claimedOrders.includes(buyId)) {
-      user.claimedOrders.push(buyId);
-    }
-  }
-
-  const wallet = state.wallets.find(w => w.id === order.payoutWalletId);
-  if (wallet) {
-    wallet.todayTurnover = money.add(wallet.todayTurnover, order.amount);
-    wallet.todayCount = (Number(wallet.todayCount) || 0) + 1;
-  }
-
-  const tier1 = Number(state.team.ratios.tier1) || 0.6;
-  state.team.commissionTotal = money.add(
-    state.team.commissionTotal,
-    money.percentage(order.amount, tier1)
-  );
-  state.team.teamTurnover = money.add(state.team.teamTurnover, order.amount);
+  order.submittedAt = new Date().toISOString();
 
   db.save();
 
-  if (user) {
-    try {
-      const supabaseService = require('./supabaseService');
-      supabaseService.syncUserData(user).catch(() => {});
-    } catch (e) {}
-  }
-
-  broadcast('ORDER_COMPLETED', {
+  broadcast('ORDER_VERIFYING', {
     userId: order.userId,
     buyId,
+    orderNo: order.orderNo,
     amount: order.amount,
-    reward: order.totalReward,
-    msg: `Payment of ₹${order.amount} completed! Earned ₹${order.totalReward} reward.`
+    totalReward: order.totalReward,
+    utr: cleanUtr,
+    status: 'verifying',
+    msg: `Payment Ref No. ${cleanUtr} submitted. Verifying reference number...`
+  });
+
+  broadcast('ADMIN_ORDER_NEEDS_VERIFICATION', {
+    buyId: order.buyId,
+    orderNo: order.orderNo,
+    amount: order.amount,
+    totalReward: order.totalReward,
+    utr: cleanUtr,
+    userId: order.userId,
+    payoutAccount: order.payoutAccount,
+    payoutWalletName: order.payoutWalletName,
+    submittedAt: order.submittedAt
   });
 
   return order;
 }
 
-// Cancel an order. Completed orders can never be cancelled or restored.
+// Admin verifies and confirms (or rejects) the submitted bank UTR
+function verifyOrder({ buyId, adminId = 'admin', action = 'confirm', reason = '' }) {
+  const state = db.get();
+  const order = findClaimedOrder(state, buyId);
+  if (!order) throw new Error('Order not found');
+
+  if (order.status !== 'verifying') {
+    throw new Error(`Order cannot be verified from status "${order.status}"`);
+  }
+
+  if (action === 'confirm') {
+    order.status = 'completed';
+    order.verifiedAt = new Date().toISOString();
+    order.completedAt = order.verifiedAt;
+    order.verifiedBy = String(adminId);
+
+    const sale = state.hangSales.find(o => o.payOrderId === order.payOrderId);
+    if (sale) sale.status = 'completed';
+
+    const user = state.users[order.userId];
+    if (user) {
+      const reward = Number(order.totalReward) || 0;
+      user.balance = money.add(user.balance, reward);
+      user.totalBalance = user.balance;
+      user.rewardTotal = money.add(user.rewardTotal, reward);
+      if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
+      if (!user.claimedOrders.includes(buyId)) {
+        user.claimedOrders.push(buyId);
+      }
+    }
+
+    const wallet = state.wallets.find(w => w.id === order.payoutWalletId);
+    if (wallet) {
+      wallet.todayTurnover = money.add(wallet.todayTurnover, order.amount);
+      wallet.todayCount = (Number(wallet.todayCount) || 0) + 1;
+    }
+
+    const tier1 = Number(state.team.ratios.tier1) || 0.6;
+    state.team.commissionTotal = money.add(
+      state.team.commissionTotal,
+      money.percentage(order.amount, tier1)
+    );
+    state.team.teamTurnover = money.add(state.team.teamTurnover, order.amount);
+
+    db.save();
+
+    if (user) {
+      try {
+        const supabaseService = require('./supabaseService');
+        supabaseService.syncUserData(user).catch(() => {});
+      } catch (e) {}
+    }
+
+    broadcast('ORDER_COMPLETED', {
+      userId: order.userId,
+      buyId,
+      amount: order.amount,
+      reward: order.totalReward,
+      utr: order.utr,
+      msg: `Payment of ₹${order.amount} verified & confirmed! Earned ₹${order.totalReward} reward.`
+    });
+
+    broadcast('ORDER_VERIFIED', {
+      userId: order.userId,
+      buyId,
+      amount: order.amount,
+      reward: order.totalReward,
+      utr: order.utr,
+      status: 'completed',
+      msg: `Ref No. ${order.utr} has been verified by admin. ₹${order.totalReward} credited to your balance!`
+    });
+
+    return order;
+  } else if (action === 'reject') {
+    order.status = 'rejected';
+    order.rejectedAt = new Date().toISOString();
+    order.rejectReason = String(reason || 'Bank reference number could not be verified').slice(0, 200);
+    order.verifiedBy = String(adminId);
+
+    restoreHangSale(state, order);
+    db.save();
+
+    broadcast('ORDER_REJECTED', {
+      userId: order.userId,
+      buyId,
+      amount: order.amount,
+      utr: order.utr,
+      status: 'rejected',
+      reason: order.rejectReason,
+      msg: `Verification failed for Ref No. ${order.utr}: ${order.rejectReason}`
+    });
+
+    return order;
+  } else {
+    throw new Error(`Invalid verification action: ${action}`);
+  }
+}
+
+// Get all orders awaiting admin verification
+function getPendingVerifications() {
+  const state = db.get();
+  const list = Object.values(state.claimedOrders)
+    .filter(o => o && o.status === 'verifying')
+    .sort((a, b) => new Date(b.submittedAt || b.createdAt) - new Date(a.submittedAt || a.createdAt));
+
+  return list.map(o => {
+    const user = state.users[o.userId];
+    return {
+      ...o,
+      userNickname: user ? user.nickname : 'Trader',
+      userPhone: user ? user.phone : ''
+    };
+  });
+}
+
+// Query all claimed orders for admin audit console
+function getAllOrdersForAdmin(filter = 'all') {
+  const state = db.get();
+  let list = Object.values(state.claimedOrders);
+  if (filter && filter !== 'all') {
+    list = list.filter(o => o && o.status === filter);
+  }
+  list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return list.map(o => {
+    const user = state.users[o.userId];
+    return {
+      ...o,
+      userNickname: user ? user.nickname : 'Trader',
+      userPhone: user ? user.phone : ''
+    };
+  });
+}
+
+// Cancel an order. Completed or verifying orders can never be cancelled by the user.
 function cancelOrder({ buyId, userId, reason = 'User requested' }) {
   if (!userId) throw new Error('Authentication required');
 
@@ -350,6 +463,7 @@ function cancelOrder({ buyId, userId, reason = 'User requested' }) {
   if (String(order.userId) !== String(userId)) throw new Error('Order not found');
 
   if (order.status === 'completed') throw new Error('Completed orders cannot be cancelled');
+  if (order.status === 'verifying') throw new Error('Order is currently under admin verification and cannot be cancelled');
   if (order.status === 'cancelled') throw new Error('Order is already cancelled');
   if (order.status === 'expired') throw new Error('Order has expired');
   if (order.status !== 'pending' && order.status !== 'confirming') {
@@ -430,6 +544,9 @@ module.exports = {
   claimOrder,
   getOrderInfo,
   submitOrder,
+  verifyOrder,
+  getPendingVerifications,
+  getAllOrdersForAdmin,
   cancelOrder,
   spawnSampleOrder,
   startSimulation,

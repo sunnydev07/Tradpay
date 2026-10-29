@@ -105,7 +105,11 @@ app.use(express.static(publicDir, {
 app.use('/', apiRouter);
 app.use('/api', apiRouter);
 
-// 5. Fallback for Single Page Application
+// 5. Admin Verification Console & Fallback for Single Page Application
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(publicDir, 'admin.html'));
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
