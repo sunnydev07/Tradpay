@@ -69,7 +69,7 @@
                 {{ showKey ? 'Hide' : 'Show' }}
               </button>
             </div>
-            <p class="text-[10px] text-gray-400 mt-1.5">Owner Passcode: <span class="font-mono text-amber-400 font-bold">tradepay_admin</span> or your account password</p>
+            <p class="text-[10px] text-gray-400 mt-1.5">Enter your secret owner passcode to unlock</p>
           </div>
 
           <!-- Mobile Direct Access Card -->
@@ -451,7 +451,7 @@
     createApp({
       setup() {
         const isUnlocked = ref(false);
-        const adminKeyInput = ref(localStorage.getItem('tradepay_admin_key') || '');
+        const adminKeyInput = ref('');
         const showKey = ref(false);
         const authLoading = ref(false);
         const audioEnabled = ref(true);
@@ -548,7 +548,7 @@
             });
             const json = await res.json();
             if (json.code === 1000) {
-              localStorage.setItem('tradepay_admin_key', key || 'tradepay_admin');
+              localStorage.setItem('tradepay_admin_key', key);
               isUnlocked.value = true;
               playBeep();
               showToast('Admin console unlocked successfully!', 'success');

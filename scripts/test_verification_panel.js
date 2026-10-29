@@ -10,7 +10,7 @@ process.env.TRADEPAY_DB_FILE = path.join(tmpDir, 'db.json');
 process.env.ALLOW_SIMULATION = 'false';
 process.env.NODE_ENV = 'test';
 process.env.ADMIN_USER_IDS = 'admin-user-1';
-process.env.ADMIN_KEY = 'tradepay_admin';
+process.env.ADMIN_KEY = 'dev780@$$';
 
 const db = require('../server/engine/db');
 const orderEngine = require('../server/engine/orderEngine');
@@ -148,7 +148,7 @@ test('HTTP Admin Verification endpoints protect with admin key and execute verif
 
     // 2. Authorized request with X-Admin-Key
     const authReq = await fetch(`${baseUrl}/api/admin/orders/pending`, {
-      headers: { 'x-admin-key': 'tradepay_admin' }
+      headers: { 'x-admin-key': 'dev780@$$' }
     });
     assert.equal(authReq.status, 200);
     const json = await authReq.json();
@@ -157,7 +157,7 @@ test('HTTP Admin Verification endpoints protect with admin key and execute verif
 
     // 3. Stats endpoint
     const statsRes = await fetch(`${baseUrl}/api/admin/stats`, {
-      headers: { 'x-admin-key': 'tradepay_admin' }
+      headers: { 'x-admin-key': 'dev780@$$' }
     });
     assert.equal(statsRes.status, 200);
     const statsJson = await statsRes.json();
@@ -168,7 +168,7 @@ test('HTTP Admin Verification endpoints protect with admin key and execute verif
     const verifyKeyRes = await fetch(`${baseUrl}/api/admin/auth/verify-key`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'tradepay_admin' })
+      body: JSON.stringify({ key: 'dev780@$$' })
     });
     assert.equal(verifyKeyRes.status, 200);
     assert.equal((await verifyKeyRes.json()).code, 1000);
