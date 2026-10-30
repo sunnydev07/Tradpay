@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('./db');
 const supabaseService = require('./supabaseService');
 const security = require('./security');
@@ -23,32 +24,48 @@ function extractToken(req) {
   return trimmed.startsWith('Bearer ') ? trimmed.slice(7).trim() : trimmed;
 }
 
-function newInviteCode() {
-  return 'LP' + Math.floor(1000 + Math.random() * 9000);
+function newInviteCode(state) {
+  const existing = new Set(
+    Object.values((state && state.users) || {})
+      .map(user => user && user.inviteCode)
+      .filter(Boolean)
+      .map(code => String(code).toUpperCase())
+  );
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    const code = 'LP' + Math.floor(1000 + Math.random() * 9000);
+    if (!existing.has(code.toUpperCase())) return code;
+  }
+  return 'LP' + crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
-function createLocalUser(supUser) {
+// Only identity/display data comes from Supabase. Balances, wallets, claimed
+// orders and PIN state are created and owned by the server ledger.
+function createLocalUser(supUser, state) {
   return {
     id: supUser.id,
     userId: supUser.id,
     phone: supUser.phone || supUser.email || '',
     nickname: supUser.nickname || 'Trader',
     avatar: supUser.avatar || '/static/user/profile.png',
-    balance: Number(supUser.balance) || 0.00,
-    totalBalance: Number(supUser.totalBalance) || Number(supUser.balance) || 0.00,
-    rewardTotal: Number(supUser.rewardTotal) || 0.00,
-    pending: Number(supUser.pending) || 0.00,
-    points: Number(supUser.points) || 0,
-    vipLevel: Number(supUser.vipLevel) || 1,
-    inviteCode: supUser.inviteCode || newInviteCode(),
+    balance: 0.00,
+    totalBalance: 0.00,
+    rewardTotal: 0.00,
+    pending: 0.00,
+    points: 0,
+    vipLevel: 1,
+    inviteCode: newInviteCode(state),
     pinHash: null,
     pinSalt: null,
-    isPinSet: Boolean(supUser.isPinSet),
-    onSellStatus: supUser.onSellStatus != null ? supUser.onSellStatus : 1,
-    wallets: Array.isArray(supUser.wallets) ? supUser.wallets : [],
-    claimedOrders: Array.isArray(supUser.claimedOrders) ? supUser.claimedOrders : [],
-    claimedMissions: Array.isArray(supUser.claimedMissions) ? supUser.claimedMissions : [],
-    newcomerRewardClaimed: Boolean(supUser.newcomerRewardClaimed),
+    isPinSet: false,
+    onSellStatus: 1,
+    totalDeposited: 0.00,
+    totalWithdrawn: 0.00,
+    pendingWithdrawal: 0.00,
+    wallets: [],
+    claimedOrders: [],
+    claimedMissions: [],
+    newcomerRewardClaimed: false,
+    ledgerBaseline: 0,
     createdAt: supUser.createdAt || new Date().toISOString()
   };
 }
@@ -81,38 +98,17 @@ async function authenticateToken(token) {
 
   let user = state.users[supUser.id];
   if (!user) {
-    user = createLocalUser(supUser);
+    user = createLocalUser(supUser, state);
     state.users[supUser.id] = user;
-    if (Array.isArray(user.wallets) && user.wallets.length > 0) {
-      if (!Array.isArray(state.wallets)) state.wallets = [];
-      for (const w of user.wallets) {
-        if (!state.wallets.some(existing => existing.id === w.id)) {
-          state.wallets.push(w);
-        }
-      }
-    }
     db.save();
   } else {
-    // Refresh identity fields from Supabase
+    // Refresh identity/display fields only. Financial and security state is
+    // owned by the local ledger and must never be sourced from metadata.
     if (supUser.nickname) user.nickname = supUser.nickname;
     if (supUser.phone) user.phone = supUser.phone;
     if (supUser.avatar) user.avatar = supUser.avatar;
-    if (!user.inviteCode && supUser.inviteCode) user.inviteCode = supUser.inviteCode;
-    if (supUser.balance != null && (user.balance === 0 || user.balance == null)) {
-      user.balance = Number(supUser.balance);
-      user.totalBalance = Number(supUser.totalBalance) || user.balance;
-    }
-    if (Array.isArray(supUser.wallets) && supUser.wallets.length > 0 && (!user.wallets || user.wallets.length === 0)) {
-      user.wallets = supUser.wallets;
-      for (const w of user.wallets) {
-        if (!state.wallets.some(existing => existing.id === w.id)) {
-          state.wallets.push(w);
-        }
-      }
-    }
-    if (!user.isPinSet && supUser.isPinSet) {
-      user.isPinSet = true;
-    }
+    if (!user.inviteCode) user.inviteCode = newInviteCode(state);
+    user.isPinSet = Boolean(user.pinHash && user.pinSalt);
   }
 
   // Cache user's active session token in memory (non-enumerable so it never serializes to disk)

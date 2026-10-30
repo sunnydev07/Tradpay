@@ -8,6 +8,7 @@ const qrService = require('../engine/qrService');
 const auth = require('../engine/auth');
 const security = require('../engine/security');
 const money = require('../engine/money');
+const ledger = require('../engine/ledger');
 
 const { extractToken } = auth;
 
@@ -258,7 +259,7 @@ router.get('/app/user/info/person', (req, res) => {
     nickname: user.nickname,
     avatar: user.avatar,
     vipLevel: user.vipLevel,
-    isPinSet: user.isPinSet,
+    isPinSet: Boolean(user.pinHash && user.pinSalt),
     balance: user.balance
   });
 });
@@ -267,7 +268,7 @@ router.post('/app/user/info/verifyPin', (req, res) => {
   const { pin } = req.body || {};
   const user = getAuthUser(req);
 
-  if (!user.isPinSet || !user.pinHash) {
+  if (!user.pinHash || !user.pinSalt) {
     return fail(res, 'Security PIN is not set', 409);
   }
 
@@ -296,7 +297,8 @@ router.post('/app/user/info/updatePin', (req, res) => {
   if (!security.isValidPin(newPin)) {
     return fail(res, 'New PIN must be exactly 6 digits', 400);
   }
-  if (user.isPinSet && !security.verifyPin(oldPin, user)) {
+  const pinConfigured = Boolean(user.pinHash && user.pinSalt);
+  if (pinConfigured && !security.verifyPin(oldPin, user)) {
     return fail(res, 'Current Security PIN is incorrect', 400);
   }
 
@@ -306,9 +308,6 @@ router.post('/app/user/info/updatePin', (req, res) => {
   user.isPinSet = true;
   delete user.pin;
   db.save();
-
-  // Persist updated security PIN credentials to Supabase
-  supabaseService.syncUserData(user, extractToken(req)).catch(() => {});
 
   return ok(res, { success: true });
 });
@@ -973,9 +972,14 @@ router.post('/app/newcomer-rewards/claim/:id', (req, res) => {
     return fail(res, 'Newcomer reward already claimed', 409);
   }
 
+  ledger.credit(db.get(), user.id, 88, {
+    type: 'newcomer_reward',
+    refType: 'user',
+    refId: user.id,
+    idempotencyKey: `newcomer_reward:${user.id}`,
+    actorId: user.id
+  });
   user.newcomerRewardClaimed = true;
-  user.balance = money.add(user.balance, 88);
-  user.totalBalance = user.balance;
   db.save();
   supabaseService.syncUserData(user, extractToken(req)).catch(() => {});
 

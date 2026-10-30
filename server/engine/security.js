@@ -52,6 +52,7 @@ function publicUser(user) {
   for (const field of fields) {
     if (user[field] !== undefined) out[field] = user[field];
   }
+  out.isPinSet = Boolean(user.pinHash && user.pinSalt);
   out.isAdmin = isAdmin(user);
   return out;
 }

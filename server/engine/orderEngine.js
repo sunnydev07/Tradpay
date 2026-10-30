@@ -2,6 +2,7 @@ const db = require('./db');
 const qrService = require('./qrService');
 const security = require('./security');
 const money = require('./money');
+const ledger = require('./ledger');
 
 let wsBroadcaster = null;
 
@@ -332,6 +333,24 @@ function verifyOrder({ buyId, adminId = 'admin', action = 'confirm', reason = ''
   }
 
   if (action === 'confirm') {
+    const reward = Number(order.totalReward) || 0;
+    const user = state.users[order.userId];
+
+    // Credit the reward through the ledger before changing the order status, so
+    // a failed entry leaves the order verifiable and retryable.
+    if (user && reward > 0) {
+      const credit = ledger.credit(state, order.userId, reward, {
+        type: 'order_reward',
+        refType: 'order',
+        refId: buyId,
+        idempotencyKey: `order_reward:${buyId}`,
+        actorId: adminId
+      });
+      if (!credit.duplicate) {
+        user.rewardTotal = money.add(user.rewardTotal || 0, reward);
+      }
+    }
+
     order.status = 'completed';
     order.verifiedAt = new Date().toISOString();
     order.completedAt = order.verifiedAt;
@@ -340,12 +359,7 @@ function verifyOrder({ buyId, adminId = 'admin', action = 'confirm', reason = ''
     const sale = state.hangSales.find(o => o.payOrderId === order.payOrderId);
     if (sale) sale.status = 'completed';
 
-    const user = state.users[order.userId];
     if (user) {
-      const reward = Number(order.totalReward) || 0;
-      user.balance = money.add(user.balance, reward);
-      user.totalBalance = user.balance;
-      user.rewardTotal = money.add(user.rewardTotal, reward);
       if (!Array.isArray(user.claimedOrders)) user.claimedOrders = [];
       if (!user.claimedOrders.includes(buyId)) {
         user.claimedOrders.push(buyId);

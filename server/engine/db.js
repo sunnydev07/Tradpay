@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const security = require('./security');
 const money = require('./money');
+const ledger = require('./ledger');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 const DB_FILE = process.env.TRADEPAY_DB_FILE || path.join(DATA_DIR, 'db.json');
@@ -42,6 +43,10 @@ const defaultState = {
     }
   },
   revokedTokens: {},
+  ledger: {
+    entries: [],
+    idempotency: {}
+  },
   wallets: [
     {
       id: 1,
@@ -252,6 +257,23 @@ function migrateUser(user) {
   }
   delete user.pin;
 
+  // The PIN flag is derived from the stored hash, never from metadata or a
+  // client-supplied boolean. Partial credentials are treated as "no PIN".
+  if (!user.pinHash || !user.pinSalt) {
+    user.pinHash = null;
+    user.pinSalt = null;
+    user.isPinSet = false;
+  } else {
+    user.isPinSet = true;
+  }
+
+  if (typeof user.balance !== 'number' || !Number.isFinite(user.balance)) user.balance = 0;
+  if (typeof user.totalBalance !== 'number' || !Number.isFinite(user.totalBalance)) {
+    user.totalBalance = user.balance;
+  }
+  if (typeof user.rewardTotal !== 'number' || !Number.isFinite(user.rewardTotal)) user.rewardTotal = 0;
+  if (typeof user.pending !== 'number' || !Number.isFinite(user.pending)) user.pending = 0;
+
   if (!Array.isArray(user.claimedMissions)) user.claimedMissions = [];
   if (typeof user.totalDeposited !== 'number') user.totalDeposited = 0;
   if (typeof user.totalWithdrawn !== 'number') user.totalWithdrawn = 0;
@@ -340,6 +362,14 @@ function buildState(saved) {
   if (safeSaved.revokedTokens && typeof safeSaved.revokedTokens === 'object') {
     state.revokedTokens = safeSaved.revokedTokens;
   }
+  if (safeSaved.ledger && typeof safeSaved.ledger === 'object') {
+    state.ledger = {
+      entries: Array.isArray(safeSaved.ledger.entries) ? safeSaved.ledger.entries : [],
+      idempotency: safeSaved.ledger.idempotency && typeof safeSaved.ledger.idempotency === 'object'
+        ? safeSaved.ledger.idempotency
+        : {}
+    };
+  }
   if (Array.isArray(safeSaved.missions)) state.missions = safeSaved.missions;
   if (Array.isArray(safeSaved.notices)) state.notices = safeSaved.notices;
   state.settings = mergeSettings(safeSaved.settings);
@@ -377,6 +407,11 @@ function buildState(saved) {
   };
 
   for (const user of Object.values(state.users)) migrateUser(user);
+
+  // Populate the opening baseline for accounts that existed before the ledger.
+  ledger.ensureState(state);
+  for (const user of Object.values(state.users)) ledger.ensureBaseline(state, user);
+
   delete state.tokens;
   return state;
 }

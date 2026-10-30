@@ -72,8 +72,9 @@ function normalizeAuthIdentifier(identifier) {
   return `user_${Date.now()}@tradepay.live`;
 }
 
-// 1. Sign up user via Supabase Auth with complete user metadata
-async function signUpUser({ identifier, password, nickname = '', phone = '', inviteCode = '' }) {
+// 1. Sign up user via Supabase Auth with identity metadata only. Financial and
+// PIN state is created by the server ledger after the first authenticated call.
+async function signUpUser({ identifier, password, nickname = '', phone = '' }) {
   const client = getClient();
   if (!client) throw new Error('Authentication service is not configured');
 
@@ -87,25 +88,11 @@ async function signUpUser({ identifier, password, nickname = '', phone = '', inv
   const digitsOnly = identifierValue.replace(/\D/g, '');
   const userPhone = phone || (digitsOnly.length >= 10 ? digitsOnly : '');
   const cleanNick = nickname || ('Trader_' + Math.floor(1000 + Math.random() * 9000));
-  const finalInviteCode = inviteCode || ('TP' + Math.floor(1000 + Math.random() * 9000));
 
   const initialMetadata = {
     nickname: cleanNick,
     phone: userPhone,
     identifier: identifierValue,
-    inviteCode: finalInviteCode,
-    vipLevel: 1,
-    balance: 0.00,
-    totalBalance: 0.00,
-    rewardTotal: 0.00,
-    pending: 0.00,
-    points: 0,
-    isPinSet: false,
-    onSellStatus: 1,
-    wallets: [],
-    claimedOrders: [],
-    claimedMissions: [],
-    newcomerRewardClaimed: false,
     createdAt: new Date().toISOString()
   };
 
@@ -202,24 +189,13 @@ async function signInUser({ identifier, password }) {
       email: data.user.email,
       nickname: metadata.nickname || 'Trader',
       phone: metadata.phone || data.user.phone || '',
-      avatar: metadata.avatar || '/static/user/profile.png',
-      inviteCode: metadata.inviteCode || 'TP8899',
-      vipLevel: Number(metadata.vipLevel) || 1,
-      balance: metadata.balance != null ? Number(metadata.balance) : 0.00,
-      totalBalance: metadata.totalBalance != null ? Number(metadata.totalBalance) : 0.00,
-      rewardTotal: metadata.rewardTotal != null ? Number(metadata.rewardTotal) : 0.00,
-      pending: metadata.pending != null ? Number(metadata.pending) : 0.00,
-      points: metadata.points != null ? Number(metadata.points) : 0,
-      isPinSet: Boolean(metadata.isPinSet || metadata.pinHash),
-      onSellStatus: metadata.onSellStatus != null ? metadata.onSellStatus : 1,
-      wallets: Array.isArray(metadata.wallets) ? metadata.wallets : [],
-      claimedOrders: Array.isArray(metadata.claimedOrders) ? metadata.claimedOrders : []
+      avatar: metadata.avatar || '/static/user/profile.png'
     }
   };
 }
 
 // 3. Update user metadata in Supabase
-async function updateUserRecord(token, metadataUpdates = {}) {
+async function updateUserRecord(token, metadataUpdates = {}, userId = null) {
   if (!isConfigured()) return { synced: false, reason: 'not configured' };
   if (!metadataUpdates || !Object.keys(metadataUpdates).length) {
     return { synced: true };
@@ -231,13 +207,13 @@ async function updateUserRecord(token, metadataUpdates = {}) {
   if (admin) {
     try {
       const client = getClient();
-      let userId = null;
-      if (token) {
+      let targetUserId = userId || null;
+      if (!targetUserId && token) {
         const { data: { user } } = await client.auth.getUser(token);
-        if (user) userId = user.id;
+        if (user) targetUserId = user.id;
       }
-      if (userId) {
-        const { error } = await admin.auth.admin.updateUserById(userId, {
+      if (targetUserId) {
+        const { error } = await admin.auth.admin.updateUserById(targetUserId, {
           user_metadata: metadataUpdates
         });
         if (!error) return { synced: true };
@@ -270,32 +246,21 @@ async function updateUserRecord(token, metadataUpdates = {}) {
   return { synced: false, reason: 'no valid token or admin credentials' };
 }
 
-// 4. Sync a local user object's complete financial and profile state to Supabase
-async function syncUserData(user, token = null) {
-  if (!user || !user.id) return { synced: false };
-
-  const payload = {
-    nickname: user.nickname,
-    phone: user.phone,
-    avatar: user.avatar,
-    balance: Number(user.balance) || 0.00,
-    totalBalance: Number(user.totalBalance) || Number(user.balance) || 0.00,
-    rewardTotal: Number(user.rewardTotal) || 0.00,
-    pending: Number(user.pending) || 0.00,
-    points: Number(user.points) || 0,
-    vipLevel: Number(user.vipLevel) || 1,
-    inviteCode: user.inviteCode,
-    isPinSet: Boolean(user.isPinSet || user.pinHash),
-    onSellStatus: user.onSellStatus != null ? user.onSellStatus : 1,
-    wallets: Array.isArray(user.wallets) ? user.wallets : [],
-    claimedOrders: Array.isArray(user.claimedOrders) ? user.claimedOrders : [],
-    claimedMissions: Array.isArray(user.claimedMissions) ? user.claimedMissions : [],
-    newcomerRewardClaimed: Boolean(user.newcomerRewardClaimed),
+// 4. Sync display/profile fields only. Money, wallets, claimed orders and PIN
+// state stay in the server ledger and are never written to user_metadata.
+function buildSyncPayload(user) {
+  return {
+    nickname: user.nickname || 'Trader',
+    phone: user.phone || '',
+    avatar: user.avatar || '/static/user/profile.png',
     updatedAt: new Date().toISOString()
   };
+}
 
+async function syncUserData(user, token = null) {
+  if (!user || !user.id) return { synced: false };
   const authToken = token || user._lastToken;
-  return updateUserRecord(authToken, payload);
+  return updateUserRecord(authToken, buildSyncPayload(user), user.id);
 }
 
 // 5. Verify bearer token with Supabase and return complete user metadata
@@ -315,20 +280,7 @@ async function verifyToken(token) {
       phone: metadata.phone || user.phone || '',
       nickname: metadata.nickname || 'Trader',
       avatar: metadata.avatar || '/static/user/profile.png',
-      inviteCode: metadata.inviteCode || null,
-      vipLevel: Number(metadata.vipLevel) || 1,
-      balance: metadata.balance != null ? Number(metadata.balance) : 0.00,
-      totalBalance: metadata.totalBalance != null ? Number(metadata.totalBalance) : 0.00,
-      rewardTotal: metadata.rewardTotal != null ? Number(metadata.rewardTotal) : 0.00,
-      pending: metadata.pending != null ? Number(metadata.pending) : 0.00,
-      points: metadata.points != null ? Number(metadata.points) : 0,
-      isPinSet: Boolean(metadata.isPinSet || metadata.pinHash),
-      onSellStatus: metadata.onSellStatus != null ? metadata.onSellStatus : 1,
-      wallets: Array.isArray(metadata.wallets) ? metadata.wallets : [],
-      claimedOrders: Array.isArray(metadata.claimedOrders) ? metadata.claimedOrders : [],
-      claimedMissions: Array.isArray(metadata.claimedMissions) ? metadata.claimedMissions : [],
-      newcomerRewardClaimed: Boolean(metadata.newcomerRewardClaimed),
-      createdAt: metadata.createdAt || user.created_at
+      createdAt: user.created_at
     };
   } catch (e) {
     return null;
@@ -343,6 +295,7 @@ module.exports = {
   signUpUser,
   signInUser,
   updateUserRecord,
+  buildSyncPayload,
   syncUserData,
   verifyToken
 };

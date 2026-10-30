@@ -2,6 +2,7 @@ const db = require('./db');
 const qrService = require('./qrService');
 const security = require('./security');
 const money = require('./money');
+const ledger = require('./ledger');
 
 let wsBroadcaster = null;
 
@@ -218,14 +219,23 @@ function verifyDeposit({ depositId, adminId = 'admin', action = 'confirm', reaso
   if (!user) throw new Error('Target user account not found');
 
   if (action === 'confirm') {
+    // Credit through the ledger first so a failed entry leaves the deposit
+    // untouched and retryable.
+    const credit = ledger.credit(state, deposit.userId, deposit.amount, {
+      type: 'deposit_credit',
+      refType: 'deposit',
+      refId: deposit.id,
+      idempotencyKey: `deposit_credit:${deposit.id}`,
+      actorId: adminId
+    });
+
     deposit.status = 'completed';
     deposit.verifiedAt = new Date().toISOString();
     deposit.verifiedBy = String(adminId);
 
-    // Credit user's available balance and total balance
-    user.balance = money.add(user.balance || 0, deposit.amount);
-    user.totalBalance = user.balance;
-    user.totalDeposited = money.add(user.totalDeposited || 0, deposit.amount);
+    if (!credit.duplicate) {
+      user.totalDeposited = money.add(user.totalDeposited || 0, deposit.amount);
+    }
 
     db.save();
 
@@ -296,13 +306,17 @@ function requestWithdrawal({ userId, amount, payoutType = 'upi', payoutDetails =
   const user = state.users[userId];
   if (!user) throw new Error('User not found');
 
-  // Verify PIN if configured
-  if (user.isPinSet && user.pinHash && user.pinSalt) {
+  // Verify PIN if configured. Fail closed when the PIN flag is set but the
+  // hash is missing (for example after a metadata-only restore).
+  const pinConfigured = Boolean(user.pinHash && user.pinSalt);
+  if (pinConfigured || user.isPinSet) {
+    if (!pinConfigured) {
+      throw new Error('Payment Security PIN is not configured correctly. Please set a new PIN.');
+    }
     if (!pin) {
       throw new Error('Payment Security PIN is required for withdrawals');
     }
-    const pinValid = security.verifyPin(pin, user.pinHash, user.pinSalt);
-    if (!pinValid) {
+    if (!security.verifyPin(pin, user)) {
       throw new Error('Invalid Payment Security PIN');
     }
   }
@@ -351,10 +365,15 @@ function requestWithdrawal({ userId, amount, payoutType = 'upi', payoutDetails =
 
   const withdrawalId = generateId('WTH');
 
-  // Deduct immediately from available balance to prevent double-spending
-  user.balance = money.subtract(user.balance, numericAmount);
-  user.totalBalance = user.balance;
-  user.pendingWithdrawal = money.add(user.pendingWithdrawal || 0, numericAmount);
+  // Move funds from available balance into the pending-withdrawal bucket in a
+  // single ledger entry so the hold cannot drift from the balance.
+  ledger.hold(state, user.id, numericAmount, {
+    type: 'withdrawal_hold',
+    refType: 'withdrawal',
+    refId: withdrawalId,
+    idempotencyKey: `withdrawal_hold:${withdrawalId}`,
+    actorId: user.id
+  });
 
   const withdrawalRecord = {
     id: withdrawalId,
@@ -437,14 +456,23 @@ function verifyWithdrawal({ withdrawalId, adminId = 'admin', action = 'confirm',
   if (!user) throw new Error('Target user account not found');
 
   if (action === 'confirm') {
+    const settlement = ledger.settle(state, withdrawal.userId, withdrawal.amount, {
+      type: 'withdrawal_settle',
+      refType: 'withdrawal',
+      refId: withdrawal.id,
+      idempotencyKey: `withdrawal_settle:${withdrawal.id}`,
+      actorId: adminId
+    });
+
     withdrawal.status = 'completed';
     withdrawal.txRef = String(txRef || `PAY${Date.now()}`).trim();
     withdrawal.processedAt = new Date().toISOString();
     withdrawal.processedBy = String(adminId);
 
-    // Update user pending withdrawal and total withdrawn
-    user.pendingWithdrawal = money.subtract(user.pendingWithdrawal || 0, withdrawal.amount);
-    user.totalWithdrawn = money.add(user.totalWithdrawn || 0, withdrawal.amount);
+    // Update user total withdrawn; the ledger released the held amount.
+    if (!settlement.duplicate) {
+      user.totalWithdrawn = money.add(user.totalWithdrawn || 0, withdrawal.amount);
+    }
 
     db.save();
 
@@ -459,20 +487,24 @@ function verifyWithdrawal({ withdrawalId, adminId = 'admin', action = 'confirm',
       amount: withdrawal.amount,
       txRef: withdrawal.txRef,
       status: 'completed',
-      msg: `Withdrawal of ₹${withdrawal.amount} completed! Funds transferred via ${withdrawal.payoutType.toUpperCase()} (Ref: ${withdrawal.txRef}).`
+      msg: `Withdrawal of ₹${withdrawal.amount} completed! Funds transferred via ${String(withdrawal.payoutType || 'payout').toUpperCase()} (Ref: ${withdrawal.txRef}).`
     });
 
     return withdrawal;
   } else if (action === 'reject') {
+    // AUTOMATIC REFUND BACK TO USER BALANCE
+    ledger.refund(state, withdrawal.userId, withdrawal.amount, {
+      type: 'withdrawal_refund',
+      refType: 'withdrawal',
+      refId: withdrawal.id,
+      idempotencyKey: `withdrawal_refund:${withdrawal.id}`,
+      actorId: adminId
+    });
+
     withdrawal.status = 'rejected';
     withdrawal.rejectReason = String(reason || 'Payment could not be completed / invalid payout details').slice(0, 200);
     withdrawal.processedAt = new Date().toISOString();
     withdrawal.processedBy = String(adminId);
-
-    // AUTOMATIC REFUND BACK TO USER BALANCE
-    user.balance = money.add(user.balance || 0, withdrawal.amount);
-    user.totalBalance = user.balance;
-    user.pendingWithdrawal = money.subtract(user.pendingWithdrawal || 0, withdrawal.amount);
 
     db.save();
 
