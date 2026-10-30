@@ -13,6 +13,10 @@ database file, never calls Supabase, and covers authentication, ownership,
 idempotent money paths, deposit approval/reconciliation, webhook signatures,
 PIN hashing, and paise-exact money arithmetic.
 
+`test_ledger_authority.js` verifies the server-authoritative ledger: hostile
+Supabase metadata cannot mint balance or bypass a PIN, sync payloads contain no
+financial fields, ledger credits are idempotent, and reconciliation matches.
+
 ## Legacy scripts
 
 The remaining `test_*.js` files were written against the old unauthenticated
