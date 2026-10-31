@@ -694,6 +694,7 @@ function getUserUnifiedTransactions(userId) {
       orderNo: w.withdrawalId,
       amount: w.amount,
       reward: 0,
+      totalReward: 0,
       status: w.status,
       txRef: w.txRef,
       payoutType: w.payoutType,

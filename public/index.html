@@ -2611,15 +2611,20 @@
         }
         const proceedToDepositPayment = submitDepositPayment;
 
-        // Withdrawal Feature Handlers
+        // Withdrawal Feature Handlers (Review-Enabled Multi-Step)
         function openWithdrawalModal() {
-          modals.withdrawal.amount = '';
-          modals.withdrawal.pin = '';
-          if (wallets.value.length > 0) {
-            const firstUserWallet = wallets.value.find(w => !w.isOfficial) || wallets.value[0];
-            if (firstUserWallet) {
-              modals.withdrawal.upiId = firstUserWallet.account || '';
-              modals.withdrawal.accountName = firstUserWallet.name || user.nickname || '';
+          if (activeWithdrawal.value && activeWithdrawal.value.status === 'pending') {
+            modals.withdrawal.step = 2; // Show active review status
+          } else {
+            modals.withdrawal.step = 1;
+            modals.withdrawal.amount = '';
+            modals.withdrawal.pin = '';
+            if (wallets.value && wallets.value.length > 0) {
+              const firstUserWallet = wallets.value.find(w => !w.isOfficial) || wallets.value[0];
+              if (firstUserWallet) {
+                modals.withdrawal.upiId = firstUserWallet.account || '';
+                modals.withdrawal.accountName = firstUserWallet.name || user?.nickname || '';
+              }
             }
           }
           modals.withdrawal.show = true;
@@ -2644,7 +2649,7 @@
             }
             payoutDetails = {
               upiId: modals.withdrawal.upiId.trim(),
-              accountName: modals.withdrawal.accountName.trim() || user.nickname
+              accountName: modals.withdrawal.accountName.trim() || user?.nickname || 'Trader'
             };
           } else {
             if (!modals.withdrawal.accountNumber || !modals.withdrawal.ifsc) {
@@ -2655,7 +2660,7 @@
               bankName: modals.withdrawal.bankName || 'Bank',
               accountNumber: modals.withdrawal.accountNumber.trim(),
               ifsc: modals.withdrawal.ifsc.trim(),
-              accountName: modals.withdrawal.accountName.trim() || user.nickname
+              accountName: modals.withdrawal.accountName.trim() || user?.nickname || 'Trader'
             };
           }
 
@@ -2672,8 +2677,9 @@
             });
             const json = await res.json();
             if (json.code === 1000) {
-              modals.withdrawal.show = false;
-              showToast(`Withdrawal of ₹${amt} requested! Sent to admin console.`, 'success');
+              activeWithdrawal.value = json.data;
+              modals.withdrawal.step = 2; // Immediately switch to Review Status!
+              showToast(`Withdrawal of ₹${amt} requested! Sent to owner review.`, 'success');
               fetchSummary();
               fetchTransactionsHistory(true);
             } else {
@@ -2729,6 +2735,17 @@
             } else {
               activeDeposit.value = null;
             }
+
+            // 3. Fetch Active Pending Withdrawal if any
+            try {
+              const wthRes = await authFetch('/app/withdraw/active');
+              const wthJson = await wthRes.json();
+              if (wthJson.code === 1000 && wthJson.data) {
+                activeWithdrawal.value = wthJson.data;
+              } else {
+                activeWithdrawal.value = null;
+              }
+            } catch (e) {}
           } catch (e) {
             console.error('Error fetching transactions:', e);
           } finally {
@@ -3120,16 +3137,30 @@
                   activeDeposit.value = null;
                   fetchTransactionsHistory(true);
                 } else if (data.type === 'WITHDRAWAL_REQUESTED') {
+                  activeWithdrawal.value = data.payload;
                   fetchSummary();
                   fetchUserInfo();
                   fetchTransactionsHistory(true);
                 } else if (data.type === 'WITHDRAWAL_COMPLETED') {
                   playBeep();
                   showToast(data.payload?.msg || 'Withdrawal completed! Funds transferred to your account.', 'success');
+                  if (activeWithdrawal.value) {
+                    activeWithdrawal.value.status = 'completed';
+                    activeWithdrawal.value.txRef = data.payload?.txRef;
+                  }
+                  if (modals.withdrawal.show) {
+                    modals.withdrawal.step = 3;
+                  } else {
+                    activeWithdrawal.value = null;
+                  }
                   fetchSummary();
                   fetchTransactionsHistory(true);
                 } else if (data.type === 'WITHDRAWAL_REJECTED') {
                   showToast(data.payload?.msg || 'Withdrawal rejected. Funds refunded to balance.', 'error');
+                  activeWithdrawal.value = null;
+                  if (modals.withdrawal.show) {
+                    modals.withdrawal.show = false;
+                  }
                   fetchSummary();
                   fetchUserInfo();
                   fetchTransactionsHistory(true);
@@ -3304,6 +3335,7 @@
           openDepositModal,
           proceedToDepositPayment,
           submitDepositPayment,
+          activeWithdrawal,
           openWithdrawalModal,
           submitWithdrawalRequest
         };

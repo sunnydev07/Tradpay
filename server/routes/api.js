@@ -1198,6 +1198,15 @@ router.get('/app/withdraw/list', (req, res) => {
   return ok(res, records);
 });
 
+router.get('/app/withdraw/active', (req, res) => {
+  const user = getAuthUser(req);
+  const state = db.get();
+  const active = Object.values(state.withdrawals || {})
+    .filter(w => String(w.userId) === String(user.id) && w.status === 'pending')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+  return ok(res, active);
+});
+
 router.get('/app/user/transactions/all', (req, res) => {
   const user = getAuthUser(req);
   const records = paymentEngine.getUserUnifiedTransactions(user.id);
