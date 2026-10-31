@@ -29,7 +29,10 @@ function getAdminClient() {
   if (!isConfigured() || !SUPABASE_SERVICE_KEY) return null;
   if (!adminClient) {
     adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false }
+      auth: { persistSession: false, autoRefreshToken: false },
+      // Bound state load/save calls so a stalled connection cannot hang
+      // startup forever; Render will retry the deploy.
+      db: { timeout: 20000 }
     });
   }
   return adminClient;
