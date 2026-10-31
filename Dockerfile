@@ -16,6 +16,9 @@ VOLUME ["/app/data"]
 # Environment
 ENV NODE_ENV=production
 ENV PORT=10000
+# Keep the ledger on the mounted volume. Docker must be run with a named volume
+# or bind mount at /app/data or state is lost when the container is replaced.
+ENV TRADEPAY_DB_FILE=/app/data/db.json
 
 EXPOSE 10000
 

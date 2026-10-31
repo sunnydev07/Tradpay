@@ -10,6 +10,23 @@ if (typeof process.loadEnvFile === 'function') {
   } catch (e) { /* ignore */ }
 }
 
+// Production balances and ledger entries must live on a persistent volume.
+// Without an explicit absolute path the file store falls back to the
+// ephemeral application directory and every restart resets user money.
+const configuredDbFile = String(process.env.TRADEPAY_DB_FILE || '').trim();
+if (
+  process.env.NODE_ENV === 'production' &&
+  !path.isAbsolute(configuredDbFile) &&
+  process.env.ALLOW_EPHEMERAL_STORAGE !== 'true'
+) {
+  console.error(
+    '[Config] TRADEPAY_DB_FILE must be an absolute path on a persistent disk in production. ' +
+    'Mount a Render disk at /var/data and set TRADEPAY_DB_FILE=/var/data/db.json. ' +
+    'Set ALLOW_EPHEMERAL_STORAGE=true only for disposable previews.'
+  );
+  process.exit(1);
+}
+
 const express = require('express');
 const compression = require('compression');
 const { WebSocketServer } = require('ws');
@@ -79,10 +96,16 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // 2. Health check endpoint for Render single instance monitoring
 app.get('/health', (req, res) => {
+  const storage = db.getStorageInfo();
   res.status(200).json({
     status: 'healthy',
     uptime: Math.floor(process.uptime()),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    storage: {
+      durable: storage.durable,
+      ok: !storage.lastSaveError,
+      lastSavedAt: storage.lastSavedAt
+    }
   });
 });
 
@@ -273,6 +296,10 @@ function startServer(port = PORT) {
       console.log(`📡 WebSocket ready at ws://localhost:${port}/ws`);
       console.log(`🌐 Web App available at http://localhost:${port}`);
       console.log(`⚡ Render Health Check: http://localhost:${port}/health`);
+      const storage = db.getStorageInfo();
+      console.log(
+        `💾 State storage: ${storage.durable ? 'persistent' : 'ephemeral'} (${storage.path})`
+      );
       console.log(`=======================================================`);
       resolve(server);
     });

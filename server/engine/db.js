@@ -431,15 +431,40 @@ function loadState() {
 }
 
 let state = loadState();
+let lastSavedAt = null;
+let lastSaveError = null;
 
 function writeState() {
+  let fileDescriptor = null;
   try {
     const tmpFile = `${DB_FILE}.tmp`;
-    fs.writeFileSync(tmpFile, JSON.stringify(state, null, 2), 'utf-8');
+    fileDescriptor = fs.openSync(tmpFile, 'w');
+    fs.writeFileSync(fileDescriptor, JSON.stringify(state, null, 2), 'utf-8');
+    // Flush the file before the atomic rename so a restart cannot lose the last
+    // committed ledger entries.
+    fs.fsyncSync(fileDescriptor);
+    fs.closeSync(fileDescriptor);
+    fileDescriptor = null;
     fs.renameSync(tmpFile, DB_FILE);
+    lastSavedAt = new Date().toISOString();
+    lastSaveError = null;
   } catch (err) {
+    if (fileDescriptor != null) {
+      try { fs.closeSync(fileDescriptor); } catch (e) { /* ignore */ }
+    }
+    lastSaveError = err.message;
     console.error('[DB] Save error:', err.message);
   }
+}
+
+function getStorageInfo() {
+  const configuredPath = String(process.env.TRADEPAY_DB_FILE || '').trim();
+  return {
+    path: DB_FILE,
+    durable: configuredPath.length > 0 && path.isAbsolute(configuredPath),
+    lastSavedAt,
+    lastSaveError
+  };
 }
 
 // Seed the file only when it does not exist. Never overwrite live state on import.
@@ -475,6 +500,7 @@ module.exports = {
   get: () => state,
   save,
   flush,
+  getStorageInfo,
   reset: () => {
     state = buildState(null);
     flush();

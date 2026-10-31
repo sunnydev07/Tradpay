@@ -2,22 +2,24 @@ services:
   - type: web
     name: tradepay-engine
     runtime: node
-    plan: free
+    # Persistent disks require a paid instance type. Starter (or higher) is
+    # required so the ledger at /var/data/db.json survives restarts and deploys.
+    plan: starter
     region: oregon
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
-    # Persistent disks require a paid Render plan (Starter or higher).
-    # On a paid plan, uncomment the disk block below and set TRADEPAY_DB_FILE=/var/data/db.json:
-    # disk:
-    #   name: tradepay-data
-    #   mountPath: /var/data
-    #   sizeGB: 1
+    disk:
+      name: tradepay-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: TRADEPAY_DB_FILE
+        value: /var/data/db.json
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
@@ -26,9 +28,19 @@ services:
         sync: false
       - key: ADMIN_USER_IDS
         sync: false
-      # - key: TRADEPAY_DB_FILE
-      #   value: /var/data/db.json
       # Optional until a PSP is connected; set it in the dashboard to enable
       # signed /webhooks/payment reconciliation.
       # - key: PAYMENT_WEBHOOK_SECRET
       #   sync: false
+      # USDT deposits stay disabled until a real receiving address is added for
+      # at least one network. Placeholder or malformed addresses are ignored.
+      # - key: USDT_TRC20_ADDRESS
+      #   sync: false
+      # - key: USDT_BSC_ADDRESS
+      #   sync: false
+      # - key: USDT_POLYGON_ADDRESS
+      #   sync: false
+      # Only use this for disposable preview environments. Production refuses
+      # to start without TRADEPAY_DB_FILE unless this is explicitly true.
+      # - key: ALLOW_EPHEMERAL_STORAGE
+      #   value: "true"
