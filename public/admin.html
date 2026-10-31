@@ -873,8 +873,8 @@
 
         function getAuthHeaders() {
           const headers = { 'Content-Type': 'application/json' };
-          const key = localStorage.getItem('tradepay_admin_key');
-          if (key) headers['x-admin-key'] = key;
+          const session = localStorage.getItem('tradepay_admin_session');
+          if (session) headers['x-admin-session'] = session;
           const token = localStorage.getItem('tradepay_token');
           if (token) headers['Authorization'] = `Bearer ${token}`;
           return headers;
@@ -891,8 +891,11 @@
               body: JSON.stringify({ key })
             });
             const json = await res.json();
-            if (json.code === 1000) {
-              localStorage.setItem('tradepay_admin_key', key);
+            if (json.code === 1000 && json.data && json.data.token) {
+              // Store a short-lived signed session, never the raw admin key.
+              localStorage.setItem('tradepay_admin_session', json.data.token);
+              localStorage.removeItem('tradepay_admin_key');
+              adminKeyInput.value = '';
               isUnlocked.value = true;
               playBeep();
               showToast('Admin console unlocked successfully!', 'success');
@@ -909,6 +912,7 @@
         }
 
         function lockConsole() {
+          localStorage.removeItem('tradepay_admin_session');
           localStorage.removeItem('tradepay_admin_key');
           isUnlocked.value = false;
           showToast('Console locked');
@@ -921,6 +925,10 @@
 
             // Stats
             const statsRes = await fetch('/api/admin/stats', { headers });
+            if (statsRes.status === 401 || statsRes.status === 403) {
+              lockConsole();
+              return;
+            }
             const statsJson = await statsRes.json();
             if (statsJson.code === 1000) {
               Object.assign(stats, statsJson.data);
@@ -1309,22 +1317,23 @@
         }
 
         onMounted(() => {
-          if (adminKeyInput.value) {
-            unlockConsole();
-          } else {
-            const token = localStorage.getItem('tradepay_token');
-            if (token) {
-              fetch('/api/admin/stats', { headers: getAuthHeaders() })
-                .then(r => r.json())
-                .then(j => {
-                  if (j.code === 1000) {
-                    isUnlocked.value = true;
-                    Object.assign(stats, j.data);
-                    fetchData();
-                    connectWs();
-                  }
-                }).catch(() => {});
-            }
+          // Remove the old plaintext key if a browser still has it.
+          localStorage.removeItem('tradepay_admin_key');
+
+          const session = localStorage.getItem('tradepay_admin_session');
+          if (session) {
+            fetch('/api/admin/stats', { headers: getAuthHeaders() })
+              .then(r => r.json())
+              .then(j => {
+                if (j.code === 1000) {
+                  isUnlocked.value = true;
+                  Object.assign(stats, j.data);
+                  fetchData();
+                  connectWs();
+                } else {
+                  localStorage.removeItem('tradepay_admin_session');
+                }
+              }).catch(() => {});
           }
 
           // Polling interval for fresh queue

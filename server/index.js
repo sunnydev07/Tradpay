@@ -10,6 +10,8 @@ if (typeof process.loadEnvFile === 'function') {
   } catch (e) { /* ignore */ }
 }
 
+const adminAuth = require('./engine/adminAuth');
+
 // Production balances and ledger entries must live on a persistent volume.
 // Without an explicit absolute path the file store falls back to the
 // ephemeral application directory and every restart resets user money.
@@ -25,6 +27,20 @@ if (
     'Set ALLOW_EPHEMERAL_STORAGE=true only for disposable previews.'
   );
   process.exit(1);
+}
+
+// Admin access must never fall back to a hardcoded secret. A missing, short,
+// or placeholder ADMIN_KEY disables admin routes in development and refuses to
+// start in production, where an exposed key lets anyone mint balances or
+// approve withdrawals.
+const adminConfig = adminAuth.validateConfiguredKey();
+if (!adminConfig.ok) {
+  const message = `[Config] ${adminConfig.reason}. Set ADMIN_KEY to a unique random secret (for example, generate one with "openssl rand -hex 32").`;
+  if (process.env.NODE_ENV === 'production') {
+    console.error(message);
+    process.exit(1);
+  }
+  console.warn(`${message} Admin endpoints are disabled.`);
 }
 
 const express = require('express');
@@ -81,7 +97,7 @@ app.use((req, res, next) => {
     }
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, token, x-tradepay-signature');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, token, x-tradepay-signature, x-admin-key, x-admin-session');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   }
   if (req.method === 'OPTIONS') return res.sendStatus(204);

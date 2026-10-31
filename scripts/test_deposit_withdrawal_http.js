@@ -2,6 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
 
+// Admin endpoints fail closed without a strong key; set one before loading the
+// server so this test exercises the real admin flow.
+process.env.ADMIN_KEY = 'test-admin-key-0123456789abcdef0123456789abcdef';
+
 const { app, startServer } = require('../server/index');
 const db = require('../server/engine/db');
 const auth = require('../server/engine/auth');
@@ -34,7 +38,7 @@ test('HTTP API: Deposit & Withdrawal Endpoints End-to-End', async (t) => {
     return null;
   };
 
-  const adminKey = process.env.ADMIN_KEY || 'dev780@$$';
+  const adminKey = process.env.ADMIN_KEY;
 
   async function req(method, path, body = null, headers = {}) {
     return new Promise((resolve, reject) => {
