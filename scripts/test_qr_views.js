@@ -127,19 +127,22 @@ async function runTestSuite() {
     const allWalletsHaveQr = walletsRes.data.data.every(w => w.qrDataUrl && w.upiUri);
     assert(allWalletsHaveQr, 'Every wallet in user wallet list has attached qrDataUrl and upiUri');
 
-    // 7. USDT Crypto Deposit Gateway (GET /app/payment/order/usdtInfo & POST createUsdt)
+    // 7. USDT Crypto Deposit Gateway is disabled until a real address exists
     console.log('\nTest 7: USDT Crypto Deposit Gateways (GET usdtInfo & POST createUsdt)');
     const usdtInfoRes = await request('/app/payment/order/usdtInfo');
-    assert(usdtInfoRes.status === 200 && usdtInfoRes.data.data?.chains?.length === 3, 'USDT info returns supported chains [TRC20, BSC, Polygon]');
-    const trc20 = usdtInfoRes.data.data.details?.TRC20;
-    assert(trc20 && trc20.qrDataUrl && trc20.address, 'TRC20 gateway has address and QR code data URL');
+    assert(
+      usdtInfoRes.status === 401 || usdtInfoRes.status === 503,
+      'USDT info requires auth and stays disabled until a real receiving address is configured'
+    );
 
     const createUsdtRes = await request('/app/payment/order/createUsdt', 'POST', {
       amount: 50,
       chainType: 'BSC'
     });
-    assert(createUsdtRes.status === 200, 'USDT order creation responds with 200');
-    assert(createUsdtRes.data.data.qrDataUrl && createUsdtRes.data.data.chainType === 'BSC', 'BSC USDT deposit order contains QR data URL');
+    assert(
+      createUsdtRes.status === 401 || createUsdtRes.status === 503,
+      'USDT order creation requires auth and stays disabled until a real receiving address is configured'
+    );
 
     // 8. Order Submission / Completion requires UTR (Payment not marked completed merely on QR display)
     console.log('\nTest 8: Payment Verification & Non-automatic Completion Verification');

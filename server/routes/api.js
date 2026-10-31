@@ -9,6 +9,7 @@ const auth = require('../engine/auth');
 const security = require('../engine/security');
 const money = require('../engine/money');
 const ledger = require('../engine/ledger');
+const usdt = require('../engine/usdt');
 
 const { extractToken } = auth;
 
@@ -378,6 +379,7 @@ router.get('/app/payment/order/summary', (req, res) => {
     totalDeposited: user.totalDeposited || 0,
     totalWithdrawn: user.totalWithdrawn || 0,
     pendingWithdrawal: user.pendingWithdrawal || 0,
+    usdtEnabled: usdt.isEnabled(),
     usdtRechargeRate: state.settings.usdtRechargeRate,
     usdtCashbackRate: state.settings.usdtCashbackRate,
     wallet: user.balance
@@ -494,28 +496,37 @@ router.post('/app/payment/order/changeWallet', async (req, res) => {
 });
 
 router.post('/app/payment/order/createUsdt', async (req, res) => {
+  const config = usdt.getConfig();
+  if (!config.enabled) {
+    return fail(res, 'USDT deposits are temporarily disabled', 503);
+  }
+
   const { amount, chainType = 'TRC20' } = req.body || {};
   const numAmount = Number(amount);
   if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 1000000) {
     return fail(res, 'Please enter a valid USDT amount', 400);
   }
+
+  const chain = usdt.normalizeChain(chainType);
+  if (!chain) {
+    return fail(res, 'Unsupported USDT network', 400);
+  }
+  const address = config.addresses[chain];
+  if (!address) {
+    return fail(res, `USDT deposits on ${chain} are not available`, 503);
+  }
+
   const state = db.get();
   const usdtId = 'USDT' + Date.now();
   const rate = state.settings?.usdtRechargeRate || 91.50;
   const inrAmount = money.multiply(numAmount, rate);
-  const addresses = {
-    TRC20: 'TLxK9y5Bsq27Pz5vF7nK9yTRC20EXAMPLE',
-    BSC: '0x71C95911e74B39d48b1968848777BSCEXAMPLE',
-    Polygon: '0x99A8c829e74B39d48b1968848POLYGONEXAMPLE'
-  };
-  const address = addresses[chainType] || addresses.TRC20;
-  const qrData = await qrService.attachQrToUsdt(chainType, address, numAmount);
+  const qrData = await qrService.attachQrToUsdt(chain, address, numAmount);
   const order = {
     id: usdtId,
     usdtAmount: numAmount,
     inrAmount,
     rate,
-    chainType,
+    chainType: chain,
     address,
     qrDataUrl: qrData.qrDataUrl,
     qrImageUrl: qrData.qrImageUrl,
@@ -526,19 +537,20 @@ router.post('/app/payment/order/createUsdt', async (req, res) => {
 });
 
 router.get('/app/payment/order/usdtInfo', async (req, res) => {
-  const chains = ['TRC20', 'BSC', 'Polygon'];
-  const addresses = {
-    TRC20: 'TLxK9y5Bsq27Pz5vF7nK9yTRC20EXAMPLE',
-    BSC: '0x71C95911e74B39d48b1968848777BSCEXAMPLE',
-    Polygon: '0x99A8c829e74B39d48b1968848POLYGONEXAMPLE'
-  };
+  const config = usdt.getConfig();
+  if (!config.enabled) {
+    return fail(res, 'USDT deposits are temporarily disabled', 503);
+  }
+
+  const state = db.get();
   const details = {};
-  for (const c of chains) {
-    details[c] = await qrService.attachQrToUsdt(c, addresses[c]);
+  for (const chain of config.chains) {
+    details[chain] = await qrService.attachQrToUsdt(chain, config.addresses[chain]);
   }
   return ok(res, {
-    rate: 91.50,
-    chains,
+    enabled: true,
+    rate: state.settings?.usdtRechargeRate || 91.50,
+    chains: config.chains,
     details
   });
 });
@@ -1115,7 +1127,7 @@ router.post('/app/deposit/create', async (req, res) => {
     const deposit = await paymentEngine.createDeposit({ userId: user.id, amount });
     return ok(res, deposit, 'Deposit order created');
   } catch (err) {
-    return fail(res, err.message, 400);
+    return fail(res, err.message, err.status || 400);
   }
 });
 
@@ -1144,7 +1156,7 @@ router.post('/app/deposit/request-review', async (req, res) => {
     });
     return ok(res, updated, 'Deposit submitted for admin verification');
   } catch (err) {
-    return fail(res, err.message, 400);
+    return fail(res, err.message, err.status || 400);
   }
 });
 

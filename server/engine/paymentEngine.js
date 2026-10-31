@@ -24,29 +24,36 @@ function generateId(prefix = 'DEP') {
 }
 
 /**
- * Get active official receiving wallet for deposits
+ * Get the active official receiving wallet for deposits.
+ *
+ * Deposits must only ever be paid into a wallet explicitly owned by the
+ * system. Falling back to "the first active wallet" would send user money to
+ * another trader's UPI account, so this fails closed when no system wallet is
+ * configured instead of guessing.
  */
 function getOfficialReceivingWallet(state) {
-  const wallets = state.wallets || [];
-  // Prefer system official wallet
-  const official = wallets.find(w => w.isOfficial && w.status === 1) ||
-                   wallets.find(w => w.status === 1) ||
-                   wallets[0];
+  const wallets = Array.isArray(state && state.wallets) ? state.wallets : [];
+  const official = wallets.find(wallet => {
+    if (!wallet || wallet.isOfficial !== true) return false;
+    if (Number(wallet.status) !== 1) return false;
+    if (String(wallet.userId) !== 'system') return false;
+    const account = String(wallet.account || wallet.vpa || '').trim();
+    return account.includes('@');
+  });
 
-  if (official) {
-    return {
-      walletId: official.id,
-      vpa: official.account || official.vpa || '9588856526@ybl',
-      name: official.name || 'TradePay Official',
-      qrImage: official.qrImage || '/static/qr/scr2.jpeg'
-    };
+  if (!official) {
+    const error = new Error(
+      'No official deposit wallet is configured. Deposits are temporarily unavailable.'
+    );
+    error.status = 503;
+    throw error;
   }
 
   return {
-    walletId: 1,
-    vpa: '9588856526@ybl',
-    name: 'TradePay Official',
-    qrImage: '/static/qr/scr2.jpeg'
+    walletId: official.id,
+    vpa: String(official.account || official.vpa).trim(),
+    name: official.name || 'TradePay Official',
+    qrImage: official.qrImage || '/static/qr/scr2.jpeg'
   };
 }
 
@@ -97,6 +104,7 @@ async function createDeposit({ userId, amount }) {
     userNickname: user.nickname || 'Trader',
     amount: numericAmount,
     status: 'pending', // pending user payment & UTR submission
+    payeeWalletId: receiving.walletId,
     payeeVpa: receiving.vpa,
     payeeName: receiving.name,
     qrImage: receiving.qrImage,

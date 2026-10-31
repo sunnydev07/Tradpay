@@ -440,12 +440,16 @@
             <p class="text-xs font-semibold text-emerald-400 mt-0.5">+₹{{ formatMoney(summary.rewardTotal) }}</p>
           </div>
           <div>
-            <p class="text-[10px] text-gray-400">USDT Rate</p>
-            <p class="text-xs font-semibold text-[#F2D7A5] mt-0.5">₹{{ summary.usdtRechargeRate || 91.50 }}</p>
+            <p class="text-[10px] text-gray-400">USDT</p>
+            <p class="text-xs font-semibold mt-0.5" :class="summary.usdtEnabled ? 'text-[#F2D7A5]' : 'text-gray-500'">
+              {{ summary.usdtEnabled ? '₹' + (summary.usdtRechargeRate || 91.50) : 'Disabled' }}
+            </p>
           </div>
           <div>
             <p class="text-[10px] text-gray-400">Cashback</p>
-            <p class="text-xs font-semibold text-emerald-400 mt-0.5">+{{ summary.usdtCashbackRate || 2.0 }}%</p>
+            <p class="text-xs font-semibold mt-0.5" :class="summary.usdtEnabled ? 'text-emerald-400' : 'text-gray-500'">
+              {{ summary.usdtEnabled ? '+' + (summary.usdtCashbackRate || 2.0) + '%' : '—' }}
+            </p>
           </div>
         </div>
       </div>
@@ -517,9 +521,9 @@
       </div>
 
       <!-- Quick Action Buttons (matching image icons with luxury styling) -->
-      <div class="quick-actions grid grid-cols-4 gap-2">
-        <button @click="openUsdtModal" class="quick-action flex flex-col items-center p-2.5 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition relative">
-          <span class="absolute -top-1 right-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[8px] font-bold text-emerald-400 font-mono">111 INR</span>
+      <div class="quick-actions grid gap-2" :class="summary.usdtEnabled ? 'grid-cols-4' : 'grid-cols-3'">
+        <button v-if="summary.usdtEnabled" @click="openUsdtModal" class="quick-action flex flex-col items-center p-2.5 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition relative">
+          <span class="absolute -top-1 right-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[8px] font-bold text-emerald-400 font-mono">USDT</span>
           <div class="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-lg mb-1 text-[#F2D7A5]">
             🪙
           </div>
@@ -976,15 +980,15 @@
           <span class="text-xs text-emerald-400">{{ user.isPinSet ? 'Configured ›' : 'Set Up ›' }}</span>
         </button>
 
-        <button @click="openUsdtModal" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
+        <button v-if="summary.usdtEnabled" @click="openUsdtModal" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
           <div class="flex items-center gap-3">
             <span class="text-lg">🪙</span>
             <div>
               <p class="text-xs font-bold text-white">USDT Deposit & Exchange</p>
-              <p class="text-[10px] text-gray-400">TRC20, BSC, Polygon deposit gateways</p>
+              <p class="text-[10px] text-gray-400">Deposit gateways for configured networks</p>
             </div>
           </div>
-          <span class="text-xs text-gray-400">91.50 INR ›</span>
+          <span class="text-xs text-gray-400">₹{{ summary.usdtRechargeRate || 91.50 }} ›</span>
         </button>
 
         <button @click="openMissionsModal" class="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-white/5 transition">
@@ -1467,7 +1471,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 4: USDT RECHARGE -->
     <!-- ======================================================== -->
-    <div v-if="modals.usdt.show" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="modals.usdt.show && summary.usdtEnabled" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">USDT Deposit Gateway</h3>
@@ -1475,21 +1479,22 @@
         </div>
 
         <div class="space-y-3 text-xs">
-          <div class="flex gap-2">
-            <button v-for="chain in ['TRC20', 'BSC', 'Polygon']" :key="chain" @click="usdtChain = chain" class="flex-1 py-1.5 rounded-xl border text-xs font-semibold transition" :class="usdtChain === chain ? 'bg-[#F2D7A5] text-[#1B1B1B] border-[#F2D7A5]' : 'bg-white/5 border-white/5 text-gray-300'">
+          <div v-if="usdtChains.length" class="flex gap-2">
+            <button v-for="chain in usdtChains" :key="chain" @click="usdtChain = chain" class="flex-1 py-1.5 rounded-xl border text-xs font-semibold transition" :class="usdtChain === chain ? 'bg-[#F2D7A5] text-[#1B1B1B] border-[#F2D7A5]' : 'bg-white/5 border-white/5 text-gray-300'">
               {{ chain }}
             </button>
           </div>
 
-          <div class="p-3 rounded-xl bg-white/5 text-center space-y-2">
+          <div v-if="getUsdtAddress(usdtChain)" class="p-3 rounded-xl bg-white/5 text-center space-y-2">
             <p class="text-[10px] text-gray-400">Current Exchange Rate</p>
-            <p class="text-base font-bold text-[#F2D7A5]">1 USDT = ₹{{ summary.usdtRechargeRate || 91.50 }} (+2% Cashback)</p>
+            <p class="text-base font-bold text-[#F2D7A5]">1 USDT = ₹{{ summary.usdtRechargeRate || 91.50 }} (+{{ summary.usdtCashbackRate || 2.0 }}% Cashback)</p>
             <div class="p-2.5 bg-white rounded-2xl mx-auto w-36 h-36 flex items-center justify-center shadow-lg">
               <img :src="getUsdtQrUrl(usdtChain)" class="w-full h-full object-contain" :alt="'USDT QR ' + usdtChain" @error="handleImgFallback">
             </div>
             <p class="text-[10px] font-mono text-gray-400 break-all px-2">{{ getUsdtAddress(usdtChain) }}</p>
             <button @click="copyText(getUsdtAddress(usdtChain))" class="text-[#F2D7A5] text-xs font-semibold">Copy Address</button>
           </div>
+          <p v-else class="text-center text-xs text-gray-400 py-4">No USDT receiving address is configured.</p>
         </div>
       </div>
     </div>
@@ -1930,18 +1935,18 @@
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="block text-xs font-semibold text-gray-300">Withdrawal Amount (INR)</label>
-              <button @click="modals.withdrawal.amount = Math.floor(summary.balance)" class="text-xs text-[#F2D7A5] font-semibold hover:underline">
+              <button @click="modals.withdrawal.amount = Math.floor(summary.balance || 0)" class="text-xs text-[#F2D7A5] font-semibold hover:underline">
                 Withdraw All (Max)
               </button>
             </div>
             <div class="relative">
               <span class="absolute left-3.5 top-3 text-lg font-bold text-[#F2D7A5]">₹</span>
-              <input type="number" v-model.number="modals.withdrawal.amount" min="100" :max="summary.balance" placeholder="Min ₹100" class="w-full pl-9 pr-4 py-3 rounded-xl bg-black/40 border border-white/15 text-lg font-mono font-bold text-white placeholder-gray-600 focus:outline-none focus:border-blue-400">
+              <input type="number" v-model.number="modals.withdrawal.amount" min="100" :max="summary.balance || 0" placeholder="Min ₹100" class="w-full pl-9 pr-4 py-3 rounded-xl bg-black/40 border border-white/15 text-lg font-mono font-bold text-white placeholder-gray-600 focus:outline-none focus:border-blue-400">
             </div>
 
             <!-- Percentage Chips -->
             <div class="grid grid-cols-4 gap-2 pt-1">
-              <button v-for="pct in [25, 50, 75, 100]" :key="pct" @click="modals.withdrawal.amount = Math.floor(summary.balance * (pct / 100))" class="py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 transition">
+              <button v-for="pct in [25, 50, 75, 100]" :key="pct" @click="modals.withdrawal.amount = Math.floor((summary.balance || 0) * (pct / 100))" class="py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 transition">
                 {{ pct === 100 ? 'All' : pct + '%' }}
               </button>
             </div>
@@ -2082,6 +2087,10 @@
           balance: 0.00,
           rewardTotal: 0.00,
           pending: 0.00,
+          totalDeposited: 0.00,
+          totalWithdrawn: 0.00,
+          pendingWithdrawal: 0.00,
+          usdtEnabled: false,
           usdtRechargeRate: 91.50,
           usdtCashbackRate: 2.0
         });
@@ -2217,6 +2226,8 @@
         });
 
         const usdtChain = ref('TRC20');
+        const usdtChains = ref([]);
+        const usdtDetails = ref({});
 
         // Toast
         const toast = reactive({ show: false, message: '', type: 'info' });
@@ -2298,12 +2309,8 @@
         }
 
         function getUsdtAddress(chain) {
-          const map = {
-            TRC20: 'TLxK9y5Bsq27Pz5vF7nK9yTRC20EXAMPLE',
-            BSC: '0x71C95911e74B39d48b1968848777BSCEXAMPLE',
-            Polygon: '0x99A8c829e74B39d48b1968848POLYGONEXAMPLE'
-          };
-          return map[chain] || map.TRC20;
+          const detail = usdtDetails.value[chain];
+          return (detail && detail.address) || '';
         }
 
         function formatMoney(val) {
@@ -2520,8 +2527,10 @@
         }
 
         function getUsdtQrUrl(chain) {
+          const detail = usdtDetails.value[chain];
+          if (detail && detail.qrDataUrl) return detail.qrDataUrl;
           const addr = getUsdtAddress(chain);
-          return `/api/qr/image?text=${encodeURIComponent(addr)}&size=300`;
+          return addr ? `/api/qr/image?text=${encodeURIComponent(addr)}&size=300` : '';
         }
 
         function formatDateTime(val) {
@@ -2540,6 +2549,18 @@
           } catch (e) {
             return String(val);
           }
+        }
+
+        function formatRelativeTime(val) {
+          if (!val) return '';
+          const then = new Date(val).getTime();
+          if (!Number.isFinite(then)) return String(val);
+          const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+          if (seconds < 60) return 'Just now';
+          if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+          if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+          if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+          return formatDateTime(val);
         }
 
         
@@ -2922,8 +2943,23 @@
           }
         }
 
-        function openUsdtModal() {
-          modals.usdt.show = true;
+        async function openUsdtModal() {
+          try {
+            const res = await authFetch('/app/payment/order/usdtInfo');
+            const json = await res.json();
+            if (json.code === 1000 && json.data && json.data.enabled) {
+              usdtDetails.value = json.data.details || {};
+              usdtChains.value = json.data.chains || [];
+              if (usdtChains.value.length && !usdtChains.value.includes(usdtChain.value)) {
+                usdtChain.value = usdtChains.value[0];
+              }
+              modals.usdt.show = true;
+            } else {
+              showToast(json.msg || 'USDT deposits are temporarily disabled');
+            }
+          } catch (e) {
+            showToast('USDT deposits are temporarily disabled');
+          }
         }
 
         function openMissionsModal() {
@@ -3203,6 +3239,8 @@
           utrInput,
           newWallet,
           usdtChain,
+          usdtChains,
+          usdtDetails,
           toast,
           token,
           isLoggedIn,
@@ -3256,6 +3294,7 @@
           historySummary,
           filteredTransactions,
           formatDateTime,
+          formatRelativeTime,
           fetchTransactionsHistory,
           openTransactionsHistoryModal,
           copyTransactionUtr,

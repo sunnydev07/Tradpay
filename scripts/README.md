@@ -17,6 +17,10 @@ PIN hashing, and paise-exact money arithmetic.
 Supabase metadata cannot mint balance or bypass a PIN, sync payloads contain no
 financial fields, ledger credits are idempotent, and reconciliation matches.
 
+`test_deposit_safety.js` verifies that deposits never fall back to a user
+wallet, that a missing official wallet fails closed, and that USDT gateways stay
+disabled until a real, valid receiving address is configured.
+
 ## Legacy scripts
 
 The remaining `test_*.js` files were written against the old unauthenticated
