@@ -2,28 +2,26 @@ services:
   - type: web
     name: tradepay-engine
     runtime: node
-    # Persistent disks require a paid instance type. Starter (or higher) is
-    # required so the ledger at /var/data/db.json survives restarts and deploys.
-    plan: starter
+    # Free Render instances have an ephemeral filesystem. Durable state is kept
+    # in Supabase instead of a mounted disk, so the free plan is sufficient.
+    # For higher write volume or paid hosting, a mounted disk remains supported.
+    plan: free
     region: oregon
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
-    disk:
-      name: tradepay-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
-      - key: TRADEPAY_DB_FILE
-        value: /var/data/db.json
+      - key: TRADEPAY_STATE_BACKEND
+        value: supabase
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      # Server-only. Never expose this key to the browser.
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: ADMIN_USER_IDS
@@ -46,6 +44,6 @@ services:
       # - key: USDT_POLYGON_ADDRESS
       #   sync: false
       # Only use this for disposable preview environments. Production refuses
-      # to start without TRADEPAY_DB_FILE unless this is explicitly true.
+      # to start without durable state unless this is explicitly true.
       # - key: ALLOW_EPHEMERAL_STORAGE
       #   value: "true"

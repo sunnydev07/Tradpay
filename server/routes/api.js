@@ -15,7 +15,16 @@ const usdt = require('../engine/usdt');
 const { extractToken } = auth;
 
 // Response helpers
-function ok(res, data = {}, msg = 'success') {
+async function ok(res, data = {}, msg = 'success') {
+  // When the Supabase state backend is enabled, never acknowledge a state
+  // change until the latest snapshot has been written durably. A failed write
+  // becomes a 503 so the client can retry instead of assuming money moved.
+  try {
+    await db.flushRemote();
+  } catch (err) {
+    console.error('[DB] Refusing to acknowledge an unsaved state change:', err.message);
+    return fail(res, 'State could not be saved durably. Please retry.', 503);
+  }
   return res.json({
     code: 1000,
     data,

@@ -1,30 +1,38 @@
 const http = require('http');
-const fs = require('fs');
 const path = require('path');
 
-// Automatically load local .env file if available in the environment
-if (typeof process.loadEnvFile === 'function') {
-  try {
-    const envPath = path.resolve(__dirname, '../.env');
-    if (fs.existsSync(envPath)) process.loadEnvFile(envPath);
-  } catch (e) { /* ignore */ }
-}
+// Load local .env values without overriding Render or shell variables.
+require('./engine/env').loadLocalEnv();
 
 const adminAuth = require('./engine/adminAuth');
+const stateStore = require('./engine/stateStore');
 
-// Production balances and ledger entries must live on a persistent volume.
-// Without an explicit absolute path the file store falls back to the
-// ephemeral application directory and every restart resets user money.
+// Production balances and ledger entries must live somewhere durable. A local
+// file is only durable on a mounted disk; the Supabase state backend keeps the
+// server-authoritative snapshot in a service-role-only table and is the free
+// Render option.
 const configuredDbFile = String(process.env.TRADEPAY_DB_FILE || '').trim();
+const stateBackend = String(process.env.TRADEPAY_STATE_BACKEND || '').trim().toLowerCase();
+const stateConfigError = stateStore.getConfigError();
+const supabaseStateEnabled = stateBackend === 'supabase' && !stateConfigError;
+
+if (stateConfigError) {
+  // A half-configured remote backend must never fall back to local-only
+  // storage, because the next restart would silently lose the ledger.
+  console.error(`[Config] ${stateConfigError}`);
+  process.exit(1);
+}
+
 if (
   process.env.NODE_ENV === 'production' &&
+  !supabaseStateEnabled &&
   !path.isAbsolute(configuredDbFile) &&
   process.env.ALLOW_EPHEMERAL_STORAGE !== 'true'
 ) {
   console.error(
-    '[Config] TRADEPAY_DB_FILE must be an absolute path on a persistent disk in production. ' +
-    'Mount a Render disk at /var/data and set TRADEPAY_DB_FILE=/var/data/db.json. ' +
-    'Set ALLOW_EPHEMERAL_STORAGE=true only for disposable previews.'
+    '[Config] Durable state is not configured. Set TRADEPAY_STATE_BACKEND=supabase with ' +
+    'SUPABASE_SERVICE_ROLE_KEY for free Render hosting, or set TRADEPAY_DB_FILE to an ' +
+    'absolute path on a mounted disk. Set ALLOW_EPHEMERAL_STORAGE=true only for disposable previews.'
   );
   process.exit(1);
 }
@@ -118,8 +126,12 @@ app.get('/health', (req, res) => {
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
     storage: {
+      backend: storage.backend,
+      table: storage.table,
       durable: storage.durable,
       ok: !storage.lastSaveError,
+      initialized: storage.initialized,
+      revision: storage.revision,
       lastSavedAt: storage.lastSavedAt
     }
   });
@@ -287,17 +299,19 @@ wss.on('close', () => clearInterval(heartbeat));
 orderEngine.setBroadcaster(broadcastAll);
 paymentEngine.setBroadcaster(broadcastAll);
 
-// Start background order dispatch simulator
-orderEngine.startSimulation();
-
 // Flush debounced state before the process exits on deploys or Ctrl+C.
 let shuttingDown = false;
-function shutdown() {
+async function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
   try { db.flush(); } catch (e) { /* ignore */ }
+  try {
+    await db.flushRemote();
+  } catch (err) {
+    console.error('[DB] Final remote state save failed:', err.message);
+  }
   server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 5000).unref();
+  setTimeout(() => process.exit(0), 15000).unref();
 }
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
@@ -305,7 +319,13 @@ process.on('SIGINT', shutdown);
 // Start Server helper
 const PORT = process.env.PORT || 3000;
 
-function startServer(port = PORT) {
+async function startServer(port = PORT) {
+  // Load the authoritative snapshot before accepting requests. If the remote
+  // backend is configured but unavailable, fail closed instead of starting
+  // with an empty/default ledger.
+  const storage = await db.init();
+  orderEngine.startSimulation();
+
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, '0.0.0.0', () => {
@@ -315,9 +335,10 @@ function startServer(port = PORT) {
       console.log(`📡 WebSocket ready at ws://localhost:${port}/ws`);
       console.log(`🌐 Web App available at http://localhost:${port}`);
       console.log(`⚡ Render Health Check: http://localhost:${port}/health`);
-      const storage = db.getStorageInfo();
       console.log(
-        `💾 State storage: ${storage.durable ? 'persistent' : 'ephemeral'} (${storage.path})`
+        `💾 State storage: ${storage.backend}${storage.durable ? ' (durable)' : ' (ephemeral)'}` +
+        `${storage.table ? ` table=${storage.table}` : ` path=${storage.path}`}` +
+        ` revision=${storage.revision}`
       );
       console.log(`=======================================================`);
       resolve(server);

@@ -26,6 +26,13 @@ disabled until a real, valid receiving address is configured.
 unexpired session tokens. The verification-panel test also confirms that the key
 is ignored when supplied in the query string.
 
+`test_state_store.js` runs the real engine in child processes against a local
+PostgREST mock. It covers first-boot seeding, reloading balances from Supabase
+after deleting the local cache, fail-closed startup on read/write outages, the
+durability gate for failed writes, the untouched file backend, and production
+startup rejection when the service-role key is missing. It never contacts a real
+Supabase project.
+
 ## Legacy scripts
 
 The remaining `test_*.js` files were written against the old unauthenticated

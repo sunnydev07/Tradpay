@@ -152,3 +152,70 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- ========================================================
+-- 5. AUTHORITATIVE SERVER STATE (free Render / durable storage)
+-- The server owns balances, ledger entries, deposits, withdrawals, orders and
+-- PIN hashes. This table stores one complete snapshot so a free Render instance
+-- can survive restarts without a persistent disk.
+--
+-- Only the service-role key may read or write this table. Never expose the
+-- service-role key to the browser or put financial data in user_metadata.
+-- ========================================================
+create table if not exists public.tradepay_state (
+  id text primary key,
+  revision bigint not null default 0,
+  state jsonb not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.tradepay_state enable row level security;
+revoke all on public.tradepay_state from anon, authenticated;
+grant select, insert, update on public.tradepay_state to service_role;
+
+create or replace function public.save_tradepay_state(
+  p_id text,
+  p_state jsonb,
+  p_revision bigint
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_revision bigint;
+begin
+  if p_id is null or length(trim(p_id)) = 0 then
+    raise exception 'p_id is required';
+  end if;
+  if p_state is null then
+    raise exception 'p_state is required';
+  end if;
+
+  select revision into current_revision
+  from public.tradepay_state
+  where id = p_id
+  for update;
+
+  if current_revision is null then
+    insert into public.tradepay_state (id, revision, state)
+    values (p_id, p_revision, p_state);
+    return p_revision;
+  end if;
+
+  -- Monotonic writes prevent an older process from overwriting newer state.
+  if p_revision <= current_revision then
+    return current_revision;
+  end if;
+
+  update public.tradepay_state
+  set revision = p_revision, state = p_state, updated_at = timezone('utc'::text, now())
+  where id = p_id;
+
+  return p_revision;
+end;
+$$;
+
+revoke all on function public.save_tradepay_state(text, jsonb, bigint) from public, anon, authenticated;
+grant execute on function public.save_tradepay_state(text, jsonb, bigint) to service_role;

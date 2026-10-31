@@ -3,14 +3,21 @@ const path = require('path');
 const security = require('./security');
 const money = require('./money');
 const ledger = require('./ledger');
+const stateStore = require('./stateStore');
 
 const DATA_DIR = path.join(__dirname, '../../data');
 const DB_FILE = process.env.TRADEPAY_DB_FILE || path.join(DATA_DIR, 'db.json');
 const DB_DIR = path.dirname(DB_FILE);
 
-// Ensure the configured data directory exists
-if (!fs.existsSync(DB_DIR)) {
-  fs.mkdirSync(DB_DIR, { recursive: true });
+// Ensure the configured data directory exists. The local file is only a cache
+// when the Supabase state backend is enabled, so a read-only filesystem must
+// not prevent the server from starting.
+try {
+  if (!fs.existsSync(DB_DIR)) {
+    fs.mkdirSync(DB_DIR, { recursive: true });
+  }
+} catch (err) {
+  console.warn('[DB] Local state directory is not writable:', err.message);
 }
 
 // Default initial state with strictly ZERO balances. The demo account has no PIN
@@ -431,8 +438,20 @@ function loadState() {
 }
 
 let state = loadState();
+let revision = Date.now();
 let lastSavedAt = null;
 let lastSaveError = null;
+let lastRemoteSavedAt = null;
+let initialized = false;
+let remoteDirty = false;
+let remoteFlushTimer = null;
+let remoteFlushChain = Promise.resolve();
+
+function cloneState() {
+  // Non-enumerable fields such as the cached bearer token are intentionally
+  // excluded from the durable snapshot.
+  return JSON.parse(JSON.stringify(state));
+}
 
 function writeState() {
   let fileDescriptor = null;
@@ -447,23 +466,28 @@ function writeState() {
     fileDescriptor = null;
     fs.renameSync(tmpFile, DB_FILE);
     lastSavedAt = new Date().toISOString();
-    lastSaveError = null;
+    if (!stateStore.isEnabled()) lastSaveError = null;
   } catch (err) {
     if (fileDescriptor != null) {
       try { fs.closeSync(fileDescriptor); } catch (e) { /* ignore */ }
     }
-    lastSaveError = err.message;
-    console.error('[DB] Save error:', err.message);
+    if (!stateStore.isEnabled()) lastSaveError = err.message;
+    console.error('[DB] Local state save error:', err.message);
   }
 }
 
 function getStorageInfo() {
+  const remoteEnabled = stateStore.isEnabled();
   const configuredPath = String(process.env.TRADEPAY_DB_FILE || '').trim();
   return {
+    backend: remoteEnabled ? 'supabase' : 'file',
+    table: remoteEnabled ? stateStore.getTable() : null,
     path: DB_FILE,
-    durable: configuredPath.length > 0 && path.isAbsolute(configuredPath),
-    lastSavedAt,
-    lastSaveError
+    durable: remoteEnabled || (configuredPath.length > 0 && path.isAbsolute(configuredPath)),
+    lastSavedAt: remoteEnabled ? (lastRemoteSavedAt || lastSavedAt) : lastSavedAt,
+    lastSaveError,
+    revision,
+    initialized
   };
 }
 
@@ -480,6 +504,9 @@ function save() {
     saveTimeout = null;
     writeState();
   }, 100);
+  if (stateStore.isEnabled() && initialized) {
+    scheduleRemoteSave();
+  }
 }
 
 function flush() {
@@ -488,6 +515,89 @@ function flush() {
     saveTimeout = null;
   }
   writeState();
+}
+
+function scheduleRemoteSave(delay = 25) {
+  if (!stateStore.isEnabled() || !initialized) return;
+  remoteDirty = true;
+  if (remoteFlushTimer) clearTimeout(remoteFlushTimer);
+  remoteFlushTimer = setTimeout(() => {
+    remoteFlushTimer = null;
+    flushRemote().catch((err) => {
+      console.error('[DB] Remote state save failed:', err.message);
+    });
+  }, delay);
+  remoteFlushTimer.unref?.();
+}
+
+// Push the latest full server state to Supabase. Full snapshots are intentional:
+// a single durable row keeps balances, deposits, withdrawals, orders and the
+// ledger consistent across restarts without partially persisting a transaction.
+function flushRemote() {
+  if (!stateStore.isEnabled() || !initialized) return Promise.resolve();
+
+  if (remoteFlushTimer) {
+    clearTimeout(remoteFlushTimer);
+    remoteFlushTimer = null;
+  }
+
+  // Read-only responses do not need a Supabase round-trip. db.save() marks the
+  // state dirty before the response is acknowledged, so only real mutations and
+  // retries reach the network.
+  if (!remoteDirty) return Promise.resolve();
+
+  remoteFlushChain = remoteFlushChain.catch(() => {}).then(async () => {
+    while (remoteDirty) {
+      remoteDirty = false;
+      const snapshot = cloneState();
+      const nextRevision = ++revision;
+      try {
+        const savedRevision = await stateStore.save(snapshot, nextRevision);
+        const remoteRevision = Number(savedRevision);
+        if (Number.isFinite(remoteRevision)) {
+          revision = Math.max(revision, remoteRevision);
+        }
+        lastRemoteSavedAt = new Date().toISOString();
+        lastSaveError = null;
+      } catch (err) {
+        remoteDirty = true;
+        lastSaveError = err.message;
+        throw err;
+      }
+    }
+  });
+
+  return remoteFlushChain;
+}
+
+async function init() {
+  if (initialized) return getStorageInfo();
+
+  const backend = String(process.env.TRADEPAY_STATE_BACKEND || '').trim().toLowerCase();
+  if (backend === 'supabase') {
+    const configError = stateStore.getConfigError();
+    if (configError) throw new Error(configError);
+
+    const snapshot = await stateStore.load();
+    if (snapshot && snapshot.state) {
+      state = buildState(snapshot.state);
+      revision = Number(snapshot.revision) || Date.now();
+      lastRemoteSavedAt = snapshot.updated_at || new Date().toISOString();
+      lastSaveError = null;
+      writeState();
+    } else {
+      // First boot with an empty state table: seed it from the local cache or
+      // the default state. This is also the migration path from a file store.
+      revision = Math.max(revision, Date.now());
+      await stateStore.save(cloneState(), revision);
+      lastRemoteSavedAt = new Date().toISOString();
+      lastSaveError = null;
+      writeState();
+    }
+  }
+
+  initialized = true;
+  return getStorageInfo();
 }
 
 process.on('exit', () => {
@@ -500,9 +610,18 @@ module.exports = {
   get: () => state,
   save,
   flush,
+  flushRemote,
+  init,
   getStorageInfo,
   reset: () => {
     state = buildState(null);
+    revision = Date.now();
+    remoteDirty = true;
     flush();
+    if (stateStore.isEnabled() && initialized) {
+      flushRemote().catch((err) => {
+        console.error('[DB] Remote reset save failed:', err.message);
+      });
+    }
   }
 };

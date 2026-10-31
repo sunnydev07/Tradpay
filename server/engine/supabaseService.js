@@ -1,14 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
-const path = require('path');
+const { loadLocalEnv } = require('./env');
 
-// Automatically load local .env file if available in the environment
-if (typeof process.loadEnvFile === 'function') {
-  try {
-    const envPath = path.resolve(__dirname, '../../.env');
-    if (fs.existsSync(envPath)) process.loadEnvFile(envPath);
-  } catch (e) { /* ignore */ }
-}
+// Load local .env values only when the host environment does not provide them.
+loadLocalEnv();
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim();
 const SUPABASE_KEY = String(process.env.SUPABASE_KEY || '').trim();
