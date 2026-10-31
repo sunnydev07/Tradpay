@@ -75,7 +75,8 @@ Runtime state is stored in `data/db.json` by default. Point `TRADEPAY_DB_FILE` a
 | :--- | :--- |
 | `SUPABASE_URL` / `SUPABASE_KEY` | Required. Supabase project URL and anon/publishable key; there is no hardcoded fallback |
 | `SUPABASE_SERVICE_ROLE_KEY` | Optional service-role key for server-only Supabase admin calls; never exposed to clients |
-| `ADMIN_USER_IDS` | Comma-separated user ids allowed to call admin endpoints |
+| `ADMIN_KEY` | Admin console secret. Required in production; at least 32 random characters. The server rejects the old `dev780@$$` default and refuses to start without a valid key |
+| `ADMIN_USER_IDS` | Comma-separated user ids allowed to call admin endpoints without the admin key |
 | `CORS_ORIGINS` | Comma-separated extra origins; same-origin is always allowed |
 | `PUBLIC_BASE_URL` | Public base URL used in invite links |
 | `TRADEPAY_DB_FILE` | Absolute path to the runtime state file. Required in production; use `/var/data/db.json` with a Render disk |
@@ -112,11 +113,12 @@ Runtime state is stored in `data/db.json` by default. Point `TRADEPAY_DB_FILE` a
    - `SUPABASE_URL`: `https://<your-project>.supabase.co`
    - `SUPABASE_KEY`: `<your-supabase-anon-key>`
    - `SUPABASE_SERVICE_ROLE_KEY`: `<service-role-key>` (server-only; optional)
+   - `ADMIN_KEY`: `<random-admin-secret>` (at least 32 characters; generate with `openssl rand -hex 32`)
    - `ADMIN_USER_IDS`: `<your-supabase-user-id>`
    - `PAYMENT_WEBHOOK_SECRET`: `<random-hmac-secret>` (optional until a PSP is connected)
    - `CORS_ORIGINS`: `https://your-custom-domain.example` (optional)
    - `PUBLIC_BASE_URL`: `https://your-service.onrender.com`
-6. Click **Apply**. In production the server refuses to start without `SUPABASE_URL`, `SUPABASE_KEY`, and an absolute `TRADEPAY_DB_FILE`.
+6. Click **Apply**. In production the server refuses to start without `SUPABASE_URL`, `SUPABASE_KEY`, an absolute `TRADEPAY_DB_FILE`, and a valid `ADMIN_KEY`.
 7. **Migrating an existing deployment**: if the service previously ran without a disk, copy its current `data/db.json` to `/var/data/db.json` before the cutover. Balances are no longer restored from Supabase metadata, so an empty state file means an empty ledger.
 8. **Verify persistence**: call `GET /health` and confirm `storage.durable` and `storage.ok` are both `true`. Then create a small test deposit or withdrawal, restart the service from the Render dashboard, and confirm the balance and ledger entry are still present.
 
@@ -126,7 +128,8 @@ The file store is designed for a **single instance**. If you need multiple insta
 
 ## 5. Security Notes
 
-- Never commit `data/db.json`, `.env` files, service-role keys, or webhook secrets.
+- Never commit `data/db.json`, `.env` files, service-role keys, webhook secrets, or the admin key.
+- The old `dev780@$$` admin key is public in git history. It is now rejected outright; set a unique `ADMIN_KEY` of at least 32 random characters and rotate it if any deployment ever used the old default. The admin console exchanges the key for a two-hour signed session and never stores the raw key in the browser.
 - The old demo bearer token and plaintext demo PIN still exist in git history. They were demo-only, but rotate any credential that was ever reused outside local development.
 - Order rewards are based on a self-attested 12-digit UTR. Claimed orders lock a 15-minute countdown; expired orders release back to the matching pool automatically.
 - Deposit creation only uses an active system-owned `isOfficial` wallet. If none is configured it returns an error rather than falling back to a user's UPI account.

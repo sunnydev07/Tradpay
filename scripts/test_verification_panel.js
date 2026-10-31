@@ -10,7 +10,7 @@ process.env.TRADEPAY_DB_FILE = path.join(tmpDir, 'db.json');
 process.env.ALLOW_SIMULATION = 'false';
 process.env.NODE_ENV = 'test';
 process.env.ADMIN_USER_IDS = 'admin-user-1';
-process.env.ADMIN_KEY = 'dev780@$$';
+process.env.ADMIN_KEY = 'test-admin-key-0123456789abcdef0123456789abcdef';
 
 const db = require('../server/engine/db');
 const orderEngine = require('../server/engine/orderEngine');
@@ -141,37 +141,71 @@ test('HTTP Admin Verification endpoints protect with admin key and execute verif
   const { port } = server.address();
   const baseUrl = `http://127.0.0.1:${port}`;
 
+  const adminKey = process.env.ADMIN_KEY;
+
   try {
     // 1. Unauthorized request without admin key or token
     const unauth = await fetch(`${baseUrl}/api/admin/orders/pending`);
     assert.equal(unauth.status, 403);
 
-    // 2. Authorized request with X-Admin-Key
-    const authReq = await fetch(`${baseUrl}/api/admin/orders/pending`, {
+    // 2. The old public default key must never authenticate.
+    const defaultKeyRes = await fetch(`${baseUrl}/api/admin/orders/pending`, {
       headers: { 'x-admin-key': 'dev780@$$' }
+    });
+    assert.equal(defaultKeyRes.status, 403);
+
+    // 3. The key must not be accepted from the query string.
+    const queryKeyRes = await fetch(
+      `${baseUrl}/api/admin/orders/pending?adminKey=${encodeURIComponent(adminKey)}`
+    );
+    assert.equal(queryKeyRes.status, 403);
+
+    // 4. Authorized request with X-Admin-Key
+    const authReq = await fetch(`${baseUrl}/api/admin/orders/pending`, {
+      headers: { 'x-admin-key': adminKey }
     });
     assert.equal(authReq.status, 200);
     const json = await authReq.json();
     assert.equal(json.code, 1000);
     assert.ok(Array.isArray(json.data.records));
 
-    // 3. Stats endpoint
+    // 5. Stats endpoint
     const statsRes = await fetch(`${baseUrl}/api/admin/stats`, {
-      headers: { 'x-admin-key': 'dev780@$$' }
+      headers: { 'x-admin-key': adminKey }
     });
     assert.equal(statsRes.status, 200);
     const statsJson = await statsRes.json();
     assert.equal(statsJson.code, 1000);
     assert.equal(typeof statsJson.data.pendingCount, 'number');
 
-    // 4. Verify Key endpoint
+    // 6. Verify Key endpoint exchanges the key for a short-lived session.
     const verifyKeyRes = await fetch(`${baseUrl}/api/admin/auth/verify-key`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'dev780@$$' })
+      body: JSON.stringify({ key: adminKey })
     });
     assert.equal(verifyKeyRes.status, 200);
-    assert.equal((await verifyKeyRes.json()).code, 1000);
+    const verifyJson = await verifyKeyRes.json();
+    assert.equal(verifyJson.code, 1000);
+    assert.ok(verifyJson.data.token, 'a session token must be returned');
+    assert.ok(verifyJson.data.expiresAt);
+
+    // 7. The session token works without sending the raw key again.
+    const sessionRes = await fetch(`${baseUrl}/api/admin/orders/pending`, {
+      headers: { 'x-admin-session': verifyJson.data.token }
+    });
+    assert.equal(sessionRes.status, 200);
+    assert.equal((await sessionRes.json()).code, 1000);
+
+    // 8. A tampered session token is rejected. Change the payload, not the
+    // final base64url character, so unused trailing bits cannot normalize it.
+    const tokenParts = verifyJson.data.token.split('.');
+    tokenParts[1] = (tokenParts[1][0] === 'a' ? 'b' : 'a') + tokenParts[1].slice(1);
+    const tampered = tokenParts.join('.');
+    const tamperedRes = await fetch(`${baseUrl}/api/admin/orders/pending`, {
+      headers: { 'x-admin-session': tampered }
+    });
+    assert.equal(tamperedRes.status, 403);
   } finally {
     await new Promise(resolve => server.close(resolve));
   }

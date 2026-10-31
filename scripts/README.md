@@ -21,6 +21,11 @@ financial fields, ledger credits are idempotent, and reconciliation matches.
 wallet, that a missing official wallet fails closed, and that USDT gateways stay
 disabled until a real, valid receiving address is configured.
 
+`test_admin_auth.js` verifies that admin access fails closed without a strong
+`ADMIN_KEY`, rejects the old public default, and only accepts correctly signed,
+unexpired session tokens. The verification-panel test also confirms that the key
+is ignored when supplied in the query string.
+
 ## Legacy scripts
 
 The remaining `test_*.js` files were written against the old unauthenticated

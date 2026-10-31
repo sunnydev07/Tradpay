@@ -6,6 +6,7 @@ const paymentEngine = require('../engine/paymentEngine');
 const supabaseService = require('../engine/supabaseService');
 const qrService = require('../engine/qrService');
 const auth = require('../engine/auth');
+const adminAuth = require('../engine/adminAuth');
 const security = require('../engine/security');
 const money = require('../engine/money');
 const ledger = require('../engine/ledger');
@@ -102,16 +103,25 @@ async function getOrAuthenticateAdmin(req) {
 }
 
 function requireAdmin(req, res) {
-  const adminKey = req.headers['x-admin-key'] || req.query.adminKey || (req.body && req.body.adminKey);
-  const configuredKey = process.env.ADMIN_KEY || process.env.ADMIN_SECRET || 'dev780@$$';
-  if (adminKey && String(adminKey).trim() === configuredKey) {
+  // Prefer the short-lived session token issued by /api/admin/auth/verify-key.
+  // The raw key is still accepted for CLI/API clients, but only as a header:
+  // never accept it from the query string, where it would leak into proxy
+  // logs, browser history, and referrer headers.
+  if (adminAuth.verifySessionToken(req.headers['x-admin-session'])) {
     return true;
   }
-  if (!security.isAdmin(req.user)) {
-    fail(res, 'Administrator access required', 403);
+  if (adminAuth.verifyKey(req.headers['x-admin-key'])) {
+    return true;
+  }
+  if (security.isAdmin(req.user)) {
+    return true;
+  }
+  if (!adminAuth.isConfigured()) {
+    fail(res, 'Admin access is not configured on this server', 503);
     return false;
   }
-  return true;
+  fail(res, 'Administrator access required', 403);
+  return false;
 }
 
 const PIN_ATTEMPTS = new Map();
@@ -1031,15 +1041,32 @@ router.post('/api/sim/spawn-order', async (req, res) => {
 // 6. ADMIN VERIFICATION PANEL CONSOLE API ENDPOINTS
 // -------------------------------------------------------------
 router.post('/api/admin/auth/verify-key', async (req, res) => {
-  const { key } = req.body || {};
-  const configuredKey = process.env.ADMIN_KEY || process.env.ADMIN_SECRET || 'dev780@$$';
-  if (key && String(key).trim() === configuredKey) {
-    return ok(res, { valid: true });
+  if (!adminAuth.isConfigured()) {
+    return fail(res, 'Admin access is not configured on this server', 503);
   }
+
+  const { key } = req.body || {};
+  if (adminAuth.verifyKey(key)) {
+    const session = adminAuth.createAdminSession();
+    if (!session) return fail(res, 'Admin access is not configured on this server', 503);
+    return ok(res, {
+      valid: true,
+      token: session.token,
+      expiresAt: session.expiresAt
+    });
+  }
+
   await getOrAuthenticateAdmin(req);
   if (security.isAdmin(req.user)) {
-    return ok(res, { valid: true });
+    const session = adminAuth.createAdminSession({ subject: req.user.id });
+    if (!session) return fail(res, 'Admin access is not configured on this server', 503);
+    return ok(res, {
+      valid: true,
+      token: session.token,
+      expiresAt: session.expiresAt
+    });
   }
+
   return fail(res, 'Invalid admin key or unauthorized user', 401);
 });
 
