@@ -1,6 +1,6 @@
 # TradePay Supabase Migration Plan — B′ (dedicated state project)
 
-**Status:** planning only. No Supabase project has been created, no Render env has been changed, and no code has been modified yet.
+**Status:** complete. Deployed on Render's free plan with the authoritative ledger in the dedicated Supabase state project; production login/logout, admin-key, restart, and persistence checks all passed. One manual follow-up: rotate the Render API key that was pasted into chat.
 
 **Repository:** `C:\Users\sunny\Desktop\TradePay`
 **Branch:** `main`
@@ -848,5 +848,9 @@ Do not reuse the exposed `a6zJ...` key or any placeholder.
 | 2026-11-01 | Phase 4 Code & Tests | Updated `server/engine/stateStore.js`, `render.yaml`, `README.md`, `supabase/schema.sql`. `npm run test:state-store` (8/8) and `npm test` (all suites) passed |
 | 2026-11-01 | Phase 5 Local E2E Verification | Ran production server on port 3100. `/health` returned healthy with `storage.backend: "supabase"`, `durable: true`, `ok: true`, `initialized: true`, revision 1793527355925. Cold restart verified identical revision. Client assets verified clean of secrets |
 | 2026-11-01 | Phase 6.1 Handoff Env File | Generated `C:\Users\sunny\.tradepay\render-env.txt` containing fresh 64-char `ADMIN_KEY` and all split project keys |
+| 2026-11-01 | Phase 6.2 Render Env & Deploy | Applied 8 env vars to service `srv-dbgf2v7b9u1s73c5sau0` via the Render API (added `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STATE_URL`, `SUPABASE_STATE_SERVICE_ROLE_KEY`, `ADMIN_USER_IDS`; replaced the 32-char `ADMIN_KEY` with a 64-char one; `TRADEPAY_DB_FILE` absent). Deploy `dep-dbjh1vajnfac73fvor00` of `5d00643` went live. `/health` reported `storage.backend: "supabase"`, `durable: true`, `ok: true`, `initialized: true`, revision 1793527355925 |
+| 2026-11-01 | Phase 6.3 Production E2E | Disposable Auth user: login advanced the state revision and added the server-owned user (balance 0); logout revoked the token (reuse returned 401); the leaked admin key was rejected (401 verify, 403 stats) while the new 64-char key authenticated; Render restart (uptime 183s -> 15s) kept the revision and the user; re-login returned the same user id and balance; total stayed 9226 with 84 ledger entries |
+| 2026-11-01 | Phase 6.4 Cleanup & Final Integrity | Removed the disposable user from the state snapshot (revision 1793527355936) and deleted the Auth user, then restarted. Final row matches `data/db.json` exactly: 29/29 user IDs, 3 funded, 9226 total, 22 wallets, 10 deposits, 20 withdrawals, 84 ledger entries. Old Auth project remains at 117 users |
+| 2026-11-01 | Outstanding: rotate Render API key | The key was pasted into chat. Render's public API has no key-management endpoint (`/v1/api-keys` returns 404), so rotate it manually in Render Dashboard -> Account Settings -> API Keys |
 
-When execution begins, append the new project ref, schema result, seed result, code commit SHA, Render deploy result, and health-check output here.
+Execution complete. The remaining manual action is the Render API key rotation noted above.
