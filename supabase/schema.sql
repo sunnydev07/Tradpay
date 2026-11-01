@@ -1,7 +1,8 @@
 -- ========================================================
 -- TRADEPAY SUPABASE DATABASE SCHEMA
--- Run this script in your Supabase Project SQL Editor
--- (https://supabase.com/dashboard/project/vhzfbacpvfjdpkthxvej/sql)
+-- Run this script in the dedicated state project's SQL Editor.
+-- Do not run it against the Auth project when that project's postgres
+-- role cannot authenticate; Auth does not need this schema.
 -- ========================================================
 
 -- 1. Profiles Table (Holds all user details visible to the project owner)

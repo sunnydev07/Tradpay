@@ -4,6 +4,7 @@ npm-debug.log
 extracted_apk/
 data/*.backup
 data/db.json
+data/*.json
 .env
 .env.*
 !.env.example

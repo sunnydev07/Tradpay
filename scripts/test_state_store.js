@@ -140,6 +140,8 @@ function runChild(env) {
         SUPABASE_URL: '',
         SUPABASE_KEY: '',
         SUPABASE_SERVICE_ROLE_KEY: '',
+        SUPABASE_STATE_URL: '',
+        SUPABASE_STATE_SERVICE_ROLE_KEY: '',
         ALLOW_SIMULATION: 'false',
         ...env
       }
@@ -194,7 +196,9 @@ test('state store reports incomplete Supabase configuration', () => {
     backend: process.env.TRADEPAY_STATE_BACKEND,
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY,
-    service: process.env.SUPABASE_SERVICE_ROLE_KEY
+    service: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    stateUrl: process.env.SUPABASE_STATE_URL,
+    stateService: process.env.SUPABASE_STATE_SERVICE_ROLE_KEY
   };
 
   try {
@@ -202,6 +206,8 @@ test('state store reports incomplete Supabase configuration', () => {
     process.env.SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_KEY = 'anon-key';
     process.env.SUPABASE_SERVICE_ROLE_KEY = '';
+    process.env.SUPABASE_STATE_URL = '';
+    process.env.SUPABASE_STATE_SERVICE_ROLE_KEY = '';
     assert.match(stateStore.getConfigError(), /SUPABASE_SERVICE_ROLE_KEY/);
 
     process.env.SUPABASE_URL = '';
@@ -211,6 +217,11 @@ test('state store reports incomplete Supabase configuration', () => {
     process.env.SUPABASE_KEY = '';
     assert.match(stateStore.getConfigError(), /SUPABASE_KEY/);
 
+    process.env.SUPABASE_KEY = 'anon-key';
+    process.env.SUPABASE_STATE_URL = 'https://state.example.supabase.co';
+    process.env.SUPABASE_STATE_SERVICE_ROLE_KEY = '';
+    assert.match(stateStore.getConfigError(), /SUPABASE_STATE_SERVICE_ROLE_KEY/);
+
     process.env.TRADEPAY_STATE_BACKEND = '';
     assert.equal(stateStore.getConfigError(), null);
   } finally {
@@ -218,7 +229,9 @@ test('state store reports incomplete Supabase configuration', () => {
       TRADEPAY_STATE_BACKEND: saved.backend,
       SUPABASE_URL: saved.url,
       SUPABASE_KEY: saved.key,
-      SUPABASE_SERVICE_ROLE_KEY: saved.service
+      SUPABASE_SERVICE_ROLE_KEY: saved.service,
+      SUPABASE_STATE_URL: saved.stateUrl,
+      SUPABASE_STATE_SERVICE_ROLE_KEY: saved.stateService
     })) {
       if (value === undefined) delete process.env[envKey];
       else process.env[envKey] = value;
@@ -261,6 +274,34 @@ test('Supabase backend survives a restart without the local cache', async (t) =>
   assert.equal(secondResult.balance, 4321.1);
   assert.equal(secondResult.totalBalance, 4321.1);
   assert.equal(secondResult.info.revision, Number(mock.row.revision));
+});
+
+test('state can live in a dedicated project while auth stays elsewhere', async (t) => {
+  const mock = await startMockSupabase();
+  const temp = makeTempDb();
+  t.after(async () => {
+    await mock.close();
+    temp.cleanup();
+  });
+
+  const result = await runChild({
+    TRADEPAY_STATE_BACKEND: 'supabase',
+    SUPABASE_URL: 'https://auth.invalid',
+    SUPABASE_KEY: 'auth-anon-key',
+    SUPABASE_SERVICE_ROLE_KEY: '',
+    SUPABASE_STATE_URL: mock.url,
+    SUPABASE_STATE_SERVICE_ROLE_KEY: 'state-service-key',
+    TRADEPAY_DB_FILE: temp.file,
+    TEST_BALANCE: '123.45',
+    TEST_FLUSH_REMOTE: '1'
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const parsed = parseChild(result);
+  assert.equal(parsed.info.backend, 'supabase');
+  assert.equal(parsed.balance, 123.45);
+  assert.ok(mock.row, 'dedicated state project must receive the seed');
+  assert.equal(mock.row.state.users['10086'].balance, 123.45);
 });
 
 test('Supabase read failure aborts startup instead of starting empty', async (t) => {

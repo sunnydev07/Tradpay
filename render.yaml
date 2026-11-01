@@ -17,12 +17,21 @@ services:
         value: 10000
       - key: TRADEPAY_STATE_BACKEND
         value: supabase
+      # Auth project. These stay pointed at the project that holds existing
+      # Supabase Auth users; changing them invalidates current logins.
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
         sync: false
-      # Server-only. Never expose this key to the browser.
+      # Server-only. Used for Auth admin metadata sync. Optional when a
+      # dedicated state project is configured below.
       - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Dedicated state project. The authoritative ledger snapshot lives here.
+      # SUPABASE_STATE_URL and its service key are server-only.
+      - key: SUPABASE_STATE_URL
+        sync: false
+      - key: SUPABASE_STATE_SERVICE_ROLE_KEY
         sync: false
       - key: ADMIN_USER_IDS
         sync: false

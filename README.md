@@ -67,14 +67,16 @@ npm test
 
 Visit [http://localhost:3000](http://localhost:3000) in your browser. Authentication needs a Supabase project; set `SUPABASE_URL` and `SUPABASE_KEY` before starting, otherwise login and registration return 503. The server loads `.env` automatically when the file exists, but variables already set by the shell, Render, or CI take precedence.
 
-Runtime state is stored in `data/db.json` by default. For hosting without a persistent disk (including Render's free plan), set `TRADEPAY_STATE_BACKEND=supabase` to keep the server-authoritative snapshot in `public.tradepay_state`; the local file then becomes only a cache. Do not commit either store (the DB file is gitignored). Test-script guidance is in [`scripts/README.md`](scripts/README.md).
+Runtime state is stored in `data/db.json` by default. For hosting without a persistent disk (including Render's free plan), set `TRADEPAY_STATE_BACKEND=supabase` to keep the server-authoritative snapshot in `public.tradepay_state`; the local file then becomes only a cache. If Auth lives in a different Supabase project, also set `SUPABASE_STATE_URL` and `SUPABASE_STATE_SERVICE_ROLE_KEY` so state writes go to the dedicated state project. Do not commit either store (the DB file is gitignored). Test-script guidance is in [`scripts/README.md`](scripts/README.md).
 
 ### Environment Variables
 
 | Variable | Purpose |
 | :--- | :--- |
-| `SUPABASE_URL` / `SUPABASE_KEY` | Required. Supabase project URL and anon/publishable key; there is no hardcoded fallback |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only service-role key. Required when `TRADEPAY_STATE_BACKEND=supabase`; never exposed to clients |
+| `SUPABASE_URL` / `SUPABASE_KEY` | Required. Auth project URL and anon/publishable key; there is no hardcoded fallback. Changing these invalidates existing logins |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only service-role key for the Auth project. Used for Auth admin metadata sync; never exposed to clients |
+| `SUPABASE_STATE_URL` | Optional dedicated state project URL. When set, the ledger snapshot is stored in this project instead of `SUPABASE_URL` |
+| `SUPABASE_STATE_SERVICE_ROLE_KEY` | Server-only service-role/secret key for the dedicated state project. Required when `SUPABASE_STATE_URL` is set; never exposed to clients |
 | `ADMIN_KEY` | Admin console secret. Required in production; at least 32 random characters. The server rejects the old `dev780@$$` default and refuses to start without a valid key |
 | `ADMIN_USER_IDS` | Comma-separated user ids allowed to call admin endpoints without the admin key |
 | `CORS_ORIGINS` | Comma-separated extra origins; same-origin is always allowed |
@@ -91,11 +93,13 @@ Runtime state is stored in `data/db.json` by default. For hosting without a pers
 
 ## 4. Render & Supabase Deployment (Production Guide)
 
-### Step 1: Initialize Supabase Database
-1. Open the [Supabase Dashboard](https://supabase.com/dashboard).
-2. Navigate to your project -> **SQL Editor**.
-3. Open [`supabase/schema.sql`](supabase/schema.sql), copy its entire content, paste into the SQL editor, and click **Run**.
-4. This idempotently provisions the supporting tables:
+### Step 1: Initialize the state project
+The app supports one Supabase project for both Auth and state, or a split layout with two projects. Use the split layout when the Auth project already has users whose passwords cannot be migrated — for example, when that project's `postgres` role cannot authenticate and DDL is unavailable.
+
+- **Auth project:** keeps `SUPABASE_URL`, `SUPABASE_KEY`, and optionally `SUPABASE_SERVICE_ROLE_KEY`. Do not run `supabase/schema.sql` here unless it is also the state project.
+- **State project:** a separate free project. Run [`supabase/schema.sql`](supabase/schema.sql) here in the SQL Editor (or through the Management API `/database/query` endpoint).
+
+The schema idempotently provisions the supporting tables:
    - `public.profiles` with historical profile columns. These columns are **not** the source of truth for money; the server ledger owns balances.
    - `public.wallets` with user associations, status, and turnover tracking.
    - `public.deposits` with UTR validation and indexes (`idx_deposits_user_id`, `idx_deposits_utr`, `idx_deposits_status`).
@@ -109,18 +113,20 @@ Runtime state is stored in `data/db.json` by default. For hosting without a pers
 1. Push to your GitHub repository.
 2. In [Render Dashboard](https://dashboard.render.com), select **New +** -> **Blueprint**.
 3. Connect your repository. Render will automatically detect `render.yaml`.
-4. In Supabase, open **Project Settings -> API** and copy the `service_role` secret. This key bypasses RLS, so store it only in Render's environment. Never put it in browser code, `SUPABASE_KEY`, or a committed file.
+4. In the **state** project, open **Project Settings -> API** and copy the `service_role`/secret key. This key bypasses RLS, so store it only in Render's environment. Never put it in browser code, `SUPABASE_KEY`, or a committed file.
 5. Set these environment variables in Render:
-   - `SUPABASE_URL`: `https://<your-project>.supabase.co`
-   - `SUPABASE_KEY`: `<your-supabase-anon-key>`
-   - `SUPABASE_SERVICE_ROLE_KEY`: `<service-role-key>` (server-only; required)
+   - `SUPABASE_URL`: Auth project URL, `https://<auth-project>.supabase.co`
+   - `SUPABASE_KEY`: Auth project anon/publishable key
+   - `SUPABASE_SERVICE_ROLE_KEY`: Auth project service/secret key (optional; keep it if Auth admin metadata sync is desired)
+   - `SUPABASE_STATE_URL`: state project URL, `https://<state-project>.supabase.co`
+   - `SUPABASE_STATE_SERVICE_ROLE_KEY`: state project service/secret key (server-only; required)
    - `ADMIN_KEY`: `<random-admin-secret>` (at least 32 characters; generate with `openssl rand -hex 32`)
    - `ADMIN_USER_IDS`: `<your-supabase-user-id>`
    - `PAYMENT_WEBHOOK_SECRET`: `<random-hmac-secret>` (optional until a PSP is connected)
    - `CORS_ORIGINS`: `https://your-custom-domain.example` (optional)
    - `PUBLIC_BASE_URL`: `https://your-service.onrender.com`
-6. Click **Apply** and deploy the latest `main`. In production the server refuses to start when `TRADEPAY_STATE_BACKEND=supabase` is set without all three Supabase values, or when neither the Supabase backend nor an absolute `TRADEPAY_DB_FILE` is configured. It also requires a valid `ADMIN_KEY`.
-7. **Migrating existing balances**: an empty `tradepay_state` table is seeded once from the local cache (`TRADEPAY_DB_FILE`) or the default zero-balance state. To move an existing ledger, run the server locally once with the old `TRADEPAY_DB_FILE`, `TRADEPAY_STATE_BACKEND=supabase`, and the three Supabase variables, then confirm the row in `public.tradepay_state` before deploying. If the row already exists, the local file is ignored because Supabase is authoritative.
+6. Click **Apply** and deploy the latest `main`. In production the server refuses to start when `TRADEPAY_STATE_BACKEND=supabase` is set without the Auth URL/key and either a dedicated state URL/key or the legacy single-project service key, or when neither the Supabase backend nor an absolute `TRADEPAY_DB_FILE` is configured. It also requires a valid `ADMIN_KEY`.
+7. **Migrating existing balances**: an empty `tradepay_state` table is seeded once from the local cache (`TRADEPAY_DB_FILE`) or the default zero-balance state. To move an existing ledger without starting Render first, seed the state project from the local file (`npm start` locally with `TRADEPAY_DB_FILE=data/db.json` and the state variables), or POST the snapshot to the `save_tradepay_state` RPC. Confirm the row in `public.tradepay_state` before deploying. If the row already exists, the local file is ignored because Supabase is authoritative.
 8. **Verify persistence**: call `GET /health` and confirm the response contains:
    ```json
    "storage": {

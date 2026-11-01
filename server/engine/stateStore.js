@@ -1,3 +1,4 @@
+const { createClient } = require('@supabase/supabase-js');
 const supabaseService = require('./supabaseService');
 
 const TABLE = 'tradepay_state';
@@ -20,17 +21,49 @@ function getConfigError() {
   if (!String(process.env.SUPABASE_KEY || '').trim()) {
     return 'TRADEPAY_STATE_BACKEND=supabase requires SUPABASE_KEY';
   }
-  if (!String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()) {
+
+  const stateUrl = String(process.env.SUPABASE_STATE_URL || '').trim();
+  if (stateUrl) {
+    // A dedicated state project must use its own service key. Never send the
+    // Auth project's service key to a different project.
+    if (!String(process.env.SUPABASE_STATE_SERVICE_ROLE_KEY || '').trim()) {
+      return 'SUPABASE_STATE_URL requires SUPABASE_STATE_SERVICE_ROLE_KEY (server-only)';
+    }
+  } else if (!String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()) {
     return 'TRADEPAY_STATE_BACKEND=supabase requires SUPABASE_SERVICE_ROLE_KEY (server-only)';
   }
+
   return null;
 }
 
+let dedicatedStateClient = null;
+let dedicatedStateClientConfig = '';
+
+function getStateClient() {
+  const stateUrl = String(process.env.SUPABASE_STATE_URL || '').trim();
+
+  // Backward compatibility: one project for Auth and state.
+  if (!stateUrl) {
+    return supabaseService.getAdminClient();
+  }
+
+  const stateKey = String(process.env.SUPABASE_STATE_SERVICE_ROLE_KEY || '').trim();
+  if (!stateKey) return null;
+
+  const configKey = `${stateUrl}\u0000${stateKey}`;
+  if (!dedicatedStateClient || dedicatedStateClientConfig !== configKey) {
+    dedicatedStateClient = createClient(stateUrl, stateKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      // Bound state requests so startup cannot hang indefinitely.
+      db: { timeout: 20000 }
+    });
+    dedicatedStateClientConfig = configKey;
+  }
+  return dedicatedStateClient;
+}
+
 function isEnabled() {
-  if (!isSupabaseRequested() || getConfigError()) return false;
-  // getAdminClient() uses the service-role key and is the only client allowed
-  // to read or write the authoritative state row.
-  return Boolean(supabaseService.getAdminClient());
+  return Boolean(isSupabaseRequested() && !getConfigError() && getStateClient());
 }
 
 function getTable() {
@@ -42,9 +75,9 @@ function getId() {
 }
 
 async function load() {
-  const client = supabaseService.getAdminClient();
+  const client = getStateClient();
   if (!client) {
-    throw new Error('Supabase admin client is not configured');
+    throw new Error('Supabase state client is not configured');
   }
 
   const { data, error } = await client
@@ -63,9 +96,9 @@ async function load() {
 }
 
 async function save(state, revision) {
-  const client = supabaseService.getAdminClient();
+  const client = getStateClient();
   if (!client) {
-    throw new Error('Supabase admin client is not configured');
+    throw new Error('Supabase state client is not configured');
   }
 
   const { data, error } = await client.rpc('save_tradepay_state', {
