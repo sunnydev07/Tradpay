@@ -17,6 +17,11 @@ services:
         value: 10000
       - key: TRADEPAY_STATE_BACKEND
         value: supabase
+      # Each simulated order saves the full ledger snapshot (~380 KB). On the
+      # free Supabase plan that egress adds up quickly, so keep the sample
+      # order generator off unless the pool needs refilling.
+      - key: ALLOW_SIMULATION
+        value: "false"
       # Auth project. These stay pointed at the project that holds existing
       # Supabase Auth users; changing them invalidates current logins.
       - key: SUPABASE_URL

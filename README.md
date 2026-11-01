@@ -86,7 +86,7 @@ Runtime state is stored in `data/db.json` by default. For hosting without a pers
 | `TRADEPAY_DB_FILE` | Absolute path to the local/cached runtime state file. Required in production only when the Supabase backend is not enabled; use `/var/data/db.json` with a Render disk |
 | `ALLOW_EPHEMERAL_STORAGE` | Set `true` only for disposable previews to bypass the production durable-storage check |
 | `USDT_TRC20_ADDRESS` / `USDT_BSC_ADDRESS` / `USDT_POLYGON_ADDRESS` | Real USDT receiving addresses. USDT deposits stay disabled until at least one valid address is set |
-| `ALLOW_SIMULATION` | Set `false` to disable sample order generation |
+| `ALLOW_SIMULATION` | Set `false` to disable sample order generation. Recommended on the free Supabase state backend: every simulated order writes a full ~380 KB snapshot, which can exhaust the free egress quota |
 | `BONUS_TIMEZONE` | Timezone for the night-bonus window (default `Asia/Kolkata`) |
 
 ---
