@@ -1519,6 +1519,43 @@ router.post(['/api/admin/transaction/delete', '/admin/transaction/delete'], asyn
   }
 });
 
+router.post(
+  [
+    '/api/admin/transaction/edit',
+    '/admin/transaction/edit',
+    '/api/admin/transaction/edit-amount',
+    '/admin/transaction/edit-amount'
+  ],
+  async (req, res) => {
+    await getOrAuthenticateAdmin(req);
+    if (!requireAdmin(req, res)) return;
+    const { type, id, newAmount, newStatus, newUtr, adjustUserBalance = true, reason } = req.body || {};
+    if (!type || !id) return fail(res, 'Transaction type and id are required', 400);
+    if (newAmount == null || Number(newAmount) <= 0) {
+      return fail(res, 'Valid positive newAmount is required', 400);
+    }
+    try {
+      const result = paymentEngine.editTransaction({
+        type,
+        id,
+        newAmount: Number(newAmount),
+        newStatus,
+        newUtr,
+        adjustUserBalance: Boolean(adjustUserBalance),
+        adminId: req.user?.id || 'admin',
+        reason
+      });
+      return ok(
+        res,
+        result,
+        `Transaction ${id} (${type}) amount successfully updated to ₹${newAmount}${adjustUserBalance ? ' (user balance adjusted)' : ''}`
+      );
+    } catch (err) {
+      return fail(res, err.message, 400);
+    }
+  }
+);
+
 router.get(['/api/admin/auth/dev-hint', '/admin/auth/dev-hint'], (req, res) => {
   const isDev = process.env.NODE_ENV !== 'production';
   const configured = adminAuth.validateConfiguredKey();

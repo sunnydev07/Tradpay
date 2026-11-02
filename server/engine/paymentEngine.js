@@ -1074,6 +1074,310 @@ function deleteTransaction({ type, id, adminId = 'admin', refundHold = true }) {
 }
 
 /**
+ * 9b. EDIT TRANSACTION: Admin modifies the amount, status, or details of any transaction
+ * (deposit, withdrawal, order, ledger), immediately reflecting in the user's history and balance.
+ */
+function editTransaction({
+  type,
+  id,
+  newAmount,
+  newStatus,
+  newUtr,
+  adjustUserBalance = true,
+  adminId = 'admin',
+  reason = ''
+}) {
+  if (!type || !id) throw new Error('Transaction type and ID are required');
+  const numericAmount = Number(newAmount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new Error('Valid positive amount is required');
+  }
+
+  const state = db.get();
+  const cleanId = String(id).trim();
+  let found = false;
+  let affectedUserId = null;
+  let oldAmount = 0;
+  let updatedRecord = null;
+  let delta = 0;
+
+  if (type === 'deposit') {
+    const depKey = Object.keys(state.deposits || {}).find(
+      k => k === cleanId || state.deposits[k]?.id === cleanId || state.deposits[k]?.depositId === cleanId
+    );
+    if (!depKey || !state.deposits[depKey]) {
+      throw new Error(`Deposit "${id}" not found`);
+    }
+    const dep = state.deposits[depKey];
+    affectedUserId = dep.userId;
+    oldAmount = Number(dep.amount) || 0;
+    delta = money.subtract(numericAmount, oldAmount);
+
+    dep.amount = numericAmount;
+    if (dep.originalAmount == null) dep.originalAmount = oldAmount;
+    if (newStatus && typeof newStatus === 'string') dep.status = newStatus;
+    if (newUtr && typeof newUtr === 'string') dep.utr = newUtr.trim();
+    dep.updatedAt = new Date().toISOString();
+    dep.adminEdited = {
+      adminId,
+      editedAt: new Date().toISOString(),
+      oldAmount,
+      newAmount: numericAmount,
+      reason
+    };
+
+    // User balance adjustment if deposit is completed
+    const user = state.users[affectedUserId];
+    if (user && adjustUserBalance && dep.status === 'completed' && delta !== 0) {
+      if (delta > 0) {
+        ledger.credit(state, user.id, delta, {
+          type: 'admin_deposit_adjust_credit',
+          refType: 'deposit',
+          refId: dep.id,
+          actorId: adminId,
+          reason: reason || `Admin adjusted deposit #${dep.id} from ₹${oldAmount} to ₹${numericAmount}`
+        });
+      } else {
+        ledger.debit(state, user.id, Math.abs(delta), {
+          type: 'admin_deposit_adjust_debit',
+          refType: 'deposit',
+          refId: dep.id,
+          actorId: adminId,
+          reason: reason || `Admin adjusted deposit #${dep.id} from ₹${oldAmount} to ₹${numericAmount}`
+        });
+      }
+      user.totalDeposited = Math.max(0, money.add(user.totalDeposited || 0, delta));
+    }
+
+    // Update associated ledger entry if present
+    if (state.ledger?.entries) {
+      const depLedger = state.ledger.entries.find(
+        e => e.refId === dep.id || e.refId === dep.depositId || e.referenceId === dep.id || e.referenceId === dep.depositId
+      );
+      if (depLedger) depLedger.amount = numericAmount;
+    }
+
+    found = true;
+    updatedRecord = dep;
+  } else if (type === 'withdrawal') {
+    const wthKey = Object.keys(state.withdrawals || {}).find(
+      k => k === cleanId || state.withdrawals[k]?.id === cleanId || state.withdrawals[k]?.withdrawalId === cleanId
+    );
+    if (!wthKey || !state.withdrawals[wthKey]) {
+      throw new Error(`Withdrawal "${id}" not found`);
+    }
+    const wth = state.withdrawals[wthKey];
+    affectedUserId = wth.userId;
+    oldAmount = Number(wth.amount) || 0;
+    delta = money.subtract(numericAmount, oldAmount);
+
+    wth.amount = numericAmount;
+    if (wth.originalAmount == null) wth.originalAmount = oldAmount;
+    if (newStatus && typeof newStatus === 'string') wth.status = newStatus;
+    if (newUtr && typeof newUtr === 'string') wth.txRef = newUtr.trim();
+    wth.updatedAt = new Date().toISOString();
+    wth.adminEdited = {
+      adminId,
+      editedAt: new Date().toISOString(),
+      oldAmount,
+      newAmount: numericAmount,
+      reason
+    };
+
+    const user = state.users[affectedUserId];
+    if (user && adjustUserBalance) {
+      if (wth.status === 'pending') {
+        if (delta < 0) {
+          const reduction = Math.abs(delta);
+          ledger.apply(state, {
+            type: 'withdrawal_amount_reduced',
+            userId: user.id,
+            amount: reduction,
+            availableDelta: reduction,
+            pendingDelta: money.multiply(reduction, -1),
+            refType: 'withdrawal',
+            refId: wth.id,
+            actorId: adminId,
+            reason: reason || `Admin reduced withdrawal #${wth.id} from ₹${oldAmount} to ₹${numericAmount}`
+          });
+        } else if (delta > 0) {
+          const addition = delta;
+          if (user.balance < addition) {
+            ledger.credit(state, user.id, money.subtract(addition, user.balance), {
+              type: 'admin_credit_withdrawal_cover',
+              refType: 'withdrawal',
+              refId: wth.id,
+              actorId: adminId,
+              reason: 'Auto credit to cover withdrawal increase'
+            });
+          }
+          ledger.apply(state, {
+            type: 'withdrawal_amount_increased',
+            userId: user.id,
+            amount: addition,
+            availableDelta: money.multiply(addition, -1),
+            pendingDelta: addition,
+            refType: 'withdrawal',
+            refId: wth.id,
+            actorId: adminId,
+            reason: reason || `Admin increased withdrawal #${wth.id} from ₹${oldAmount} to ₹${numericAmount}`
+          });
+        }
+      } else if (wth.status === 'completed' && delta !== 0) {
+        if (delta > 0) {
+          ledger.debit(state, user.id, delta, {
+            type: 'admin_withdrawal_adjust_debit',
+            refType: 'withdrawal',
+            refId: wth.id,
+            actorId: adminId,
+            reason: reason || `Admin increased settled withdrawal #${wth.id} from ₹${oldAmount} to ₹${numericAmount}`
+          });
+        } else {
+          ledger.credit(state, user.id, Math.abs(delta), {
+            type: 'admin_withdrawal_adjust_credit',
+            refType: 'withdrawal',
+            refId: wth.id,
+            actorId: adminId,
+            reason: reason || `Admin reduced settled withdrawal #${wth.id} from ₹${oldAmount} to ₹${numericAmount}`
+          });
+        }
+        user.totalWithdrawn = Math.max(0, money.add(user.totalWithdrawn || 0, delta));
+      }
+    }
+
+    if (state.ledger?.entries) {
+      const wthLedger = state.ledger.entries.find(
+        e => e.refId === wth.id || e.refId === wth.withdrawalId
+      );
+      if (wthLedger) wthLedger.amount = numericAmount;
+    }
+
+    found = true;
+    updatedRecord = wth;
+  } else if (type === 'order') {
+    const orderKey = Object.keys(state.claimedOrders || {}).find(
+      k => k === cleanId || state.claimedOrders[k]?.buyId === cleanId || state.claimedOrders[k]?.orderNo === cleanId || state.claimedOrders[k]?.id === cleanId
+    );
+    if (!orderKey || !state.claimedOrders[orderKey]) {
+      throw new Error(`Order "${id}" not found`);
+    }
+    const order = state.claimedOrders[orderKey];
+    affectedUserId = order.userId;
+    oldAmount = Number(order.amount) || 0;
+    delta = money.subtract(numericAmount, oldAmount);
+
+    order.amount = numericAmount;
+    if (order.originalAmount == null) order.originalAmount = oldAmount;
+    if (newStatus && typeof newStatus === 'string') order.status = newStatus;
+    if (newUtr && typeof newUtr === 'string') order.utr = newUtr.trim();
+    if (order.totalReward != null) {
+      order.totalReward = Math.round(numericAmount * 0.05 * 100) / 100;
+    }
+    order.updatedAt = new Date().toISOString();
+    order.adminEdited = {
+      adminId,
+      editedAt: new Date().toISOString(),
+      oldAmount,
+      newAmount: numericAmount,
+      reason
+    };
+
+    const user = state.users[affectedUserId];
+    if (user && Array.isArray(user.claimedOrders)) {
+      const o = user.claimedOrders.find(
+        x => x.buyId === cleanId || x.orderNo === cleanId || x.id === cleanId
+      );
+      if (o) {
+        o.amount = numericAmount;
+        if (order.totalReward != null) o.totalReward = order.totalReward;
+        if (newStatus) o.status = newStatus;
+      }
+    }
+
+    if (user && adjustUserBalance && order.status === 'completed' && delta !== 0) {
+      if (delta > 0) {
+        ledger.credit(state, user.id, delta, {
+          type: 'admin_order_adjust_credit',
+          refType: 'order',
+          refId: order.buyId || order.id,
+          actorId: adminId,
+          reason: reason || `Admin adjusted match order amount from ₹${oldAmount} to ₹${numericAmount}`
+        });
+      } else {
+        ledger.debit(state, user.id, Math.abs(delta), {
+          type: 'admin_order_adjust_debit',
+          refType: 'order',
+          refId: order.buyId || order.id,
+          actorId: adminId,
+          reason: reason || `Admin adjusted match order amount from ₹${oldAmount} to ₹${numericAmount}`
+        });
+      }
+    }
+
+    found = true;
+    updatedRecord = order;
+  } else if (type === 'ledger') {
+    if (state.ledger?.entries) {
+      const entry = state.ledger.entries.find(e => e.id === cleanId);
+      if (!entry) throw new Error(`Ledger entry "${id}" not found`);
+      affectedUserId = entry.userId;
+      oldAmount = Number(entry.amount) || 0;
+      entry.amount = numericAmount;
+      entry.updatedAt = new Date().toISOString();
+      found = true;
+      updatedRecord = entry;
+    }
+  } else {
+    throw new Error(`Unsupported transaction type: "${type}"`);
+  }
+
+  if (!found) {
+    throw new Error(`Transaction of type "${type}" with ID "${id}" was not found`);
+  }
+
+  db.save();
+
+  if (affectedUserId && state.users[affectedUserId]) {
+    const user = state.users[affectedUserId];
+    try {
+      const supabaseService = require('./supabaseService');
+      supabaseService.syncUserData(user).catch(() => {});
+    } catch (e) {}
+
+    broadcast('BALANCE_UPDATED', {
+      userId: user.id,
+      balance: user.balance,
+      totalBalance: user.totalBalance,
+      delta,
+      type: 'transaction_amount_adjusted'
+    });
+  }
+
+  broadcast('TRANSACTION_UPDATED', {
+    type,
+    id: cleanId,
+    userId: affectedUserId,
+    oldAmount,
+    newAmount: numericAmount,
+    status: updatedRecord.status,
+    adminId,
+    timestamp: new Date().toISOString()
+  });
+
+  return {
+    success: true,
+    type,
+    id: cleanId,
+    oldAmount,
+    newAmount: numericAmount,
+    delta,
+    status: updatedRecord.status,
+    affectedUserId,
+    userBalance: state.users[affectedUserId]?.balance
+  };
+}
+
+/**
  * 10. GET ALL USERS FOR ADMIN: Full details, balances, order counts, deposit/withdrawal summaries
  */
 function getAllUsersForAdmin(search = '') {
@@ -1424,6 +1728,7 @@ module.exports = {
   updateUserDetails,
   eraseUser,
   deleteTransaction,
+  editTransaction,
   getAllUsersForAdmin,
   getUserDetailsForAdmin,
   getAllUnifiedTransactionsForAdmin,

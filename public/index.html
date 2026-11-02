@@ -3252,7 +3252,12 @@
                     summary.balance = data.payload.balance;
                     user.balance = data.payload.balance;
                   }
-
+                  fetchTransactionsHistory(true);
+                  fetchUserInfo();
+                } else if (data.type === 'TRANSACTION_UPDATED' || data.type === 'TRANSACTION_DELETED') {
+                  fetchTransactionsHistory(true);
+                  fetchUserInfo();
+                  fetchSummary();
                 } else if (data.type === 'ORDER_REJECTED') {
                   if (activeClaimedOrder.value && activeClaimedOrder.value.buyId === data.payload?.buyId) {
                     activeClaimedOrder.value = {

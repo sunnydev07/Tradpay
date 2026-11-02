@@ -332,6 +332,24 @@ test('HTTP admin routes for users, balance, withdrawal edit and transaction dele
     assert.equal(txJson.code, 1000);
     assert.ok(txJson.data.records.some(t => t.id === 'WTH_HTTP_1'));
 
+    // 5b. POST /api/admin/transaction/edit - Admin edits transaction amount
+    const editTxRes = await fetch(`${baseUrl}/api/admin/transaction/edit`, {
+      method: 'POST',
+      headers: adminHeaders,
+      body: JSON.stringify({
+        type: 'withdrawal',
+        id: 'WTH_HTTP_1',
+        newAmount: 450,
+        adjustUserBalance: true,
+        reason: 'Adjusting to ₹450'
+      })
+    });
+    assert.equal(editTxRes.status, 200);
+    const editTxJson = await editTxRes.json();
+    assert.equal(editTxJson.code, 1000);
+    assert.equal(editTxJson.data.newAmount, 450);
+    assert.equal(state.withdrawals['WTH_HTTP_1'].amount, 450);
+
     // 6. POST /api/admin/transaction/delete
     const delRes = await fetch(`${baseUrl}/api/admin/transaction/delete`, {
       method: 'POST',
@@ -419,4 +437,99 @@ test('admin can completely erase a user and all their associated records from th
 
   // Verify token is revoked
   assert.ok(state.revokedTokens[userId], 'Tokens must be revoked');
+});
+
+test('admin can manipulate transaction history amounts and details which reflects immediately in user history', () => {
+  db.reset();
+  const state = db.get();
+
+  const userId = 'trader-tx-manipulate-6';
+  state.users[userId] = {
+    id: userId,
+    userId,
+    phone: '9666555444',
+    nickname: 'ManipulateTrader',
+    balance: 5000.00,
+    totalBalance: 5000.00,
+    totalDeposited: 40000.00,
+    totalWithdrawn: 164.00
+  };
+
+  // 1. Create a completed Deposit of ₹40,000 (just like in the user screenshot!)
+  state.deposits['DEP_MAN_1'] = {
+    id: 'DEP_MAN_1',
+    depositId: 'DEP_MAN_1',
+    userId,
+    amount: 40000,
+    status: 'completed',
+    utr: '998877665544',
+    createdAt: new Date().toISOString()
+  };
+
+  // 2. Create a completed Withdrawal of ₹164 (just like in the user screenshot!)
+  state.withdrawals['WTH_MAN_1'] = {
+    id: 'WTH_MAN_1',
+    withdrawalId: 'WTH_MAN_1',
+    userId,
+    amount: 164,
+    status: 'completed',
+    txRef: 'IMPS164164',
+    createdAt: new Date().toISOString()
+  };
+
+  // Initial user history verification
+  const initialHistory = paymentEngine.getUserUnifiedTransactions(userId);
+  const depBefore = initialHistory.find(t => t.id === 'DEP_MAN_1');
+  const wthBefore = initialHistory.find(t => t.id === 'WTH_MAN_1');
+  assert.equal(depBefore.amount, 40000);
+  assert.equal(wthBefore.amount, 164);
+
+  // 3. Admin edits deposit amount from ₹40,000 to ₹50,000
+  const editDepResult = paymentEngine.editTransaction({
+    type: 'deposit',
+    id: 'DEP_MAN_1',
+    newAmount: 50000,
+    adjustUserBalance: true,
+    reason: 'Bank statement corrected to ₹50,000'
+  });
+  assert.equal(editDepResult.success, true);
+  assert.equal(editDepResult.newAmount, 50000);
+  assert.equal(editDepResult.oldAmount, 40000);
+  // User balance increased by delta ₹10,000: 5000 + 10000 = 15000
+  assert.equal(state.users[userId].balance, 15000);
+  assert.equal(state.users[userId].totalDeposited, 50000);
+
+  // 4. Admin edits withdrawal amount from ₹164 to ₹500
+  const editWthResult = paymentEngine.editTransaction({
+    type: 'withdrawal',
+    id: 'WTH_MAN_1',
+    newAmount: 500,
+    adjustUserBalance: true,
+    reason: 'Corrected payout amount to ₹500'
+  });
+  assert.equal(editWthResult.success, true);
+  assert.equal(editWthResult.newAmount, 500);
+  assert.equal(editWthResult.oldAmount, 164);
+  // Difference is ₹336 (withdrew more, so balance debited): 15000 - 336 = 14664
+  assert.equal(state.users[userId].balance, 14664);
+  assert.equal(state.users[userId].totalWithdrawn, 500);
+
+  // 5. CRITICAL: Verify that the user's transaction history IMMEDIATELY reflects the new amounts!
+  const updatedHistory = paymentEngine.getUserUnifiedTransactions(userId);
+  const depAfter = updatedHistory.find(t => t.id === 'DEP_MAN_1');
+  const wthAfter = updatedHistory.find(t => t.id === 'WTH_MAN_1');
+  assert.equal(depAfter.amount, 50000, 'Deposit in user history must reflect new amount of ₹50,000');
+  assert.equal(wthAfter.amount, 500, 'Withdrawal in user history must reflect new amount of ₹500');
+
+  // 6. Admin edits without adjusting balance (pure display / record correction)
+  paymentEngine.editTransaction({
+    type: 'deposit',
+    id: 'DEP_MAN_1',
+    newAmount: 52000,
+    adjustUserBalance: false,
+    reason: 'Display correction only'
+  });
+  assert.equal(state.users[userId].balance, 14664, 'User balance must remain unchanged when adjustUserBalance is false');
+  const finalHistory = paymentEngine.getUserUnifiedTransactions(userId);
+  assert.equal(finalHistory.find(t => t.id === 'DEP_MAN_1').amount, 52000, 'User history must show ₹52,000');
 });
