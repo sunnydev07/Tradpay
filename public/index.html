@@ -267,10 +267,11 @@
 
     ::-webkit-scrollbar { display: none; }
     * { -ms-overflow-style: none; scrollbar-width: none; }
+    [v-cloak] { display: none !important; }
   </style>
 </head>
 <body>
-  <div id="app" class="app-container">
+  <div id="app" v-cloak class="app-container">
     <!-- Top Header Bar -->
     <header class="sticky top-0 z-40 bg-[#1B1B1B]/95 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center justify-between gap-2">
       <div class="header-brand flex items-center gap-2">
@@ -1068,7 +1069,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 0: ACCOUNT AUTH -->
     <!-- ======================================================== -->
-    <div v-if="modals.auth.show" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.auth.show" @click.self="modals.auth.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-6 border border-[#F2D7A5]/30 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
@@ -1166,7 +1167,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 1: CLAIM ORDER & WALLET PICKER -->
     <!-- ======================================================== -->
-    <div v-if="modals.claim.show" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div v-if="modals.claim.show" @click.self="modals.claim.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[480px] bg-[#242424] rounded-t-3xl sm:rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
@@ -1200,7 +1201,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 2: INR ORDER DETAILS (WITH PAYEE QR ATTACHMENT) -->
     <!-- ======================================================== -->
-    <div v-if="modals.inrOrder.show" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.inrOrder.show" @click.self="modals.inrOrder.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[440px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/30 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
@@ -1381,7 +1382,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 2.5: ORDER QR FULLSCREEN LIGHTBOX -->
     <!-- ======================================================== -->
-    <div v-if="modals.orderQr.show" class="modal-overlay fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.orderQr.show" @click.self="modals.orderQr.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
@@ -1418,7 +1419,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 3: ADD WALLET -->
     <!-- ======================================================== -->
-    <div v-if="modals.addWallet.show" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="modals.addWallet.show" @click.self="modals.addWallet.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">Add Receiving Wallet / UPI</h3>
@@ -1471,7 +1472,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 4: USDT RECHARGE -->
     <!-- ======================================================== -->
-    <div v-if="modals.usdt.show && summary.usdtEnabled" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="modals.usdt.show && summary.usdtEnabled" @click.self="modals.usdt.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">USDT Deposit Gateway</h3>
@@ -1502,7 +1503,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 4.5: WALLET QR CODE VIEWER -->
     <!-- ======================================================== -->
-    <div v-if="modals.walletQr.show" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.walletQr.show" @click.self="modals.walletQr.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
@@ -1536,7 +1537,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 5: MISSIONS & TASKS -->
     <!-- ======================================================== -->
-    <div v-if="modals.missions.show" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="modals.missions.show" @click.self="modals.missions.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">Daily Missions & Rewards</h3>
@@ -1556,11 +1557,12 @@
           </div>
         </div>
       </div>
+    </div>
 
     <!-- ======================================================== -->
     <!-- MODAL 6: TRANSACTION HISTORY -->
     <!-- ======================================================== -->
-    <div v-if="modals.transactions.show" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div v-if="modals.transactions.show" @click.self="modals.transactions.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[500px] max-h-[92vh] sm:max-h-[85vh] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Header -->
@@ -1736,13 +1738,12 @@
 
       </div>
     </div>
-  </div>
 
   
     <!-- ======================================================== -->
     <!-- MODAL 7: DEPOSIT (OFFICIAL QR CODE & INSTANT PAYMENT REVIEW) -->
     <!-- ======================================================== -->
-    <div v-if="modals.deposit.show" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div v-if="modals.deposit.show" @click.self="modals.deposit.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[440px] max-h-[92vh] sm:max-h-[85vh] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-[#F2D7A5]/30 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Modal Header -->
@@ -1903,7 +1904,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 8: WITHDRAWAL (REQUEST CASH OUT VIA UPI / BANK) -->
     <!-- ======================================================== -->
-    <div v-if="modals.withdrawal.show" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div v-if="modals.withdrawal.show" @click.self="modals.withdrawal.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[440px] max-h-[92vh] sm:max-h-[85vh] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Modal Header -->
@@ -2043,7 +2044,7 @@
   <script>
     const { createApp, ref, reactive, computed, watch, onMounted, onUnmounted } = Vue;
 
-    createApp({
+    const app = createApp({
       setup() {
         const activeTab = ref('home');
         const hideBalance = ref(false);
@@ -2160,6 +2161,7 @@
         const activeDepositOrder = ref(null);
         const depositUtrInput = ref('');
         const activeDeposit = ref(null);
+        const activeWithdrawal = ref(null);
 
         // Transactions History State
         const userTransactions = ref([]);
@@ -2326,6 +2328,9 @@
 
         function switchTab(tab) {
           activeTab.value = tab;
+          Object.keys(modals).forEach(k => {
+            if (modals[k] && modals[k].show) modals[k].show = false;
+          });
           if (tab === 'team') fetchTeamData();
           else if (tab === 'wallet') fetchWallets();
           else if (tab === 'payment') fetchHangSales();
