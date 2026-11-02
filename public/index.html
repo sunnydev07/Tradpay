@@ -442,13 +442,13 @@
           </div>
           <div>
             <p class="text-[10px] text-gray-400">USDT</p>
-            <p class="text-xs font-semibold mt-0.5" :class="summary.usdtEnabled ? 'text-[#F2D7A5]' : 'text-gray-500'">
+            <p class="text-xs font-semibold mt-0.5" :class="summary.usdtEnabled ? 'text-[#F2D7A5]' : 'text-gray-400'">
               {{ summary.usdtEnabled ? '₹' + (summary.usdtRechargeRate || 91.50) : 'Disabled' }}
             </p>
           </div>
           <div>
             <p class="text-[10px] text-gray-400">Cashback</p>
-            <p class="text-xs font-semibold mt-0.5" :class="summary.usdtEnabled ? 'text-emerald-400' : 'text-gray-500'">
+            <p class="text-xs font-semibold mt-0.5" :class="summary.usdtEnabled ? 'text-emerald-400' : 'text-gray-400'">
               {{ summary.usdtEnabled ? '+' + (summary.usdtCashbackRate || 2.0) + '%' : '—' }}
             </p>
           </div>
@@ -601,7 +601,7 @@
               <p class="text-xs font-bold font-mono" :class="tx.txType === 'withdrawal' ? 'text-blue-400' : 'text-emerald-400'">
                 {{ tx.txType === 'withdrawal' ? '-' : '+' }}₹{{ formatMoney(tx.amount) }}
               </p>
-              <p class="text-[9px] text-gray-500 mt-0.5">{{ formatRelativeTime(tx.createdAt) }}</p>
+              <p class="text-[9px] text-gray-400 mt-0.5">{{ formatRelativeTime(tx.createdAt) }}</p>
             </div>
           </div>
         </div>
@@ -721,7 +721,7 @@
           </div>
 
           <div class="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-400">
-            <span class="text-[10px] text-gray-500">Supported:</span>
+            <span class="text-[10px] text-gray-400">Supported:</span>
             <div class="flex flex-wrap items-center gap-1.5">
               <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">PhonePe</span>
               <span class="px-2 py-0.5 rounded bg-white/5 text-[10px] text-gray-300">Paytm</span>
@@ -731,7 +731,7 @@
           </div>
         </div>
 
-        <div v-if="hangSalesList.length === 0" class="py-12 text-center text-gray-500 text-xs space-y-3">
+        <div v-if="hangSalesList.length === 0" class="py-12 text-center text-gray-400 text-xs space-y-3">
           <p class="text-3xl">📭</p>
           <p>No orders in this range right now.</p>
           <button v-if="user.isAdmin" @click="simulateIncomingOrder" class="px-3 py-1.5 rounded-xl bg-[#242424] text-[#F2D7A5] border border-white/10 text-xs">
@@ -783,11 +783,11 @@
 
           <div class="grid grid-cols-2 gap-2 pt-3 border-t border-white/5 text-xs text-gray-400">
             <div>
-              <p class="text-[10px] text-gray-500">Receive Limit Range</p>
+              <p class="text-[10px] text-gray-400">Receive Limit Range</p>
               <p class="text-xs font-semibold text-white mt-0.5">₹{{ w.minAmount }} - ₹{{ w.maxAmount }}</p>
             </div>
             <div>
-              <p class="text-[10px] text-gray-500">Today Turnover</p>
+              <p class="text-[10px] text-gray-400">Today Turnover</p>
               <p class="text-xs font-semibold text-emerald-400 mt-0.5">₹{{ formatMoney(w.todayTurnover) }} ({{ w.todayCount }} orders)</p>
             </div>
           </div>
@@ -814,7 +814,7 @@
         <div v-if="userTransactions.length === 0" class="rounded-2xl bg-[#242424] border border-white/5 p-6 text-center text-gray-400 space-y-2">
           <span class="text-3xl block opacity-40">🧾</span>
           <p class="text-xs font-medium text-gray-300">No payment transactions recorded yet</p>
-          <p class="text-[10px] text-gray-500">Claim an order from the Payment tab to start earning credits.</p>
+          <p class="text-[10px] text-gray-400">Claim an order from the Payment tab to start earning credits.</p>
           <button @click="switchTab('payment')" class="mt-1 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow">
             Take an Order Now →
           </button>
@@ -854,7 +854,7 @@
 
             <div v-if="tx.utr" class="text-[10px] text-gray-400 flex items-center justify-between bg-white/5 px-2.5 py-1.5 rounded-lg">
               <span>Ref No (UTR): <strong class="text-[#F2D7A5] font-mono">{{ tx.utr }}</strong></span>
-              <span class="text-[9px] text-gray-500">{{ formatDateTime(tx.submittedAt || tx.createdAt) }}</span>
+              <span class="text-[9px] text-gray-400">{{ formatDateTime(tx.submittedAt || tx.createdAt) }}</span>
             </div>
 
             <div v-if="tx.status === 'rejected' && tx.rejectReason" class="text-[10px] text-rose-300 bg-rose-950/40 border border-rose-500/30 px-2.5 py-1.5 rounded-lg">
@@ -1028,7 +1028,7 @@
         </button>
       </div>
 
-      <div class="text-center text-[10px] text-gray-500 pt-4">
+      <div class="text-center text-[10px] text-gray-400 pt-4">
         <p>TradePay Single-Instance Web Edition v1.2.9</p>
         <p class="mt-0.5">Render Engine Online • Official QRs Permanently Attached</p>
       </div>
@@ -1092,7 +1092,7 @@
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-[#F2D7A5] font-semibold">VIP {{ user.vipLevel || 1 }}</span>
               </div>
               <p class="text-xs text-gray-400 font-mono truncate">{{ user.phone || user.email }}</p>
-              <p class="text-[10px] text-gray-500 font-mono truncate mt-0.5">UID: {{ user.id }}</p>
+              <p class="text-[10px] text-gray-400 font-mono truncate mt-0.5">UID: {{ user.id }}</p>
             </div>
           </div>
 
@@ -1192,8 +1192,8 @@
           </div>
         </div>
 
-        <button @click="confirmClaimOrder" class="w-full py-3 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition">
-          Match & Start Order
+        <button @click="confirmClaimOrder" :disabled="modals.claim.loading" class="w-full py-3 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition disabled:opacity-50">
+          {{ modals.claim.loading ? 'Matching Order…' : 'Match & Start Order' }}
         </button>
       </div>
     </div>
@@ -1280,8 +1280,8 @@
             <button @click="cancelActiveOrder" class="w-1/3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-xs font-semibold hover:bg-white/10 transition">
               Cancel
             </button>
-            <button @click="submitActiveOrder" class="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition">
-              Confirm Receipt & Credit
+            <button @click="submitActiveOrder" :disabled="modals.inrOrder.loading" class="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-lg hover:brightness-110 active:scale-95 transition disabled:opacity-50">
+              {{ modals.inrOrder.loading ? 'Submitting UTR…' : 'Confirm Receipt & Credit' }}
             </button>
           </div>
         </div>
@@ -1553,7 +1553,7 @@
             <button v-if="m.claimed" class="px-2.5 py-1 rounded-lg bg-gray-700 text-gray-400 text-[10px] font-medium" disabled>Claimed</button>
             <button v-else-if="m.completed" @click="claimMission(m)" class="px-2.5 py-1 rounded-lg bg-[#F2D7A5] text-[#1B1B1B] text-[10px] font-bold">Claim</button>
             <a v-else-if="m.link" :href="m.link" target="_blank" @click="visitMission(m)" class="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 text-[10px] font-bold">Go ›</a>
-            <span v-else class="text-[10px] text-gray-500">In Progress</span>
+            <span v-else class="text-[10px] text-gray-400">In Progress</span>
           </div>
         </div>
       </div>
@@ -1621,7 +1621,7 @@
 
           <!-- Search Input -->
           <div class="relative">
-            <span class="absolute left-3 top-2.5 text-gray-500 text-xs">🔍</span>
+            <span class="absolute left-3 top-2.5 text-gray-400 text-xs">🔍</span>
             <input v-model="historySearch" placeholder="Search by UTR, Order No, or Account..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-[#141414] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#F2D7A5] font-mono">
             <button v-if="historySearch" @click="historySearch = ''" class="absolute right-2.5 top-2 text-gray-400 hover:text-white text-xs">✕</button>
           </div>
@@ -1639,14 +1639,14 @@
           <div v-else-if="filteredTransactions.length === 0" class="p-8 text-center text-gray-400 space-y-2">
             <span class="text-3xl block opacity-40">📜</span>
             <p class="text-xs font-semibold text-gray-300">No transactions found</p>
-            <p class="text-[11px] text-gray-500">
+            <p class="text-[11px] text-gray-400">
               <span v-if="historySearch">No records match "{{ historySearch }}"</span>
               <span v-else>No transactions under selected status</span>
             </p>
           </div>
 
           <!-- List of Transaction Cards -->
-          <div v-else v-for="tx in filteredTransactions" :key="tx.buyId" class="rounded-2xl bg-[#242424] border p-4 space-y-3 transition" :class="tx.status === 'completed' ? 'border-emerald-500/25 bg-gradient-to-br from-[#242424] to-[#1c241e]' : (tx.status === 'rejected' ? 'border-rose-500/30 bg-gradient-to-br from-[#242424] to-[#281b1c]' : (tx.status === 'verifying' ? 'border-amber-500/30 bg-gradient-to-br from-[#242424] to-[#272118]' : 'border-white/10'))">
+          <div v-else v-for="tx in filteredTransactions" :key="tx.id || tx.buyId || tx.orderNo" class="rounded-2xl bg-[#242424] border p-4 space-y-3 transition" :class="tx.status === 'completed' ? 'border-emerald-500/25 bg-gradient-to-br from-[#242424] to-[#1c241e]' : (tx.status === 'rejected' ? 'border-rose-500/30 bg-gradient-to-br from-[#242424] to-[#281b1c]' : (tx.status === 'verifying' ? 'border-amber-500/30 bg-gradient-to-br from-[#242424] to-[#272118]' : 'border-white/10'))">
             
             <!-- Card Header: Order No & Status Badge -->
             <div class="flex items-center justify-between gap-2">
@@ -1681,8 +1681,8 @@
               </div>
               <div class="text-right">
                 <p class="text-[10px] text-gray-400">Bonus / Credits Given</p>
-                <p class="text-sm font-extrabold mt-0.5" :class="tx.status === 'completed' ? 'text-emerald-400' : (tx.status === 'rejected' ? 'text-gray-500 line-through' : 'text-[#F2D7A5]')">
-                  +₹{{ formatMoney(tx.totalReward) }}
+                <p class="text-sm font-extrabold mt-0.5" :class="tx.status === 'completed' ? 'text-emerald-400' : (tx.status === 'rejected' ? 'text-gray-400 line-through' : 'text-[#F2D7A5]')">
+                  +₹{{ formatMoney(tx.reward ?? tx.totalReward ?? 0) }}
                 </p>
               </div>
             </div>
@@ -1693,8 +1693,8 @@
                 <p class="text-[10px] text-gray-400">Bank Reference No. (UTR)</p>
                 <p class="text-xs font-mono font-bold text-[#F2D7A5] tracking-wider truncate mt-0.5">{{ tx.utr }}</p>
               </div>
-              <button @click="copyTransactionUtr(tx.utr, tx.buyId)" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[10px] font-semibold text-gray-200 transition flex items-center gap-1 flex-shrink-0">
-                <span v-if="copiedUtrKey === tx.buyId" class="text-emerald-400">✓ Copied</span>
+              <button @click="copyTransactionUtr(tx.utr, tx.id || tx.buyId || tx.orderNo)" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[10px] font-semibold text-gray-200 transition flex items-center gap-1 flex-shrink-0">
+                <span v-if="copiedUtrKey === (tx.id || tx.buyId || tx.orderNo)" class="text-emerald-400">✓ Copied</span>
                 <span v-else>Copy</span>
               </button>
             </div>
@@ -1712,7 +1712,7 @@
             <div class="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-400">
               <div class="flex items-center gap-1.5 min-w-0">
                 <span>🏦</span>
-                <span class="truncate">{{ tx.payoutWalletName || 'Bank/UPI' }} ({{ tx.payoutAccount }})</span>
+                <span class="truncate">{{ tx.payoutWalletName || tx.payoutType || 'Bank/UPI' }}<span v-if="getTransactionPayoutAccount(tx)"> ({{ getTransactionPayoutAccount(tx) }})</span></span>
               </div>
               <div class="text-right">
                 <span v-if="tx.completedAt || tx.verifiedAt">Credited: {{ formatDateTime(tx.completedAt || tx.verifiedAt) }}</span>
@@ -1774,7 +1774,7 @@
                   <span>⚡</span>
                   <span>Scan with any UPI App</span>
                 </p>
-                <p class="text-[9px] text-gray-500 font-medium">GPay • PhonePe • Paytm • BHIM • CRED</p>
+                <p class="text-[9px] text-gray-400 font-medium">GPay • PhonePe • Paytm • BHIM • CRED</p>
               </div>
             </div>
 
@@ -1819,14 +1819,15 @@
             <div class="text-left space-y-1.5">
               <div class="flex items-center justify-between">
                 <label class="block text-xs font-bold text-white">Bank Reference / 12-Digit UTR <span class="text-gray-400 font-normal">(Optional)</span></label>
-                <span class="text-[10px] font-mono" :class="depositUtrInput.length === 12 ? 'text-emerald-400 font-bold' : 'text-gray-400'">{{ depositUtrInput.length ? depositUtrInput.length + '/12' : '' }}</span>
+                <span class="text-[10px] font-mono" :class="depositUtrInput.trim().length === 12 && isDepositUtrValid ? 'text-emerald-400 font-bold' : 'text-gray-400'">{{ depositUtrInput.trim().length ? depositUtrInput.trim().length + '/12' : '' }}</span>
               </div>
-              <input type="text" v-model="depositUtrInput" maxlength="12" placeholder="e.g. 12-digit UTR from payment receipt" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border text-center font-mono text-sm font-bold tracking-wider text-white placeholder-gray-600 focus:outline-none transition" :class="depositUtrInput.length === 12 ? 'border-emerald-400 bg-emerald-950/20' : 'border-white/15 focus:border-[#F2D7A5]'">
+              <input type="text" v-model="depositUtrInput" maxlength="32" inputmode="numeric" placeholder="e.g. 12-digit UTR from payment receipt" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border text-center font-mono text-sm font-bold tracking-wider text-white placeholder-gray-600 focus:outline-none transition" :class="depositUtrInput.trim().length === 12 && isDepositUtrValid ? 'border-emerald-400 bg-emerald-950/20' : 'border-white/15 focus:border-[#F2D7A5]'">
+              <p v-if="!isDepositUtrValid" class="text-[10px] text-rose-300" role="alert">Enter exactly 12 digits, or leave this optional field blank.</p>
               <p class="text-[10px] text-gray-400">Paste the 12-digit UPI Ref/UTR from your receipt or click Confirm Payment directly.</p>
             </div>
 
             <!-- Single Prominent Action Button -->
-            <button @click="submitDepositPayment" :disabled="modals.deposit.loading || !modals.deposit.amount || modals.deposit.amount < 100" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/25 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2">
+            <button @click="submitDepositPayment" :disabled="modals.deposit.loading || !modals.deposit.amount || modals.deposit.amount < 100 || !isDepositUtrValid" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-extrabold text-sm shadow-lg shadow-emerald-500/25 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2">
               <span v-if="modals.deposit.loading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
               <span v-else>✅ Confirm Payment / Payment Done →</span>
             </button>
@@ -2037,6 +2038,8 @@
       </div>
     </div>
 
+  </div>
+
   <audio id="beepAudio" preload="auto">
     <source src="/sounds/dcloud_beep.ogg" type="audio/ogg">
   </audio>
@@ -2144,8 +2147,8 @@
         // Modals
         const modals = reactive({
           auth: { show: false },
-          claim: { show: false },
-          inrOrder: { show: false },
+          claim: { show: false, loading: false },
+          inrOrder: { show: false, loading: false },
           orderQr: { show: false },
           addWallet: { show: false },
           walletQr: { show: false },
@@ -2160,8 +2163,21 @@
         // Deposit & Withdrawal state
         const activeDepositOrder = ref(null);
         const depositUtrInput = ref('');
+        const isDepositUtrValid = computed(() => {
+          const value = depositUtrInput.value.trim();
+          return value === '' || /^\d{12}$/.test(value);
+        });
         const activeDeposit = ref(null);
         const activeWithdrawal = ref(null);
+
+        function isValidUpiId(value) {
+          const parts = String(value || '').trim().split('@');
+          if (parts.length !== 2) return false;
+          const [username, handle] = parts;
+          const localPart = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/;
+          const handlePart = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*$/;
+          return username.length <= 255 && handle.length <= 255 && localPart.test(username) && handlePart.test(handle);
+        }
 
         // Transactions History State
         const userTransactions = ref([]);
@@ -2179,8 +2195,20 @@
           rejectedCount: 0
         });
 
+        const transactionStatuses = new Set(['pending', 'confirming', 'processing', 'verifying', 'completed', 'rejected', 'cancelled', 'expired']);
+        function isValidTransactionRow(row) {
+          if (!row || typeof row !== 'object' || Array.isArray(row) || !transactionStatuses.has(row.status)) return false;
+          return [row.id, row.buyId, row.orderNo].some(value =>
+            (typeof value === 'string' || typeof value === 'number') && String(value).trim().length > 0
+          );
+        }
+
+        function getTransactionPayoutAccount(transaction) {
+          return String(transaction.payoutAccount || transaction.payoutDetails?.upiId || transaction.payoutDetails?.accountNumber || '');
+        }
+
         const filteredTransactions = computed(() => {
-          let list = userTransactions.value || [];
+          let list = (Array.isArray(userTransactions.value) ? userTransactions.value : []).filter(isValidTransactionRow);
           if (historyFilter.value !== 'all') {
             if (historyFilter.value === 'completed') {
               list = list.filter(t => t.status === 'completed');
@@ -2195,10 +2223,11 @@
           const q = historySearch.value.trim().toLowerCase();
           if (q) {
             list = list.filter(t =>
-              (t.orderNo && t.orderNo.toLowerCase().includes(q)) ||
-              (t.utr && t.utr.toLowerCase().includes(q)) ||
-              (t.buyId && t.buyId.toLowerCase().includes(q)) ||
-              (t.payoutAccount && t.payoutAccount.toLowerCase().includes(q))
+              String(t.orderNo || '').toLowerCase().includes(q) ||
+              String(t.utr || '').toLowerCase().includes(q) ||
+              String(t.buyId || '').toLowerCase().includes(q) ||
+              String(t.id || '').toLowerCase().includes(q) ||
+              getTransactionPayoutAccount(t).toLowerCase().includes(q)
             );
           }
           return list;
@@ -2206,11 +2235,25 @@
 
         // Prevent the page behind a modal from scrolling on phones
         watch(
-          () => Object.values(modals).some(modal => modal.show),
+          () => Object.entries(modals).some(([name, modal]) => modal.show && (name !== 'usdt' || summary.usdtEnabled)),
           (isOpen) => {
             document.body.classList.toggle('modal-open', isOpen);
-          }
+          },
+          { immediate: true }
         );
+        watch(() => summary.usdtEnabled, enabled => {
+          if (!enabled && modals.usdt.show) modals.usdt.show = false;
+        }, { immediate: true });
+
+        function closeOpenModals() {
+          Object.values(modals).forEach(modal => {
+            if (modal && modal.show) modal.show = false;
+          });
+        }
+
+        function handleModalEscape(event) {
+          if (event.key === 'Escape') closeOpenModals();
+        }
 
         const selectedOrder = ref({});
         const selectedWalletId = ref(null);
@@ -2583,8 +2626,14 @@
         }
 
         async function submitDepositPayment() {
+          if (modals.deposit.loading) return;
           if (!modals.deposit.amount || modals.deposit.amount < 100) {
             showToast('Minimum deposit amount is ₹100', 'error');
+            return;
+          }
+          const utr = depositUtrInput.value.trim();
+          if (utr && !/^\d{12}$/.test(utr)) {
+            showToast('Please enter exactly 12 digits for the UTR, or leave it blank', 'error');
             return;
           }
           modals.deposit.loading = true;
@@ -2593,7 +2642,7 @@
               method: 'POST',
               body: JSON.stringify({
                 amount: modals.deposit.amount,
-                utr: depositUtrInput.value ? depositUtrInput.value.trim() : ''
+                utr
               })
             });
             const json = await res.json();
@@ -2636,6 +2685,7 @@
         }
 
         async function submitWithdrawalRequest() {
+          if (modals.withdrawal.loading) return;
           const amt = Number(modals.withdrawal.amount);
           if (!amt || amt < 100) {
             showToast('Minimum withdrawal amount is ₹100', 'error');
@@ -2648,12 +2698,13 @@
 
           let payoutDetails = {};
           if (modals.withdrawal.payoutType === 'upi') {
-            if (!modals.withdrawal.upiId || !modals.withdrawal.upiId.includes('@')) {
+            const upiId = String(modals.withdrawal.upiId || '').trim();
+            if (!isValidUpiId(upiId)) {
               showToast('Please enter a valid UPI ID (e.g. mobile@ybl)', 'error');
               return;
             }
             payoutDetails = {
-              upiId: modals.withdrawal.upiId.trim(),
+              upiId,
               accountName: modals.withdrawal.accountName.trim() || user?.nickname || 'Trader'
             };
           } else {
@@ -2705,13 +2756,16 @@
             const res = await authFetch('/app/user/transactions/all');
             const json = await res.json();
             if (json.code === 1000 && Array.isArray(json.data)) {
-              userTransactions.value = json.data;
+              const transactionRows = json.data.filter(isValidTransactionRow);
+              userTransactions.value = transactionRows;
               let totalCred = 0, totalVol = 0, compCount = 0, verCount = 0, pendCount = 0, rejCount = 0;
-              for (const t of json.data) {
+              for (const t of transactionRows) {
                 if (t.status === 'completed') {
                   compCount++;
-                  totalCred += (t.reward || 0);
-                  totalVol += (t.amount || 0);
+                  const reward = Number(t.reward);
+                  const amount = Number(t.amount);
+                  totalCred += Number.isFinite(reward) ? reward : 0;
+                  totalVol += Number.isFinite(amount) ? amount : 0;
                 } else if (t.status === 'verifying') {
                   verCount++;
                 } else if (t.status === 'rejected') {
@@ -2721,7 +2775,7 @@
                 }
               }
               Object.assign(historySummary, {
-                totalCount: json.data.length,
+                totalCount: transactionRows.length,
                 totalCredited: totalCred,
                 totalVolume: totalVol,
                 completedCount: compCount,
@@ -2822,10 +2876,12 @@
         }
 
         async function confirmClaimOrder() {
+          if (modals.claim.loading) return;
           if (!selectedWalletId.value) {
             showToast('Please add and select an active wallet first');
             return;
           }
+          modals.claim.loading = true;
           try {
             const res = await authFetch('/app/payment/order/create', {
               method: 'POST',
@@ -2850,6 +2906,8 @@
             }
           } catch (e) {
             showToast('Failed to claim order');
+          } finally {
+            modals.claim.loading = false;
           }
         }
 
@@ -2865,11 +2923,13 @@
         }
 
         async function submitActiveOrder() {
+          if (modals.inrOrder.loading) return;
           const cleanUtr = String(utrInput.value || '').trim();
           if (!/^\d{12}$/.test(cleanUtr)) {
             showToast('Please enter the 12-digit bank UTR');
             return;
           }
+          modals.inrOrder.loading = true;
           try {
             const res = await authFetch('/app/payment/order/submit', {
               method: 'POST',
@@ -2895,6 +2955,8 @@
             }
           } catch (e) {
             showToast('Submission failed');
+          } finally {
+            modals.inrOrder.loading = false;
           }
         }
 
@@ -2925,14 +2987,15 @@
         }
 
         async function saveNewWallet() {
-          if (!newWallet.account || !newWallet.account.includes('@')) {
+          const upiId = String(newWallet.account || '').trim();
+          if (!isValidUpiId(upiId)) {
             showToast('Please enter a valid UPI ID (e.g. mobile@ybl or username@upi)');
             return;
           }
           try {
             const res = await authFetch('/app/ct/app/collection/submit', {
               method: 'POST',
-              body: JSON.stringify(newWallet)
+              body: JSON.stringify({ ...newWallet, account: upiId })
             });
             const json = await res.json();
             if (json.code === 1000) {
@@ -3198,6 +3261,7 @@
         }
 
         onMounted(() => {
+          document.addEventListener('keydown', handleModalEscape);
           fetchAll();
           connectWebSocket();
 
@@ -3241,6 +3305,7 @@
         onUnmounted(() => {
           if (ws) ws.close();
           if (timerInterval) clearInterval(timerInterval);
+          document.removeEventListener('keydown', handleModalEscape);
           document.body.classList.remove('modal-open');
         });
 
@@ -3329,6 +3394,7 @@
           copiedUtrKey,
           historySummary,
           filteredTransactions,
+          getTransactionPayoutAccount,
           formatDateTime,
           formatRelativeTime,
           fetchTransactionsHistory,
@@ -3336,6 +3402,7 @@
           copyTransactionUtr,
           activeDepositOrder,
           depositUtrInput,
+          isDepositUtrValid,
           activeDeposit,
           openDepositModal,
           proceedToDepositPayment,

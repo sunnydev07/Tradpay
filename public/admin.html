@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>TradePay Admin Console • UTR Verification, Deposits & Withdrawals</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <!-- Tailwind CSS CDN -->
@@ -15,9 +15,32 @@
       font-family: 'Outfit', sans-serif;
       background-color: #0F0F11;
       color: #E2E8F0;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    .admin-shell {
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: max(0.75rem, env(safe-area-inset-top, 0px)) max(0.75rem, env(safe-area-inset-right, 0px)) max(0.75rem, env(safe-area-inset-bottom, 0px)) max(0.75rem, env(safe-area-inset-left, 0px));
+    }
+    .admin-modal-backdrop {
+      box-sizing: border-box;
+      height: 100vh;
+      height: 100dvh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+    }
+    .admin-modal-panel {
+      box-sizing: border-box;
+      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - max(1rem, env(safe-area-inset-top, 0px)) - max(1rem, env(safe-area-inset-bottom, 0px)));
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
     .font-mono {
-      font-family: 'JetBrains+Mono', monospace;
+      font-family: 'JetBrains Mono', monospace;
     }
     @keyframes pulseGlow {
       0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); }
@@ -40,7 +63,7 @@
   </style>
 </head>
 <body class="min-h-screen flex flex-col bg-[#0F0F11]">
-  <div id="app" class="flex-1 flex flex-col max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-6">
+  <div id="app" class="admin-shell flex-1 flex flex-col max-w-7xl w-full mx-auto space-y-6">
 
     <!-- Audio Element for Alerts -->
     <audio id="alertAudio" preload="auto">
@@ -112,15 +135,15 @@
         </div>
 
         <!-- Audio Alert Toggle -->
-        <button @click="toggleAudio" class="px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition" :class="audioEnabled ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-white/5 border-white/10 text-gray-400'">
+        <button @click="toggleAudio" class="min-h-11 px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition" :class="audioEnabled ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-white/5 border-white/10 text-gray-400'">
           <span>{{ audioEnabled ? '🔊 Audio Alerts: ON' : '🔇 Audio Muted' }}</span>
         </button>
 
-        <a href="/" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 hover:text-white transition">
+        <a href="/" class="min-h-11 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 hover:text-white transition inline-flex items-center">
           Main App ↗
         </a>
 
-        <button @click="lockConsole" class="px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-xs font-semibold text-red-300 transition">
+        <button @click="lockConsole" class="min-h-11 px-3 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-xs font-semibold text-red-300 transition">
           Lock
         </button>
       </div>
@@ -190,30 +213,30 @@
       <!-- Tabs -->
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
         <!-- Tab 1: Deposits -->
-        <button @click="currentTab = 'deposits'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'deposits' ? 'bg-emerald-500 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
+        <button @click="currentTab = 'deposits'" class="min-h-11 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'deposits' ? 'bg-emerald-500 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
           <span>📥 Deposit Verifications</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold" :class="currentTab === 'deposits' ? 'bg-black/25 text-black' : 'bg-emerald-500/20 text-emerald-400'">{{ pendingDeposits.length }}</span>
         </button>
 
         <!-- Tab 2: Withdrawals -->
-        <button @click="currentTab = 'withdrawals'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'withdrawals' ? 'bg-blue-500 text-white shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
+        <button @click="currentTab = 'withdrawals'" class="min-h-11 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'withdrawals' ? 'bg-blue-500 text-white shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
           <span>📤 Withdrawal Requests</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold" :class="currentTab === 'withdrawals' ? 'bg-black/25 text-white' : 'bg-blue-500/20 text-blue-300'">{{ pendingWithdrawals.length }}</span>
         </button>
 
         <!-- Tab 3: Match Orders -->
-        <button @click="currentTab = 'pending'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'pending' ? 'bg-amber-500 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
+        <button @click="currentTab = 'pending'" class="min-h-11 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" :class="currentTab === 'pending' ? 'bg-amber-500 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
           <span>⏳ Match Orders</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold" :class="currentTab === 'pending' ? 'bg-black/25 text-black' : 'bg-amber-500/20 text-amber-400'">{{ pendingOrders.length }}</span>
         </button>
 
         <!-- Tab 4: All Orders Audit -->
-        <button @click="currentTab = 'all'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap" :class="currentTab === 'all' ? 'bg-[#F2D7A5] text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
+        <button @click="currentTab = 'all'" class="min-h-11 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap" :class="currentTab === 'all' ? 'bg-[#F2D7A5] text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
           <span>📋 All Orders</span>
         </button>
 
         <!-- Tab 5: Completed -->
-        <button @click="currentTab = 'completed'" class="px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap" :class="currentTab === 'completed' ? 'bg-gray-200 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
+        <button @click="currentTab = 'completed'" class="min-h-11 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap" :class="currentTab === 'completed' ? 'bg-gray-200 text-black shadow-md' : 'bg-white/5 text-gray-300 hover:text-white'">
           <span>✅ Completed ({{ completedOrders.length }})</span>
         </button>
       </div>
@@ -222,9 +245,9 @@
       <div class="flex items-center gap-2">
         <div class="relative flex-1 sm:w-64">
           <input v-model="searchQuery" placeholder="Search UTR / ID / User / Phone..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 font-mono">
-          <span class="absolute left-2.5 top-2 text-xs text-gray-500">🔍</span>
+          <span class="absolute left-2.5 top-2 text-xs text-gray-400">🔍</span>
         </div>
-        <button @click="fetchData" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1">
+        <button @click="fetchData" class="min-h-11 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1">
           <span>🔄</span>
           <span class="hidden sm:inline">Refresh</span>
         </button>
@@ -245,7 +268,9 @@
         </div>
       </div>
 
-      <div v-if="filteredPendingDeposits.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
+      <div v-if="dataLoading" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3 text-gray-400" role="status"><span class="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto"></span><p>Loading deposit queue…</p></div>
+      <div v-else-if="dataError" class="p-8 text-center rounded-2xl bg-[#17171A] border border-red-500/20 space-y-3" role="alert"><p class="text-sm text-white">Couldn’t load admin data.</p><button @click="fetchData" class="px-4 py-2 rounded-xl bg-white/10 text-xs">Retry</button></div>
+      <div v-else-if="filteredPendingDeposits.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
         <div class="text-4xl">✨</div>
         <h3 class="text-base font-bold text-white">All Clear! No Pending Deposits</h3>
         <p class="text-xs text-gray-400 max-w-md mx-auto">When users deposit funds to the official UPI and submit their 12-digit UTR bank reference number, their request will appear here for verification and instant balance credit.</p>
@@ -303,11 +328,11 @@
 
           <!-- Action Buttons -->
           <div class="flex items-center gap-2 pt-1">
-            <button @click="promptRejectDeposit(dep)" :disabled="actionLoading === dep.id" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+            <button @click="promptRejectDeposit(dep)" :disabled="actionLoading !== null" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
               ❌ Reject
             </button>
 
-            <button @click="confirmDeposit(dep)" :disabled="actionLoading === dep.id" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+            <button @click="confirmDeposit(dep)" :disabled="actionLoading !== null" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
               <span v-if="actionLoading === dep.id">Crediting Balance...</span>
               <span v-else>✅ Confirm & Credit ₹{{ formatMoney(dep.amount) }}</span>
             </button>
@@ -341,11 +366,11 @@
                 </td>
                 <td class="p-3 whitespace-nowrap">
                   <div class="font-bold text-white">{{ dep.depositId || dep.id }}</div>
-                  <div class="text-[10px] text-gray-500">{{ formatDate(dep.createdAt) }}</div>
+                  <div class="text-[10px] text-gray-400">{{ formatDate(dep.createdAt) }}</div>
                 </td>
                 <td class="p-3 whitespace-nowrap font-sans">
                   <div class="font-semibold text-white">{{ dep.userNickname || 'Trader' }}</div>
-                  <div class="text-[10px] text-gray-500 font-mono">{{ dep.userPhone || dep.userId }}</div>
+                  <div class="text-[10px] text-gray-400 font-mono">{{ dep.userPhone || dep.userId }}</div>
                 </td>
                 <td class="p-3 whitespace-nowrap font-bold text-emerald-400">+₹{{ formatMoney(dep.amount) }}</td>
                 <td class="p-3 whitespace-nowrap font-bold text-white">
@@ -356,10 +381,10 @@
                 </td>
                 <td class="p-3 whitespace-nowrap text-gray-400 font-mono">{{ dep.payeeVpa || 'Official UPI' }}</td>
                 <td class="p-3 whitespace-nowrap text-right">
-                  <button v-if="dep.status === 'verifying'" @click="confirmDeposit(dep)" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold">
-                    Credit
+                  <button v-if="dep.status === 'verifying'" @click="confirmDeposit(dep)" :disabled="actionLoading !== null" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold disabled:opacity-50">
+                    {{ actionLoading === dep.id ? 'Crediting…' : 'Credit' }}
                   </button>
-                  <span v-else class="text-[10px] text-gray-500">{{ dep.verifiedBy ? 'By ' + dep.verifiedBy : '—' }}</span>
+                  <span v-else class="text-[10px] text-gray-400">{{ dep.verifiedBy ? 'By ' + dep.verifiedBy : '—' }}</span>
                 </td>
               </tr>
             </tbody>
@@ -382,7 +407,9 @@
         </div>
       </div>
 
-      <div v-if="filteredPendingWithdrawals.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
+      <div v-if="dataLoading" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3 text-gray-400" role="status"><span class="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto"></span><p>Loading withdrawal queue…</p></div>
+      <div v-else-if="dataError" class="p-8 text-center rounded-2xl bg-[#17171A] border border-red-500/20 space-y-3" role="alert"><p class="text-sm text-white">Couldn’t load admin data.</p><button @click="fetchData" class="px-4 py-2 rounded-xl bg-white/10 text-xs">Retry</button></div>
+      <div v-else-if="filteredPendingWithdrawals.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
         <div class="text-4xl">✨</div>
         <h3 class="text-base font-bold text-white">All Clear! No Pending Withdrawals</h3>
         <p class="text-xs text-gray-400 max-w-md mx-auto">When traders request to cash out their balance, their payout details and account information will appear here for your confirmation.</p>
@@ -419,7 +446,7 @@
             <div v-if="wth.payoutType === 'upi'" class="space-y-1">
               <div class="flex items-center justify-between bg-[#121214] p-2.5 rounded-lg border border-white/5">
                 <div>
-                  <span class="text-[10px] text-gray-500 block">User UPI ID (VPA)</span>
+                  <span class="text-[10px] text-gray-400 block">User UPI ID (VPA)</span>
                   <span class="font-mono text-sm sm:text-base font-bold text-white select-all">{{ wth.payoutDetails?.upiId }}</span>
                 </div>
                 <button @click="copyText(wth.payoutDetails?.upiId)" class="px-2.5 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs font-bold transition flex items-center gap-1">
@@ -434,7 +461,7 @@
             <div v-else class="space-y-1.5">
               <div class="flex items-center justify-between bg-[#121214] p-2.5 rounded-lg border border-white/5">
                 <div>
-                  <span class="text-[10px] text-gray-500 block">Account Number</span>
+                  <span class="text-[10px] text-gray-400 block">Account Number</span>
                   <span class="font-mono text-sm sm:text-base font-bold text-white select-all">{{ wth.payoutDetails?.accountNumber }}</span>
                 </div>
                 <button @click="copyText(wth.payoutDetails?.accountNumber)" class="px-2.5 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs font-bold transition flex items-center gap-1">
@@ -445,11 +472,11 @@
 
               <div class="grid grid-cols-2 gap-2 text-[11px] pt-1">
                 <div>
-                  <span class="text-gray-500">IFSC Code:</span>
+                  <span class="text-gray-400">IFSC Code:</span>
                   <span class="font-mono font-bold text-[#F2D7A5] ml-1 select-all">{{ wth.payoutDetails?.ifsc }}</span>
                 </div>
                 <div>
-                  <span class="text-gray-500">Bank:</span>
+                  <span class="text-gray-400">Bank:</span>
                   <span class="font-semibold text-white ml-1">{{ wth.payoutDetails?.bankName || 'Bank' }}</span>
                 </div>
               </div>
@@ -461,7 +488,7 @@
           <div class="flex items-center justify-between text-xs p-3 rounded-xl bg-white/5">
             <div>
               <p class="text-[10px] text-gray-400">Trader</p>
-              <p class="font-bold text-white">{{ wth.userNickname || 'Trader' }} <span class="text-gray-500 font-mono text-[10px]">({{ wth.userPhone || wth.userId }})</span></p>
+              <p class="font-bold text-white">{{ wth.userNickname || 'Trader' }} <span class="text-gray-400 font-mono text-[10px]">({{ wth.userPhone || wth.userId }})</span></p>
             </div>
             <div class="text-right">
               <p class="text-[10px] text-gray-400">Balance Remaining</p>
@@ -471,11 +498,11 @@
 
           <!-- Action Buttons -->
           <div class="flex items-center gap-2 pt-1">
-            <button @click="promptRejectWithdrawal(wth)" :disabled="actionLoading === wth.id" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+            <button @click="promptRejectWithdrawal(wth)" :disabled="actionLoading !== null" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
               ❌ Reject & Refund
             </button>
 
-            <button @click="promptConfirmWithdrawal(wth)" :disabled="actionLoading === wth.id" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+            <button @click="promptConfirmWithdrawal(wth)" :disabled="actionLoading !== null" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
               <span v-if="actionLoading === wth.id">Confirming Payout...</span>
               <span v-else>💸 Confirm Payment Sent</span>
             </button>
@@ -510,11 +537,11 @@
                 </td>
                 <td class="p-3 whitespace-nowrap">
                   <div class="font-bold text-white">{{ wth.withdrawalId || wth.id }}</div>
-                  <div class="text-[10px] text-gray-500">{{ formatDate(wth.createdAt) }}</div>
+                  <div class="text-[10px] text-gray-400">{{ formatDate(wth.createdAt) }}</div>
                 </td>
                 <td class="p-3 whitespace-nowrap font-sans">
                   <div class="font-semibold text-white">{{ wth.userNickname || 'Trader' }}</div>
-                  <div class="text-[10px] text-gray-500 font-mono">{{ wth.userPhone || wth.userId }}</div>
+                  <div class="text-[10px] text-gray-400 font-mono">{{ wth.userPhone || wth.userId }}</div>
                 </td>
                 <td class="p-3 whitespace-nowrap font-bold text-blue-400">-₹{{ formatMoney(wth.amount) }}</td>
                 <td class="p-3 whitespace-nowrap text-gray-300 font-sans uppercase text-[10px]">{{ wth.payoutType }}</td>
@@ -523,10 +550,10 @@
                 </td>
                 <td class="p-3 whitespace-nowrap text-gray-400 font-mono">{{ wth.txRef || (wth.rejectReason ? 'Rej: ' + wth.rejectReason : '—') }}</td>
                 <td class="p-3 whitespace-nowrap text-right">
-                  <button v-if="wth.status === 'pending'" @click="promptConfirmWithdrawal(wth)" class="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-[10px] font-bold">
-                    Mark Paid
+                  <button v-if="wth.status === 'pending'" @click="promptConfirmWithdrawal(wth)" :disabled="actionLoading !== null" class="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-[10px] font-bold disabled:opacity-50">
+                    {{ actionLoading === wth.id ? 'Confirming…' : 'Mark Paid' }}
                   </button>
-                  <span v-else class="text-[10px] text-gray-500">{{ wth.processedBy ? 'By ' + wth.processedBy : '—' }}</span>
+                  <span v-else class="text-[10px] text-gray-400">{{ wth.processedBy ? 'By ' + wth.processedBy : '—' }}</span>
                 </td>
               </tr>
             </tbody>
@@ -539,7 +566,9 @@
     <!-- TAB 1: PENDING MATCH VERIFICATION QUEUE -->
     <!-- ========================================== -->
     <div v-if="currentTab === 'pending'" class="space-y-4">
-      <div v-if="filteredPendingOrders.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
+      <div v-if="dataLoading" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3 text-gray-400" role="status"><span class="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto"></span><p>Loading order queue…</p></div>
+      <div v-else-if="dataError" class="p-8 text-center rounded-2xl bg-[#17171A] border border-red-500/20 space-y-3" role="alert"><p class="text-sm text-white">Couldn’t load admin data.</p><button @click="fetchData" class="px-4 py-2 rounded-xl bg-white/10 text-xs">Retry</button></div>
+      <div v-else-if="filteredPendingOrders.length === 0" class="p-12 text-center rounded-2xl bg-[#17171A] border border-white/5 space-y-3">
         <div class="text-4xl">✨</div>
         <h3 class="text-base font-bold text-white">All Clear! No Pending Match Verifications</h3>
         <p class="text-xs text-gray-400 max-w-md mx-auto">When traders make UPI payments and click "Confirm Receipt & Credit", their 12-digit bank UTR numbers will immediately appear here for your review and authorization.</p>
@@ -606,11 +635,11 @@
               <span>QR</span>
             </button>
 
-            <button @click="promptRejectOrder(order)" :disabled="actionLoading === order.buyId" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+            <button @click="promptRejectOrder(order)" :disabled="actionLoading !== null" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
               ❌ Reject
             </button>
 
-            <button @click="confirmAndCredit(order)" :disabled="actionLoading === order.buyId" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+            <button @click="confirmAndCredit(order)" :disabled="actionLoading !== null" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
               <span v-if="actionLoading === order.buyId">Processing Credit...</span>
               <span v-else>✅ Confirm & Credit ₹{{ formatMoney(order.totalReward) }}</span>
             </button>
@@ -647,21 +676,21 @@
               </td>
               <td class="p-3 whitespace-nowrap">
                 <div class="font-bold text-white">{{ order.orderNo }}</div>
-                <div class="text-[10px] text-gray-500">{{ formatDate(order.createdAt) }}</div>
+                <div class="text-[10px] text-gray-400">{{ formatDate(order.createdAt) }}</div>
               </td>
               <td class="p-3 whitespace-nowrap font-sans">
                 <div class="font-semibold text-white">{{ order.userNickname || 'Trader' }}</div>
-                <div class="text-[10px] text-gray-500 font-mono">{{ order.userPhone }}</div>
+                <div class="text-[10px] text-gray-400 font-mono">{{ order.userPhone }}</div>
               </td>
               <td class="p-3 whitespace-nowrap font-bold text-white">₹{{ formatMoney(order.amount) }}</td>
               <td class="p-3 whitespace-nowrap text-emerald-400 font-bold">+₹{{ formatMoney(order.totalReward) }}</td>
               <td class="p-3 whitespace-nowrap text-amber-300 font-bold">{{ order.utr || '—' }}</td>
               <td class="p-3 whitespace-nowrap text-gray-400 font-mono">{{ order.payoutAccount }}</td>
               <td class="p-3 whitespace-nowrap text-right">
-                <button v-if="order.status === 'verifying'" @click="confirmAndCredit(order)" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold">
-                  Credit
+                <button v-if="order.status === 'verifying'" @click="confirmAndCredit(order)" :disabled="actionLoading !== null" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold disabled:opacity-50">
+                  {{ actionLoading === order.buyId ? 'Crediting…' : 'Credit' }}
                 </button>
-                <span v-else class="text-[10px] text-gray-500">{{ order.verifiedBy ? 'By ' + order.verifiedBy : '—' }}</span>
+                <span v-else class="text-[10px] text-gray-400">{{ order.verifiedBy ? 'By ' + order.verifiedBy : '—' }}</span>
               </td>
             </tr>
           </tbody>
@@ -672,14 +701,14 @@
     <!-- ========================================== -->
     <!-- MODAL: REJECT CONFIRMATION -->
     <!-- ========================================== -->
-    <div v-if="rejectModal.show" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="w-full max-w-md bg-[#1B1B1E] border border-red-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+    <div v-if="rejectModal.show" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center">
+      <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-red-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-xl">⚠️</span>
             <h3 class="text-base font-bold text-white">Reject {{ rejectModal.type === 'deposit' ? 'Deposit' : (rejectModal.type === 'withdrawal' ? 'Withdrawal' : 'Order') }}</h3>
           </div>
-          <button @click="rejectModal.show = false" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="rejectModal.show = false" :disabled="rejectSubmitting" class="min-h-11 min-w-11 -mr-2 rounded-lg flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-50" aria-label="Close rejection dialog">✕</button>
         </div>
 
         <p class="text-xs text-gray-300">
@@ -693,8 +722,10 @@
         </div>
 
         <div class="flex gap-2 pt-2">
-          <button @click="rejectModal.show = false" class="w-1/2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10">Cancel</button>
-          <button @click="executeReject" class="w-1/2 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow transition">Confirm Rejection</button>
+          <button @click="rejectModal.show = false" :disabled="rejectSubmitting" class="w-1/2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10 disabled:opacity-50">Cancel</button>
+          <button @click="executeReject" :disabled="rejectSubmitting" class="w-1/2 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow transition disabled:opacity-50">
+            {{ rejectSubmitting ? 'Rejecting…' : 'Confirm Rejection' }}
+          </button>
         </div>
       </div>
     </div>
@@ -702,14 +733,14 @@
     <!-- ========================================== -->
     <!-- MODAL: CONFIRM WITHDRAWAL PAYOUT -->
     <!-- ========================================== -->
-    <div v-if="payoutModal.show" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="w-full max-w-md bg-[#1B1B1E] border border-blue-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+    <div v-if="payoutModal.show" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center">
+      <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-blue-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-xl">💸</span>
             <h3 class="text-base font-bold text-white">Confirm Withdrawal Payout</h3>
           </div>
-          <button @click="payoutModal.show = false" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="payoutModal.show = false" :disabled="payoutSubmitting" class="min-h-11 min-w-11 -mr-2 rounded-lg flex items-center justify-center text-gray-400 hover:text-white disabled:opacity-50" aria-label="Close payout dialog">✕</button>
         </div>
 
         <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
@@ -727,8 +758,10 @@
         </div>
 
         <div class="flex gap-2 pt-2">
-          <button @click="payoutModal.show = false" class="w-1/3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10">Cancel</button>
-          <button @click="executeConfirmWithdrawal" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow transition">Mark Paid & Complete</button>
+          <button @click="payoutModal.show = false" :disabled="payoutSubmitting" class="w-1/3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10 disabled:opacity-50">Cancel</button>
+          <button @click="executeConfirmWithdrawal" :disabled="payoutSubmitting" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow transition disabled:opacity-50">
+            {{ payoutSubmitting ? 'Processing Payout…' : 'Mark Paid & Complete' }}
+          </button>
         </div>
       </div>
     </div>
@@ -740,7 +773,7 @@
       <div class="w-full max-w-sm bg-[#1B1B1E] border border-amber-500/40 rounded-3xl p-5 shadow-2xl space-y-4 text-center">
         <div class="flex items-center justify-between border-b border-white/10 pb-2">
           <h3 class="text-xs font-bold text-[#F2D7A5]">Payment QR Code</h3>
-          <button @click="qrModal.show = false" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="qrModal.show = false" class="min-h-11 min-w-11 -mr-2 rounded-lg flex items-center justify-center text-gray-400 hover:text-white" aria-label="Close QR preview">✕</button>
         </div>
 
         <div class="relative mx-auto rounded-2xl overflow-hidden border-2 border-amber-500/30 max-w-[220px] bg-white p-2 shadow-xl">
@@ -750,7 +783,7 @@
         <div class="text-xs space-y-1">
           <p class="font-mono text-amber-300">{{ (qrModal.order?.payeeVpa && qrModal.order?.payeeVpa.includes('@')) ? qrModal.order?.payeeVpa : '9588856526@ybl' }}</p>
           <p class="font-extrabold text-white text-base">₹{{ formatMoney(qrModal.order?.amount) }}</p>
-          <p class="text-[10px] text-gray-500 font-mono">{{ qrModal.order?.orderNo }}</p>
+          <p class="text-[10px] text-gray-400 font-mono">{{ qrModal.order?.orderNo }}</p>
         </div>
 
         <button @click="qrModal.show = false" class="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white">
@@ -784,6 +817,11 @@
         const currentTab = ref('deposits');
         const searchQuery = ref('');
         const actionLoading = ref(null);
+        const payoutSubmitting = ref(false);
+        const rejectSubmitting = ref(false);
+        const dataLoading = ref(false);
+        const dataLoaded = ref(false);
+        const dataError = ref(false);
 
         const stats = reactive({
           pendingCount: 0,
@@ -880,6 +918,16 @@
           return headers;
         }
 
+        function safeRecords(records) {
+          return Array.isArray(records)
+            ? records.filter(row => row && typeof row === 'object' && !Array.isArray(row) &&
+              typeof row.status === 'string' && row.status.trim().length > 0 &&
+              [row.id, row.buyId, row.depositId, row.withdrawalId, row.orderNo].some(value =>
+                (typeof value === 'string' || typeof value === 'number') && String(value).trim().length > 0
+              ))
+            : [];
+        }
+
         async function unlockConsole() {
           const key = String(adminKeyInput.value || '').trim();
           authLoading.value = true;
@@ -920,6 +968,8 @@
 
         async function fetchData() {
           if (!isUnlocked.value) return;
+          dataLoading.value = !dataLoaded.value;
+          dataError.value = false;
           try {
             const headers = getAuthHeaders();
 
@@ -938,50 +988,56 @@
             const pendRes = await fetch('/api/admin/orders/pending', { headers });
             const pendJson = await pendRes.json();
             if (pendJson.code === 1000) {
-              pendingOrders.value = pendJson.data.records || [];
+              pendingOrders.value = safeRecords(pendJson.data?.records);
             }
 
             // All Orders Audit
             const allRes = await fetch('/api/admin/orders/all', { headers });
             const allJson = await allRes.json();
             if (allJson.code === 1000) {
-              allOrders.value = allJson.data.records || [];
+              allOrders.value = safeRecords(allJson.data?.records);
             }
 
             // Pending Deposits
             const depRes = await fetch('/api/admin/deposits/pending', { headers });
             const depJson = await depRes.json();
             if (depJson.code === 1000) {
-              pendingDeposits.value = depJson.data.records || [];
+              pendingDeposits.value = safeRecords(depJson.data?.records);
             }
 
             // All Deposits
             const allDepRes = await fetch('/api/admin/deposits/all', { headers });
             const allDepJson = await allDepRes.json();
             if (allDepJson.code === 1000) {
-              allDeposits.value = allDepJson.data.records || [];
+              allDeposits.value = safeRecords(allDepJson.data?.records);
             }
 
             // Pending Withdrawals
             const wthRes = await fetch('/api/admin/withdrawals/pending', { headers });
             const wthJson = await wthRes.json();
             if (wthJson.code === 1000) {
-              pendingWithdrawals.value = wthJson.data.records || [];
+              pendingWithdrawals.value = safeRecords(wthJson.data?.records);
             }
 
             // All Withdrawals
             const allWthRes = await fetch('/api/admin/withdrawals/all', { headers });
             const allWthJson = await allWthRes.json();
             if (allWthJson.code === 1000) {
-              allWithdrawals.value = allWthJson.data.records || [];
+              allWithdrawals.value = safeRecords(allWthJson.data?.records);
             }
+            if (![statsJson, pendJson, allJson, depJson, allDepJson, wthJson, allWthJson].every(j => j && j.code === 1000)) throw new Error('Admin data request failed');
+            dataLoaded.value = true;
           } catch (e) {
             console.error('Failed to load admin data:', e);
+            dataError.value = true;
+          } finally {
+            dataLoading.value = false;
           }
         }
 
         // DEPOSIT ACTIONS
         async function confirmDeposit(dep) {
+          if (actionLoading.value !== null) return;
           if (!confirm(`Verify Ref No. "${dep.utr}" and credit ₹${formatMoney(dep.amount)} to user "${dep.userNickname || dep.userId}"?`)) {
             return;
           }
@@ -1026,7 +1082,8 @@
 
         async function executeConfirmWithdrawal() {
           const wth = payoutModal.withdrawal;
-          if (!wth) return;
+          if (!wth || payoutSubmitting.value || actionLoading.value !== null) return;
+          payoutSubmitting.value = true;
           actionLoading.value = wth.id;
           try {
             const res = await fetch('/api/admin/withdraw/verify', {
@@ -1051,6 +1108,7 @@
             showToast('Network error during confirmation', 'error');
           } finally {
             actionLoading.value = null;
+            payoutSubmitting.value = false;
           }
         }
 
@@ -1063,6 +1121,7 @@
 
         // MATCH ORDER ACTIONS
         async function confirmAndCredit(order) {
+          if (actionLoading.value !== null) return;
           if (!confirm(`Verify Ref No. "${order.utr}" and immediately credit ₹${formatMoney(order.totalReward)} bonus to trader "${order.userNickname || order.userId}"?`)) {
             return;
           }
@@ -1100,7 +1159,8 @@
 
         async function executeReject() {
           const item = rejectModal.item;
-          if (!item) return;
+          if (!item || rejectSubmitting.value || actionLoading.value !== null) return;
+          rejectSubmitting.value = true;
           actionLoading.value = item.id || item.buyId;
           try {
             let url = '/api/admin/order/verify';
@@ -1131,6 +1191,7 @@
             showToast('Network error during rejection', 'error');
           } finally {
             actionLoading.value = null;
+            rejectSubmitting.value = false;
           }
         }
 
@@ -1355,6 +1416,11 @@
           currentTab,
           searchQuery,
           actionLoading,
+          payoutSubmitting,
+          rejectSubmitting,
+          dataLoading,
+          dataLoaded,
+          dataError,
           stats,
           pendingOrders,
           allOrders,
