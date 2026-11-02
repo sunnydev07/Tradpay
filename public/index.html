@@ -201,7 +201,7 @@
     /* iOS zooms the page when a form control smaller than 16px is focused */
     @supports (-webkit-touch-callout: none) {
       input, select, textarea {
-        font-size: 16px !important;
+        font-size: max(16px, 1em) !important;
       }
     }
 
@@ -292,7 +292,7 @@
         </button>
 
         <!-- Audio status toggle -->
-        <button @click="toggleAudio" class="audio-toggle p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition flex items-center gap-1 text-gray-300">
+        <button @click="toggleAudio" :aria-label="audioEnabled ? 'Mute audio alerts' : 'Enable audio alerts'" :aria-pressed="audioEnabled" class="audio-toggle p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition flex items-center gap-1 text-gray-300">
           <span v-if="audioEnabled">🔊</span>
           <span v-else>🔇</span>
         </button>
@@ -302,7 +302,7 @@
 
     <!-- Global Toast Alert -->
     <transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
-      <div v-if="toast.show" class="app-toast fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-medium shadow-2xl flex items-center gap-2 border" :class="toast.type === 'success' ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/30' : 'bg-[#2A2A2A] text-white border-white/10'">
+      <div v-if="toast.show" role="status" aria-live="polite" class="app-toast fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-medium shadow-2xl flex items-center gap-2 border" :class="toast.type === 'success' ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/30' : (toast.type === 'error' ? 'bg-rose-950/90 text-rose-200 border-rose-500/40' : 'bg-[#2A2A2A] text-white border-white/10')">
         <span>{{ toast.message }}</span>
       </div>
     </transition>
@@ -314,7 +314,7 @@
         <div class="min-w-0">
           <h4 class="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
             <span>Install TradePay App</span>
-            <span class="mobile-app-badge text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">MOBILE APP</span>
+            <span class="mobile-app-badge text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">MOBILE APP</span>
           </h4>
           <p class="text-[10px] text-gray-400 mt-0.5">Use as standalone app on your home screen</p>
         </div>
@@ -328,12 +328,12 @@
     </div>
 
     <!-- iOS Add to Home Screen Instructions Modal -->
-    <div v-if="modals.iosInstall.show" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.iosInstall.show" @click.self="modals.iosInstall.show = false" role="dialog" aria-modal="true" aria-labelledby="ios-install-title" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[400px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div class="flex items-center gap-2">
             <img src="/static/logo/icon-192.png" class="w-8 h-8 rounded-lg object-contain">
-            <h3 class="text-sm font-bold text-white">Install on iPhone / Safari</h3>
+            <h3 id="ios-install-title" class="text-sm font-bold text-white">Install on iPhone / Safari</h3>
           </div>
           <button @click="modals.iosInstall.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
@@ -384,7 +384,7 @@
           <div class="min-w-0">
             <div class="flex items-center gap-1.5">
               <h2 class="text-sm font-bold text-white truncate">{{ user.nickname || 'Trader' }}</h2>
-              <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-[#F2D7A5] border border-amber-500/30 font-semibold font-mono">VIP {{ user.vipLevel || 1 }}</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-[#F2D7A5] border border-amber-500/30 font-semibold font-mono">VIP {{ user.vipLevel || 1 }}</span>
             </div>
             <div class="flex items-center gap-1.5 mt-0.5">
               <span class="text-[11px] text-gray-400 font-mono">ID: {{ String(user.id).slice(0, 8) }}</span>
@@ -397,7 +397,7 @@
 
         <div class="flex items-center gap-2">
           <!-- Notification Bell -->
-          <button @click="openTransactionsHistoryModal('all')" class="w-9 h-9 rounded-xl bg-[#242424] border border-white/10 hover:border-[#F2D7A5]/30 flex items-center justify-center text-sm text-gray-300 hover:text-white transition relative">
+          <button @click="openTransactionsHistoryModal('all')" aria-label="Open transaction history" class="w-9 h-9 rounded-xl bg-[#242424] border border-white/10 hover:border-[#F2D7A5]/30 flex items-center justify-center text-sm text-gray-300 hover:text-white transition relative">
             <span>🔔</span>
             <span v-if="historySummary.verifyingCount > 0" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
             <span v-if="historySummary.verifyingCount > 0" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400"></span>
@@ -505,15 +505,15 @@
       <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#222222] border border-white/5 text-xs text-gray-300">
         <span class="text-amber-400 animate-bounce">📢</span>
         <div class="overflow-hidden whitespace-nowrap flex-1">
-          <div class="inline-block animate-marquee">
+          <p class="inline-block animate-marquee" aria-live="off">
             {{ activeNotice }}
-          </div>
+          </p>
         </div>
       </div>
 
       <!-- Banner Carousel -->
       <div class="relative overflow-hidden rounded-2xl border border-white/5 aspect-[2.4/1] bg-[#222]">
-        <img :src="banners[bannerIndex]" class="w-full h-full object-cover transition-all duration-700" alt="Banner">
+        <img :src="banners[bannerIndex]" @error="$event.target.style.display='none'" class="w-full h-full object-cover transition-all duration-700" alt="Banner">
         <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
           <span v-for="(b, idx) in banners" :key="idx" class="w-2 h-1 rounded-full transition-all" :class="idx === bannerIndex ? 'w-5 bg-[#F2D7A5]' : 'bg-white/30'"></span>
         </div>
@@ -522,7 +522,7 @@
       <!-- Quick Action Buttons (matching image icons with luxury styling) -->
       <div class="quick-actions grid gap-2" :class="summary.usdtEnabled ? 'grid-cols-4' : 'grid-cols-3'">
         <button v-if="summary.usdtEnabled" @click="openUsdtModal" class="quick-action flex flex-col items-center p-2.5 rounded-2xl bg-[#242424] border border-white/5 hover:border-amber-500/20 active:scale-95 transition relative">
-          <span class="absolute -top-1 right-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[8px] font-bold text-emerald-400 font-mono">USDT</span>
+          <span class="absolute -top-1 right-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[10px] font-bold text-emerald-400 font-mono">USDT</span>
           <div class="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-lg mb-1 text-[#F2D7A5]">
             🪙
           </div>
@@ -599,7 +599,7 @@
               <p class="text-xs font-bold font-mono" :class="tx.txType === 'withdrawal' ? 'text-blue-400' : 'text-emerald-400'">
                 {{ tx.txType === 'withdrawal' ? '-' : '+' }}₹{{ formatMoney(tx.amount) }}
               </p>
-              <p class="text-[9px] text-gray-400 mt-0.5">{{ formatRelativeTime(tx.createdAt) }}</p>
+              <p class="text-[10px] text-gray-400 mt-0.5">{{ formatRelativeTime(tx.createdAt) }}</p>
             </div>
           </div>
         </div>
@@ -673,7 +673,7 @@
           <div>
             <div class="flex items-center gap-1.5">
               <h3 class="text-xs font-bold text-[#F2D7A5]">Special Reward Active</h3>
-              <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-[#F2D7A5] font-semibold">+25% BONUS</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 text-[#F2D7A5] font-semibold">+25% BONUS</span>
             </div>
             <p class="text-[10px] text-gray-400 mt-0.5">Time: {{ nightBonus.startTime }} - {{ nightBonus.endTime }} (All payouts boosted)</p>
           </div>
@@ -682,7 +682,7 @@
 
       <!-- Quick Amount Filter Chips -->
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
-        <button v-for="chip in filterRanges" :key="chip.key" @click="selectFilter(chip)" class="px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition border" :class="activeFilterKey === chip.key ? 'bg-[#F2D7A5] text-[#1B1B1B] font-bold border-[#F2D7A5] shadow-md' : 'bg-[#242424] text-gray-300 border-white/5 hover:border-white/10'">
+        <button v-for="chip in filterRanges" :key="chip.key" @click="selectFilter(chip)" :aria-pressed="activeFilterKey === chip.key" class="px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition border" :class="activeFilterKey === chip.key ? 'bg-[#F2D7A5] text-[#1B1B1B] font-bold border-[#F2D7A5] shadow-md' : 'bg-[#242424] text-gray-300 border-white/5 hover:border-white/10'">
           {{ chip.text }}
         </button>
       </div>
@@ -706,7 +706,7 @@
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
                   +{{ order.rewardRate }}%
                 </span>
-                <span v-if="nightBonus.inRangeNow" class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-[#F2D7A5] font-semibold">
+                <span v-if="nightBonus.inRangeNow" class="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-[#F2D7A5] font-semibold">
                   +Night Bonus
                 </span>
               </div>
@@ -729,7 +729,12 @@
           </div>
         </div>
 
-        <div v-if="hangSalesList.length === 0" class="py-12 text-center text-gray-400 text-xs space-y-3">
+        <div v-if="hangLoading" role="status" aria-busy="true" aria-label="Loading available orders" class="py-12 space-y-3">
+          <div class="h-20 rounded-2xl bg-[#242424] animate-pulse"></div>
+          <div class="h-20 rounded-2xl bg-[#242424] animate-pulse"></div>
+          <div class="h-20 rounded-2xl bg-[#242424] animate-pulse"></div>
+        </div>
+        <div v-else-if="hangSalesList.length === 0" class="py-12 text-center text-gray-400 text-xs space-y-3">
           <p class="text-3xl">📭</p>
           <p>No orders in this range right now.</p>
           <button v-if="user.isAdmin" @click="simulateIncomingOrder" class="px-3 py-1.5 rounded-xl bg-[#242424] text-[#F2D7A5] border border-white/10 text-xs">
@@ -761,7 +766,7 @@
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
                   <h3 class="text-sm font-bold text-white">{{ w.ctName }}</h3>
-                  <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" :class="w.status === 1 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'">
+                  <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" :class="w.status === 1 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'">
                     {{ w.status === 1 ? 'Active (onSell)' : 'Paused (offSell)' }}
                   </span>
                 </div>
@@ -853,7 +858,7 @@
 
             <div v-if="tx.utr" class="text-[10px] text-gray-400 flex items-center justify-between bg-white/5 px-2.5 py-1.5 rounded-lg">
               <span>Ref No (UTR): <strong class="text-[#F2D7A5] font-mono">{{ tx.utr }}</strong></span>
-              <span class="text-[9px] text-gray-400">{{ formatDateTime(tx.submittedAt || tx.createdAt) }}</span>
+              <span class="text-[10px] text-gray-400">{{ formatDateTime(tx.submittedAt || tx.createdAt) }}</span>
             </div>
 
             <div v-if="tx.status === 'rejected' && tx.rejectReason" class="text-[10px] text-rose-300 bg-rose-950/40 border border-rose-500/30 px-2.5 py-1.5 rounded-lg">
@@ -1015,11 +1020,11 @@
           </span>
         </button>
 
-        <button v-if="isLoggedIn" @click="handleLogout" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition text-red-400">
+        <button v-if="isLoggedIn" @click="handleLogout" class="w-full p-4 flex items-center justify-between text-left hover:bg-white/5 transition text-rose-400">
           <div class="flex items-center gap-3">
             <span class="text-lg">🚪</span>
             <div>
-              <p class="text-xs font-bold text-red-400">Sign Out</p>
+              <p class="text-xs font-bold text-rose-400">Sign Out</p>
               <p class="text-[10px] text-gray-400">Switch account or clear session</p>
             </div>
           </div>
@@ -1068,11 +1073,11 @@
     <!-- ======================================================== -->
     <!-- MODAL 0: ACCOUNT AUTH -->
     <!-- ======================================================== -->
-    <div v-if="modals.auth.show" @click.self="modals.auth.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.auth.show" @click.self="modals.auth.show = false" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-6 border border-[#F2D7A5]/30 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
-            <h3 class="text-base font-bold text-white flex items-center gap-1.5">
+            <h3 id="auth-modal-title" class="text-base font-bold text-white flex items-center gap-1.5">
               <span>🔐</span>
               <span>Account Sign In</span>
             </h3>
@@ -1110,7 +1115,7 @@
             <button @click="authViewMode = 'switch'" class="flex-1 py-2.5 rounded-xl bg-white/10 text-white text-xs font-semibold hover:bg-white/15 transition">
               Switch Account
             </button>
-            <button @click="handleLogout(); modals.auth.show = false;" class="flex-1 py-2.5 rounded-xl bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-semibold hover:bg-red-500/30 transition">
+            <button @click="handleLogout(); modals.auth.show = false;" class="flex-1 py-2.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold hover:bg-rose-500/30 transition">
               Sign Out
             </button>
           </div>
@@ -1166,11 +1171,11 @@
     <!-- ======================================================== -->
     <!-- MODAL 1: CLAIM ORDER & WALLET PICKER -->
     <!-- ======================================================== -->
-    <div v-if="modals.claim.show" @click.self="modals.claim.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div v-if="modals.claim.show" @click.self="modals.claim.show = false" role="dialog" aria-modal="true" aria-labelledby="claim-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[480px] bg-[#242424] rounded-t-3xl sm:rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
-            <h3 class="text-sm font-bold text-white">Select Payout Receiving Wallet</h3>
+            <h3 id="claim-modal-title" class="text-sm font-bold text-white">Select Payout Receiving Wallet</h3>
             <p class="text-[11px] text-gray-400">Order Amount: <span class="text-white font-bold">₹{{ formatMoney(selectedOrder.amount) }}</span></p>
           </div>
           <button @click="modals.claim.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
@@ -1200,7 +1205,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 2: INR ORDER DETAILS (WITH PAYEE QR ATTACHMENT) -->
     <!-- ======================================================== -->
-    <div v-if="modals.inrOrder.show" @click.self="modals.inrOrder.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.inrOrder.show" @click.self="modals.inrOrder.show = false" role="dialog" aria-modal="true" aria-labelledby="inr-order-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[440px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/30 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
@@ -1210,14 +1215,14 @@
             <span v-else-if="activeClaimedOrder.status === 'completed'" class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-extrabold uppercase tracking-wider">
               ✅ VERIFIED & CREDITED
             </span>
-            <span v-else-if="activeClaimedOrder.status === 'rejected'" class="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-extrabold uppercase tracking-wider">
+            <span v-else-if="activeClaimedOrder.status === 'rejected'" class="text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-extrabold uppercase tracking-wider">
               ❌ VERIFICATION FAILED
             </span>
             <span v-else class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-semibold">
               PROCESSING
             </span>
 
-            <h3 class="text-sm font-bold text-white mt-1">
+            <h3 id="inr-order-modal-title" class="text-sm font-bold text-white mt-1">
               <span v-if="activeClaimedOrder.status === 'verifying'">Pending Owner Verification</span>
               <span v-else-if="activeClaimedOrder.status === 'completed'">Payment Verified & Credited</span>
               <span v-else-if="activeClaimedOrder.status === 'rejected'">Payment Rejected</span>
@@ -1272,7 +1277,7 @@
 
           <div>
             <label class="block text-[11px] text-gray-400 mb-1">Enter Bank 12-Digit UTR / Ref No.</label>
-            <input v-model="utrInput" placeholder="e.g. 429810982312" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#F2D7A5] font-mono">
+            <input v-model="utrInput" placeholder="e.g. 429810982312" class="w-full px-3 py-2.5 rounded-xl bg-[#1B1B1B] border border-white/10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D7A5] font-mono">
           </div>
 
           <div class="flex gap-2">
@@ -1362,12 +1367,12 @@
 
         <!-- STATE 4: REJECTED -->
         <div v-else-if="activeClaimedOrder.status === 'rejected'" class="space-y-4 text-center py-2">
-          <div class="w-20 h-20 mx-auto rounded-full bg-red-500/15 border-2 border-red-500/50 flex items-center justify-center text-4xl">
+          <div class="w-20 h-20 mx-auto rounded-full bg-rose-500/15 border-2 border-rose-500/50 flex items-center justify-center text-4xl">
             <span>❌</span>
           </div>
           <div>
             <h3 class="text-base font-bold text-white">Verification Rejected</h3>
-            <p class="text-xs text-red-300/90 mt-1 max-w-xs mx-auto">
+            <p class="text-xs text-rose-300/90 mt-1 max-w-xs mx-auto">
               {{ activeClaimedOrder.rejectReason || 'Bank reference number could not be verified by the database owner.' }}
             </p>
           </div>
@@ -1381,12 +1386,12 @@
     <!-- ======================================================== -->
     <!-- MODAL 2.5: ORDER QR FULLSCREEN LIGHTBOX -->
     <!-- ======================================================== -->
-    <div v-if="modals.orderQr.show" @click.self="modals.orderQr.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.orderQr.show" @click.self="modals.orderQr.show = false" role="dialog" aria-modal="true" aria-labelledby="order-qr-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
             <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-bold">ORDER PAYMENT QR</span>
-            <h3 class="text-sm font-bold text-white mt-1">Exact Amount: ₹{{ formatMoney(activeClaimedOrder.amount) }}</h3>
+            <h3 id="order-qr-modal-title" class="text-sm font-bold text-white mt-1">Exact Amount: ₹{{ formatMoney(activeClaimedOrder.amount) }}</h3>
           </div>
           <button @click="modals.orderQr.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
@@ -1418,10 +1423,10 @@
     <!-- ======================================================== -->
     <!-- MODAL 3: ADD WALLET -->
     <!-- ======================================================== -->
-    <div v-if="modals.addWallet.show" @click.self="modals.addWallet.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="modals.addWallet.show" @click.self="modals.addWallet.show = false" role="dialog" aria-modal="true" aria-labelledby="add-wallet-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
-          <h3 class="text-sm font-bold text-white">Add Receiving Wallet / UPI</h3>
+          <h3 id="add-wallet-modal-title" class="text-sm font-bold text-white">Add Receiving Wallet / UPI</h3>
           <button @click="modals.addWallet.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
@@ -1471,10 +1476,10 @@
     <!-- ======================================================== -->
     <!-- MODAL 4: USDT RECHARGE -->
     <!-- ======================================================== -->
-    <div v-if="modals.usdt.show && summary.usdtEnabled" @click.self="modals.usdt.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="modals.usdt.show && summary.usdtEnabled" @click.self="modals.usdt.show = false" role="dialog" aria-modal="true" aria-labelledby="usdt-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
-          <h3 class="text-sm font-bold text-white">USDT Deposit Gateway</h3>
+          <h3 id="usdt-modal-title" class="text-sm font-bold text-white">USDT Deposit Gateway</h3>
           <button @click="modals.usdt.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
@@ -1502,12 +1507,12 @@
     <!-- ======================================================== -->
     <!-- MODAL 4.5: WALLET QR CODE VIEWER -->
     <!-- ======================================================== -->
-    <div v-if="modals.walletQr.show" @click.self="modals.walletQr.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="modals.walletQr.show" @click.self="modals.walletQr.show = false" role="dialog" aria-modal="true" aria-labelledby="wallet-qr-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-[#F2D7A5]/40 space-y-4 shadow-2xl">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <div>
             <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">RECEIVING WALLET QR</span>
-            <h3 class="text-sm font-bold text-white mt-1">{{ selectedWalletForQr?.ctName || 'UPI Account' }}</h3>
+            <h3 id="wallet-qr-modal-title" class="text-sm font-bold text-white mt-1">{{ selectedWalletForQr?.ctName || 'UPI Account' }}</h3>
           </div>
           <button @click="modals.walletQr.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
@@ -1536,10 +1541,10 @@
     <!-- ======================================================== -->
     <!-- MODAL 5: MISSIONS & TASKS -->
     <!-- ======================================================== -->
-    <div v-if="modals.missions.show" @click.self="modals.missions.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="modals.missions.show" @click.self="modals.missions.show = false" role="dialog" aria-modal="true" aria-labelledby="missions-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
-          <h3 class="text-sm font-bold text-white">Daily Missions & Rewards</h3>
+          <h3 id="missions-modal-title" class="text-sm font-bold text-white">Daily Missions & Rewards</h3>
           <button @click="modals.missions.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
@@ -1561,7 +1566,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 6: TRANSACTION HISTORY -->
     <!-- ======================================================== -->
-    <div v-if="modals.transactions.show" @click.self="modals.transactions.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div v-if="modals.transactions.show" @click.self="modals.transactions.show = false" role="dialog" aria-modal="true" aria-labelledby="transactions-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[500px] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Header -->
@@ -1571,14 +1576,14 @@
               📜
             </div>
             <div>
-              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <h3 id="transactions-modal-title" class="text-sm font-bold text-white flex items-center gap-2">
                 <span>Transactions & Payment History</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-gray-300 font-mono font-semibold">{{ historySummary.totalCount }}</span>
               </h3>
               <p class="text-[11px] text-gray-400">Complete record of payments, verifications & rewards</p>
             </div>
           </div>
-          <button @click="modals.transactions.show = false" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">✕</button>
+          <button @click="modals.transactions.show = false" aria-label="Close" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">✕</button>
         </div>
 
         <!-- Summary Metrics Bar -->
@@ -1601,19 +1606,19 @@
         <div class="p-3 border-b border-white/5 space-y-2.5 flex-shrink-0 bg-[#212121]">
           <!-- Filter Tabs -->
           <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-            <button @click="historyFilter = 'all'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px]" :class="historyFilter === 'all' ? 'bg-[#F2D7A5] text-black shadow-md' : 'bg-white/5 text-gray-400 hover:text-white'">
+            <button @click="historyFilter = 'all'" :aria-pressed="historyFilter === 'all'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px]" :class="historyFilter === 'all' ? 'bg-[#F2D7A5] text-black shadow-md' : 'bg-white/5 text-gray-400 hover:text-white'">
               All ({{ historySummary.totalCount }})
             </button>
-            <button @click="historyFilter = 'completed'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'completed' ? 'bg-emerald-500 text-black shadow-md' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'">
+            <button @click="historyFilter = 'completed'" :aria-pressed="historyFilter === 'completed'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'completed' ? 'bg-emerald-500 text-black shadow-md' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'">
               <span>✅ Credited ({{ historySummary.completedCount }})</span>
             </button>
-            <button @click="historyFilter = 'verifying'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'verifying' ? 'bg-amber-500 text-black shadow-md' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'">
+            <button @click="historyFilter = 'verifying'" :aria-pressed="historyFilter === 'verifying'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'verifying' ? 'bg-amber-500 text-black shadow-md' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'">
               <span>⏳ Verifying ({{ historySummary.verifyingCount }})</span>
             </button>
-            <button @click="historyFilter = 'rejected'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'rejected' ? 'bg-rose-500 text-white shadow-md' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20'">
+            <button @click="historyFilter = 'rejected'" :aria-pressed="historyFilter === 'rejected'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'rejected' ? 'bg-rose-500 text-white shadow-md' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20'">
               <span>❌ Rejected ({{ historySummary.rejectedCount }})</span>
             </button>
-            <button @click="historyFilter = 'pending'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'pending' ? 'bg-blue-500 text-white shadow-md' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20'">
+            <button @click="historyFilter = 'pending'" :aria-pressed="historyFilter === 'pending'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'pending' ? 'bg-blue-500 text-white shadow-md' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20'">
               <span>⏱️ Pending ({{ historySummary.pendingCount }})</span>
             </button>
           </div>
@@ -1621,8 +1626,8 @@
           <!-- Search Input -->
           <div class="relative">
             <span class="absolute left-3 top-2.5 text-gray-400 text-xs">🔍</span>
-            <input v-model="historySearch" placeholder="Search by UTR, Order No, or Account..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-[#141414] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#F2D7A5] font-mono">
-            <button v-if="historySearch" @click="historySearch = ''" class="absolute right-2.5 top-2 text-gray-400 hover:text-white text-xs">✕</button>
+            <input v-model="historySearch" placeholder="Search by UTR, Order No, or Account..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-[#141414] border border-white/10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D7A5] font-mono">
+            <button v-if="historySearch" @click="historySearch = ''" aria-label="Clear search" class="absolute right-2.5 top-2 text-gray-400 hover:text-white text-xs">✕</button>
           </div>
         </div>
 
@@ -1692,7 +1697,7 @@
                 <p class="text-[10px] text-gray-400">Bank Reference No. (UTR)</p>
                 <p class="text-xs font-mono font-bold text-[#F2D7A5] tracking-wider truncate mt-0.5">{{ tx.utr }}</p>
               </div>
-              <button @click="copyTransactionUtr(tx.utr, tx.id || tx.buyId || tx.orderNo)" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[10px] font-semibold text-gray-200 transition flex items-center gap-1 flex-shrink-0">
+              <button @click="copyTransactionUtr(tx.utr, tx.id || tx.buyId || tx.orderNo)" aria-label="Copy UTR" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[10px] font-semibold text-gray-200 transition flex items-center gap-1 flex-shrink-0">
                 <span v-if="copiedUtrKey === (tx.id || tx.buyId || tx.orderNo)" class="text-emerald-400">✓ Copied</span>
                 <span v-else>Copy</span>
               </button>
@@ -1742,7 +1747,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 7: DEPOSIT (OFFICIAL QR CODE & INSTANT PAYMENT REVIEW) -->
     <!-- ======================================================== -->
-    <div v-if="modals.deposit.show" @click.self="modals.deposit.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div v-if="modals.deposit.show" @click.self="modals.deposit.show = false" role="dialog" aria-modal="true" aria-labelledby="deposit-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[440px] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-[#F2D7A5]/30 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Modal Header -->
@@ -1752,11 +1757,11 @@
               📥
             </div>
             <div>
-              <h3 class="text-sm font-bold text-white">Deposit / Top Up Balance</h3>
+              <h3 id="deposit-modal-title" class="text-sm font-bold text-white">Deposit / Top Up Balance</h3>
               <p class="text-[11px] text-gray-400">Scan QR to pay • Owner confirms on admin panel</p>
             </div>
           </div>
-          <button @click="modals.deposit.show = false" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">✕</button>
+          <button @click="modals.deposit.show = false" aria-label="Close" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">✕</button>
         </div>
 
         <!-- Scrollable Modal Body -->
@@ -1773,7 +1778,7 @@
                   <span>⚡</span>
                   <span>Scan with any UPI App</span>
                 </p>
-                <p class="text-[9px] text-gray-400 font-medium">GPay • PhonePe • Paytm • BHIM • CRED</p>
+                <p class="text-[10px] text-gray-400 font-medium">GPay • PhonePe • Paytm • BHIM • CRED</p>
               </div>
             </div>
 
@@ -1799,7 +1804,7 @@
               <label class="block text-xs font-semibold text-gray-300">Enter Deposit Amount (INR)</label>
               <div class="relative">
                 <span class="absolute left-3.5 top-2.5 text-lg font-bold text-[#F2D7A5]">₹</span>
-                <input type="number" v-model.number="modals.deposit.amount" min="100" placeholder="1000" class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-lg font-mono font-bold text-white placeholder-gray-600 focus:outline-none focus:border-[#F2D7A5]">
+                <input type="number" v-model.number="modals.deposit.amount" min="100" placeholder="1000" class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-lg font-mono font-bold text-white placeholder-gray-400 focus:outline-none focus:border-[#F2D7A5]">
               </div>
               <p class="text-[10px] text-gray-400">Min: ₹100 • Zero transaction fees</p>
             </div>
@@ -1820,7 +1825,7 @@
                 <label class="block text-xs font-bold text-white">Bank Reference / 12-Digit UTR <span class="text-gray-400 font-normal">(Optional)</span></label>
                 <span class="text-[10px] font-mono" :class="depositUtrInput.trim().length === 12 && isDepositUtrValid ? 'text-emerald-400 font-bold' : 'text-gray-400'">{{ depositUtrInput.trim().length ? depositUtrInput.trim().length + '/12' : '' }}</span>
               </div>
-              <input type="text" v-model="depositUtrInput" maxlength="32" inputmode="numeric" placeholder="e.g. 12-digit UTR from payment receipt" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border text-center font-mono text-sm font-bold tracking-wider text-white placeholder-gray-600 focus:outline-none transition" :class="depositUtrInput.trim().length === 12 && isDepositUtrValid ? 'border-emerald-400 bg-emerald-950/20' : 'border-white/15 focus:border-[#F2D7A5]'">
+              <input type="text" v-model="depositUtrInput" maxlength="32" inputmode="numeric" placeholder="e.g. 12-digit UTR from payment receipt" class="w-full px-4 py-2.5 rounded-xl bg-black/60 border text-center font-mono text-sm font-bold tracking-wider text-white placeholder-gray-400 focus:outline-none transition" :class="depositUtrInput.trim().length === 12 && isDepositUtrValid ? 'border-emerald-400 bg-emerald-950/20' : 'border-white/15 focus:border-[#F2D7A5]'">
               <p v-if="!isDepositUtrValid" class="text-[10px] text-rose-300" role="alert">Enter exactly 12 digits, or leave this optional field blank.</p>
               <p class="text-[10px] text-gray-400">Paste the 12-digit UPI Ref/UTR from your receipt or click Confirm Payment directly.</p>
             </div>
@@ -1904,7 +1909,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 8: WITHDRAWAL (REQUEST CASH OUT VIA UPI / BANK) -->
     <!-- ======================================================== -->
-    <div v-if="modals.withdrawal.show" @click.self="modals.withdrawal.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div v-if="modals.withdrawal.show" @click.self="closeWithdrawalModal" role="dialog" aria-modal="true" aria-labelledby="withdrawal-modal-title" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div class="modal-panel modal-sheet w-full max-w-[440px] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Modal Header -->
@@ -1914,15 +1919,16 @@
               📤
             </div>
             <div>
-              <h3 class="text-sm font-bold text-white">Withdrawal / Cash Out</h3>
+              <h3 id="withdrawal-modal-title" class="text-sm font-bold text-white">Withdrawal / Cash Out</h3>
               <p class="text-[11px] text-gray-400">Fast payout to your verified UPI or Bank account</p>
             </div>
           </div>
-          <button @click="modals.withdrawal.show = false" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">✕</button>
+          <button @click="closeWithdrawalModal" aria-label="Close" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition">✕</button>
         </div>
 
         <!-- Scrollable Modal Body -->
-        <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+        <div class="flex-1 overflow-y-auto p-4 sm:p-5">
+          <div v-if="modals.withdrawal.step === 1" class="space-y-4">
           <!-- Balance Display -->
           <div class="p-3.5 rounded-2xl bg-gradient-to-br from-[#262626] to-[#1C1C1C] border border-[#F2D7A5]/30 flex items-center justify-between">
             <div>
@@ -1942,7 +1948,7 @@
             </div>
             <div class="relative">
               <span class="absolute left-3.5 top-3 text-lg font-bold text-[#F2D7A5]">₹</span>
-              <input type="number" v-model.number="modals.withdrawal.amount" min="100" :max="summary.balance || 0" placeholder="Min ₹100" class="w-full pl-9 pr-4 py-3 rounded-xl bg-black/40 border border-white/15 text-lg font-mono font-bold text-white placeholder-gray-600 focus:outline-none focus:border-blue-400">
+              <input type="number" inputmode="numeric" autocomplete="off" v-model.number="modals.withdrawal.amount" min="100" :max="summary.balance || 0" placeholder="Min ₹100" class="w-full pl-9 pr-4 py-3 rounded-xl bg-black/40 border border-white/15 text-lg font-mono font-bold text-white placeholder-gray-400 focus:outline-none focus:border-blue-400">
             </div>
 
             <!-- Percentage Chips -->
@@ -1983,11 +1989,11 @@
           <div v-if="modals.withdrawal.payoutType === 'upi'" class="space-y-3">
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 mb-1">Your UPI ID (VPA)</label>
-              <input v-model="modals.withdrawal.upiId" placeholder="e.g. mobile@ybl or user@okhdfcbank" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-400 font-mono">
+              <input v-model="modals.withdrawal.upiId" autocomplete="off" enterkeyhint="go" placeholder="e.g. mobile@ybl or user@okhdfcbank" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 font-mono">
             </div>
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 mb-1">Account Holder Full Name</label>
-              <input v-model="modals.withdrawal.accountName" placeholder="As registered with your bank" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-400">
+              <input v-model="modals.withdrawal.accountName" placeholder="As registered with your bank" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-blue-400">
             </div>
           </div>
 
@@ -1995,28 +2001,28 @@
           <div v-else class="space-y-3">
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 mb-1">Bank Account Number</label>
-              <input v-model="modals.withdrawal.accountNumber" placeholder="Enter bank account number" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-400 font-mono">
+              <input v-model="modals.withdrawal.accountNumber" inputmode="numeric" autocomplete="cc-number" placeholder="Enter bank account number" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 font-mono">
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="block text-[11px] font-semibold text-gray-400 mb-1">Bank IFSC Code</label>
-                <input v-model="modals.withdrawal.ifsc" placeholder="e.g. SBIN0001234" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-400 font-mono uppercase">
+                <input v-model="modals.withdrawal.ifsc" autocomplete="off" enterkeyhint="go" placeholder="e.g. SBIN0001234" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 font-mono uppercase">
               </div>
               <div>
                 <label class="block text-[11px] font-semibold text-gray-400 mb-1">Bank Name</label>
-                <input v-model="modals.withdrawal.bankName" placeholder="e.g. SBI, HDFC" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-400">
+                <input v-model="modals.withdrawal.bankName" placeholder="e.g. SBI, HDFC" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-blue-400">
               </div>
             </div>
             <div>
               <label class="block text-[11px] font-semibold text-gray-400 mb-1">Account Holder Name</label>
-              <input v-model="modals.withdrawal.accountName" placeholder="As shown on passbook" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-400">
+              <input v-model="modals.withdrawal.accountName" placeholder="As shown on passbook" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-blue-400">
             </div>
           </div>
 
           <!-- Security PIN (if configured) -->
           <div v-if="user.isPinSet" class="space-y-1">
             <label class="block text-xs font-semibold text-gray-300">Payment Security PIN</label>
-            <input type="password" v-model="modals.withdrawal.pin" maxlength="6" placeholder="Enter 6-digit PIN" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-sm text-center font-mono text-white placeholder-gray-600 focus:outline-none focus:border-blue-400 tracking-widest">
+            <input type="password" v-model="modals.withdrawal.pin" inputmode="numeric" autocomplete="off" pattern="[0-9]{6}" maxlength="6" enterkeyhint="done" placeholder="Enter 6-digit PIN" class="w-full px-3 py-2.5 rounded-xl bg-black/40 border border-white/15 text-sm text-center font-mono text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 tracking-widest">
           </div>
 
           <!-- Info Box -->
@@ -2033,6 +2039,31 @@
             <span v-if="modals.withdrawal.loading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
             <span v-else>Confirm Withdrawal of ₹{{ formatMoney(modals.withdrawal.amount || 0) }}</span>
           </button>
+            </div>
+
+            <div v-else-if="modals.withdrawal.step === 2" class="space-y-4 text-center py-4">
+              <div class="w-16 h-16 rounded-3xl bg-blue-500/15 border-2 border-blue-500/30 flex items-center justify-center mx-auto text-blue-300">
+                <span class="w-8 h-8 border-4 border-blue-300/30 border-t-blue-300 rounded-full animate-spin"></span>
+              </div>
+              <div>
+                <div class="inline-block px-3 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-[11px] font-bold text-blue-300 uppercase tracking-wider mb-2">Under Review</div>
+                <h3 class="text-lg font-extrabold text-white">Withdrawal Request Submitted</h3>
+                <p class="text-xs text-gray-400 mt-1">Your request for ₹{{ formatMoney(activeWithdrawal?.amount || modals.withdrawal.amount) }} is being reviewed. The balance is reserved while the transfer is confirmed.</p>
+                <p v-if="activeWithdrawal?.status" class="text-[11px] text-gray-500 mt-2">Status: {{ activeWithdrawal.status }}</p>
+              </div>
+              <button @click="closeWithdrawalModal" class="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-gray-200 text-xs font-semibold hover:bg-white/10 transition">Close</button>
+            </div>
+
+            <div v-else-if="modals.withdrawal.step === 3" class="space-y-4 text-center py-4">
+              <div class="w-16 h-16 rounded-3xl bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-3xl mx-auto shadow-inner text-emerald-400">✓</div>
+              <div>
+                <div class="inline-block px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-2">Transfer Complete</div>
+                <h3 class="text-lg font-extrabold text-white">Withdrawal Completed</h3>
+                <p class="text-xs text-gray-400 mt-1">₹{{ formatMoney(activeWithdrawal?.amount || modals.withdrawal.amount) }} has been transferred successfully.</p>
+                <p v-if="activeWithdrawal?.txRef" class="text-[11px] text-gray-400 mt-2">Transaction reference: <span class="font-mono text-white">{{ activeWithdrawal.txRef }}</span></p>
+              </div>
+              <button @click="closeWithdrawalModal" class="w-full py-3 rounded-xl bg-emerald-500 text-black text-xs font-extrabold hover:brightness-110 transition">Done</button>
+            </div>
         </div>
       </div>
     </div>
@@ -2048,7 +2079,9 @@
 
     const app = createApp({
       setup() {
-        const activeTab = ref('home');
+        const VALID_TABS = ['home', 'payment', 'wallet', 'team'];
+        const initialTab = new URLSearchParams(location.search).get('tab');
+        const activeTab = ref(VALID_TABS.includes(initialTab) ? initialTab : 'home');
         const hideBalance = ref(false);
         const audioEnabled = ref(true);
         const bannerIndex = ref(0);
@@ -2077,13 +2110,15 @@
 
         // User & State Data (Zero Initial Balances)
         const user = reactive({
-          id: '10086',
-          nickname: 'Trader',
-          phone: '+919876543210',
+          id: '',
+          nickname: '',
+          phone: '',
           balance: 0.00,
           vipLevel: 1,
           inviteCode: 'TP8899',
-          points: 0
+          points: 0,
+          isAdmin: false,
+          isPinSet: false
         });
 
         const summary = reactive({
@@ -2099,7 +2134,7 @@
         });
 
         const nightBonus = reactive({
-          inRangeNow: true,
+          inRangeNow: false,
           startTime: '22:00',
           endTime: '06:00'
         });
@@ -2110,6 +2145,7 @@
 
         // Hang Sales Orders & Sorting
         const hangSalesList = ref([]);
+        const hangLoading = ref(false);
         const sortMode = ref(0);
         const activeFilterKey = ref('all');
         const filterRanges = ref([
@@ -2156,7 +2192,7 @@
           transactions: { show: false },
           iosInstall: { show: false },
           deposit: { show: false, step: 1, amount: 1000, loading: false },
-          withdrawal: { show: false, amount: '', payoutType: 'upi', pin: '', loading: false, upiId: '', accountName: '', bankName: '', accountNumber: '', ifsc: '' }
+          withdrawal: { show: false, step: 1, amount: '', payoutType: 'upi', pin: '', loading: false, upiId: '', accountName: '', bankName: '', accountNumber: '', ifsc: '' }
         });
 
         // Deposit & Withdrawal state
@@ -2245,8 +2281,9 @@
         }, { immediate: true });
 
         function closeOpenModals() {
-          Object.values(modals).forEach(modal => {
+          Object.entries(modals).forEach(([name, modal]) => {
             if (modal && modal.show) modal.show = false;
+            if (name === 'withdrawal') modal.step = 1;
           });
         }
 
@@ -2276,11 +2313,13 @@
 
         // Toast
         const toast = reactive({ show: false, message: '', type: 'info' });
+        let toastTimer = null;
         function showToast(msg, type = 'info') {
           toast.message = msg;
           toast.type = type;
           toast.show = true;
-          setTimeout(() => { toast.show = false; }, 2500);
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => { toast.show = false; }, 2500);
         }
 
         async function authFetch(url, options = {}) {
@@ -2330,7 +2369,9 @@
             gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
             osc.start();
             osc.stop(ctx.currentTime + 0.25);
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Audio alert unavailable:', e);
+          }
         }
 
         function toggleAudio() {
@@ -2370,9 +2411,11 @@
         }
 
         function switchTab(tab) {
+          if (!VALID_TABS.includes(tab)) return;
           activeTab.value = tab;
           Object.keys(modals).forEach(k => {
             if (modals[k] && modals[k].show) modals[k].show = false;
+            if (k === 'withdrawal') modals[k].step = 1;
           });
           if (tab === 'team') fetchTeamData();
           else if (tab === 'wallet') fetchWallets();
@@ -2381,11 +2424,33 @@
 
         function copyText(txt) {
           if (!txt) return;
-          navigator.clipboard.writeText(String(txt)).then(() => {
-            showToast('Copied to clipboard!', 'success');
-          }).catch(() => {
-            showToast('Copied: ' + txt, 'success');
-          });
+          const value = String(txt);
+          const fallback = () => {
+            let ta = null;
+            try {
+              ta = document.createElement('textarea');
+              ta.value = value;
+              ta.setAttribute('readonly', '');
+              ta.style.position = 'fixed';
+              ta.style.opacity = '0';
+              document.body.appendChild(ta);
+              ta.select();
+              ta.setSelectionRange(0, value.length);
+              const ok = document.execCommand('copy');
+              showToast(ok ? 'Copied to clipboard!' : 'Copy failed: ' + value, ok ? 'success' : 'error');
+            } catch (e) {
+              showToast('Copy failed: ' + value, 'error');
+            } finally {
+              if (ta && ta.parentNode) ta.parentNode.removeChild(ta);
+            }
+          };
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(value)
+              .then(() => showToast('Copied to clipboard!', 'success'))
+              .catch(fallback);
+          } else {
+            fallback();
+          }
         }
 
         // Auth Actions
@@ -2456,7 +2521,9 @@
               Object.assign(summary, json.data);
               user.balance = json.data.balance;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Failed to fetch summary:', e);
+          }
         }
 
         async function fetchUserInfo() {
@@ -2466,7 +2533,9 @@
             if (json.code === 1000) {
               Object.assign(user, json.data);
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Failed to fetch user info:', e);
+          }
         }
 
         async function fetchWallets() {
@@ -2476,10 +2545,13 @@
             if (json.code === 1000) {
               wallets.value = json.data;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Failed to fetch wallets:', e);
+          }
         }
 
         async function fetchHangSales() {
+          hangLoading.value = true;
           try {
             const chip = filterRanges.value.find(c => c.key === activeFilterKey.value);
             const params = new URLSearchParams();
@@ -2492,7 +2564,11 @@
             if (json.code === 1000) {
               hangSalesList.value = json.data.records || [];
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Failed to fetch HangSale orders:', e);
+          } finally {
+            hangLoading.value = false;
+          }
         }
 
         async function fetchNightBonus() {
@@ -2502,7 +2578,9 @@
             if (json.code === 1000) {
               Object.assign(nightBonus, json.data);
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Failed to fetch night bonus status:', e);
+          }
         }
 
         async function fetchTeamData() {
@@ -2515,7 +2593,9 @@
               teamData.yCommission = json.data.yCommission || 0;
               teamData.teamTurnover = json.data.teamTurnover || 0;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Failed to fetch team data:', e);
+          }
         }
 
         async function fetchMissions() {
@@ -2525,7 +2605,9 @@
             if (json.code === 1000) {
               missions.value = json.data;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Failed to fetch missions:', e);
+          }
         }
 
         function getPaymentVpa() {
@@ -2666,6 +2748,11 @@
         const proceedToDepositPayment = submitDepositPayment;
 
         // Withdrawal Feature Handlers (Review-Enabled Multi-Step)
+        function closeWithdrawalModal() {
+          modals.withdrawal.show = false;
+          modals.withdrawal.step = 1;
+        }
+
         function openWithdrawalModal() {
           if (activeWithdrawal.value && activeWithdrawal.value.status === 'pending') {
             modals.withdrawal.step = 2; // Show active review status
@@ -2686,6 +2773,10 @@
 
         async function submitWithdrawalRequest() {
           if (modals.withdrawal.loading) return;
+          if (modals.withdrawal.pin && !/^\d{6}$/.test(modals.withdrawal.pin)) {
+            showToast('PIN must be exactly 6 digits', 'error');
+            return;
+          }
           const amt = Number(modals.withdrawal.amount);
           if (!amt || amt < 100) {
             showToast('Minimum withdrawal amount is ₹100', 'error');
@@ -2804,7 +2895,9 @@
               } else {
                 activeWithdrawal.value = null;
               }
-            } catch (e) {}
+            } catch (e) {
+              console.warn('[TradePay] Failed to fetch active withdrawal:', e);
+            }
           } catch (e) {
             console.error('Error fetching transactions:', e);
           } finally {
@@ -3091,7 +3184,9 @@
           try {
             await authFetch('/app/mission/task/visit/' + m.id, { method: 'POST' });
             m.completed = true;
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay] Failed to visit mission:', e);
+          }
         }
 
         function openPinModal() {
@@ -3240,9 +3335,7 @@
                 } else if (data.type === 'WITHDRAWAL_REJECTED') {
                   showToast(data.payload?.msg || 'Withdrawal rejected. Funds refunded to balance.', 'error');
                   activeWithdrawal.value = null;
-                  if (modals.withdrawal.show) {
-                    modals.withdrawal.show = false;
-                  }
+                  if (modals.withdrawal.show) closeWithdrawalModal();
                   fetchSummary();
                   fetchUserInfo();
                   fetchTransactionsHistory(true);
@@ -3268,7 +3361,9 @@
                   showToast(data.payload?.msg || 'Order verification rejected', 'error');
                   fetchTransactionsHistory(true);
                 }
-              } catch (e) {}
+              } catch (e) {
+                console.warn('[TradePay] Failed to process WebSocket message:', e);
+              }
             };
             ws.onclose = () => {
               ws = null;
@@ -3346,6 +3441,7 @@
           wallets,
           activeWallets,
           hangSalesList,
+          hangLoading,
           filterRanges,
           activeFilterKey,
           sortLabel,
@@ -3429,6 +3525,7 @@
           submitDepositPayment,
           activeWithdrawal,
           openWithdrawalModal,
+          closeWithdrawalModal,
           submitWithdrawalRequest
         };
       }

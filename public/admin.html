@@ -75,13 +75,13 @@
     <!-- ========================================== -->
     <!-- AUTHENTICATION / UNLOCK OVERLAY MODAL -->
     <!-- ========================================== -->
-    <div v-if="!isUnlocked" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="!isUnlocked" role="dialog" aria-modal="true" aria-labelledby="admin-unlock-title" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <div class="w-full max-w-md bg-[#1B1B1E] border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
         <div class="text-center space-y-2">
           <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl mx-auto shadow-inner text-[#F2D7A5]">
             🛡️
           </div>
-          <h2 class="text-xl font-extrabold text-white">Master Admin Console</h2>
+          <h2 id="admin-unlock-title" class="text-xl font-extrabold text-white">Master Admin Console</h2>
           <p class="text-xs text-gray-400">Full access & control of users, balances, transactions and withdrawals</p>
         </div>
 
@@ -89,7 +89,7 @@
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">Admin Secret Key / Owner Passcode</label>
             <div class="relative">
-              <input :type="showKey ? 'text' : 'password'" v-model="adminKeyInput" placeholder="Enter Admin Secret Key" class="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-400 font-mono">
+              <input :type="showKey ? 'text' : 'password'" v-model="adminKeyInput" autocomplete="off" enterkeyhint="go" placeholder="Enter Admin Secret Key" class="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 font-mono">
               <button type="button" @click="showKey = !showKey" class="absolute right-3 top-3 text-xs text-gray-400 hover:text-white">
                 {{ showKey ? 'Hide' : 'Show' }}
               </button>
@@ -149,7 +149,7 @@
         </div>
 
         <!-- Audio Alert Toggle -->
-        <button @click="toggleAudio" class="min-h-11 px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition" :class="audioEnabled ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-white/5 border-white/10 text-gray-400'">
+        <button @click="toggleAudio" :aria-pressed="audioEnabled" aria-label="Toggle audio alerts" class="min-h-11 px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition" :class="audioEnabled ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-white/5 border-white/10 text-gray-400'">
           <span>{{ audioEnabled ? '🔊 Audio Alerts: ON' : '🔇 Audio Muted' }}</span>
         </button>
 
@@ -157,7 +157,7 @@
           Main App ↗
         </a>
 
-        <button @click="lockConsole" class="min-h-11 px-3 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-xs font-semibold text-red-300 transition">
+        <button @click="lockConsole" class="min-h-11 px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-xs font-semibold text-rose-300 transition">
           Lock
         </button>
       </div>
@@ -264,7 +264,7 @@
       <!-- Search & Refresh -->
       <div class="flex items-center gap-2">
         <div class="relative flex-1 sm:w-64">
-          <input v-model="searchQuery" placeholder="Search user / phone / ID / UTR..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 font-mono">
+          <input v-model="searchQuery" placeholder="Search user / phone / ID / UTR..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 font-mono">
           <span class="absolute left-2.5 top-2 text-xs text-gray-400">🔍</span>
         </div>
         <button @click="fetchData" class="min-h-11 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-gray-300 hover:text-white transition flex items-center gap-1">
@@ -330,7 +330,7 @@
                   <div>
                     <div class="font-bold text-white flex items-center gap-1.5">
                       <span>{{ user.nickname || 'Trader' }}</span>
-                      <span class="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">VIP {{ user.vipLevel }}</span>
+                      <span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">VIP {{ user.vipLevel }}</span>
                     </div>
                     <div class="text-[11px] font-mono text-gray-400">{{ user.phone || 'No phone' }}</div>
                     <div class="text-[10px] text-gray-400 font-mono">ID: {{ user.id }}</div>
@@ -369,7 +369,7 @@
               <!-- VIP & Status -->
               <td class="p-3.5 whitespace-nowrap">
                 <span v-if="user.onSellStatus === 1" class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">ACTIVE</span>
-                <span v-else class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-bold text-[10px]">INACTIVE</span>
+                <span v-else class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 font-bold text-[10px]">INACTIVE</span>
                 <div class="text-[10px] text-gray-400 mt-1">Inv: <strong class="text-white">{{ user.inviteCode || '—' }}</strong></div>
               </td>
 
@@ -383,7 +383,7 @@
                   <button @click="openUserDetailsModal(user)" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 hover:text-white font-semibold text-xs border border-white/10 transition">
                     <span>👁️ Details</span>
                   </button>
-                  <button @click="promptEraseUser(user)" class="px-2.5 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 font-semibold text-xs transition active:scale-95 flex items-center gap-1" title="Completely erase user from app & database">
+                  <button @click="promptEraseUser(user)" class="px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-semibold text-xs transition active:scale-95 flex items-center gap-1" title="Completely erase user from app & database">
                     <span>🗑️</span>
                     <span>Erase</span>
                   </button>
@@ -522,7 +522,7 @@
             </button>
 
             <!-- Reject Button -->
-            <button @click="promptRejectWithdrawal(wth)" :disabled="actionLoading !== null" class="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+            <button @click="promptRejectWithdrawal(wth)" :disabled="actionLoading !== null" class="py-2.5 px-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
               ❌ Reject & Refund
             </button>
 
@@ -533,7 +533,7 @@
             </button>
 
             <!-- Delete Button -->
-            <button @click="promptDeleteTransaction(wth, 'withdrawal')" class="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs transition" title="Delete Withdrawal">
+            <button @click="promptDeleteTransaction(wth, 'withdrawal')" class="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs transition" title="Delete Withdrawal">
               🗑️
             </button>
           </div>
@@ -562,7 +562,7 @@
                 <td class="p-3 whitespace-nowrap">
                   <span v-if="wth.status === 'completed'" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">PAID & SETTLED</span>
                   <span v-else-if="wth.status === 'pending'" class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px] animate-pulse">PENDING REVIEW</span>
-                  <span v-else-if="wth.status === 'rejected'" class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold text-[10px]">REJECTED & REFUNDED</span>
+                  <span v-else-if="wth.status === 'rejected'" class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold text-[10px]">REJECTED & REFUNDED</span>
                   <span v-else class="px-2 py-0.5 rounded bg-white/10 text-gray-400 font-bold text-[10px]">{{ wth.status.toUpperCase() }}</span>
                 </td>
                 <td class="p-3 whitespace-nowrap">
@@ -575,7 +575,7 @@
                 </td>
                 <td class="p-3 whitespace-nowrap font-bold text-blue-400">
                   -₹{{ formatMoney(wth.amount) }}
-                  <span v-if="wth.originalAmount && wth.originalAmount !== wth.amount" class="text-[9px] block text-amber-300 font-normal">
+                  <span v-if="wth.originalAmount && wth.originalAmount !== wth.amount" class="text-[10px] block text-amber-300 font-normal">
                     (orig: ₹{{ formatMoney(wth.originalAmount) }})
                   </span>
                 </td>
@@ -592,7 +592,7 @@
                     <button v-if="wth.status === 'pending'" @click="promptConfirmWithdrawal(wth)" :disabled="actionLoading !== null" class="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-[10px] font-bold disabled:opacity-50">
                       {{ actionLoading === wth.id ? 'Confirming…' : 'Mark Paid' }}
                     </button>
-                    <button @click="promptDeleteTransaction(wth, 'withdrawal')" class="p-1 rounded text-red-400 hover:text-red-300 text-xs" title="Delete">
+                    <button @click="promptDeleteTransaction(wth, 'withdrawal')" class="p-1 rounded text-rose-400 hover:text-rose-300 text-xs" title="Delete">
                       🗑️
                     </button>
                   </div>
@@ -680,7 +680,7 @@
 
           <!-- Action Buttons -->
           <div class="flex items-center gap-2 pt-1">
-            <button @click="promptRejectDeposit(dep)" :disabled="actionLoading !== null" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+            <button @click="promptRejectDeposit(dep)" :disabled="actionLoading !== null" class="w-1/3 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
               ❌ Reject
             </button>
 
@@ -689,7 +689,7 @@
               <span v-else>✅ Confirm & Credit ₹{{ formatMoney(dep.amount) }}</span>
             </button>
 
-            <button @click="promptDeleteTransaction(dep, 'deposit')" class="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs transition" title="Delete Deposit">
+            <button @click="promptDeleteTransaction(dep, 'deposit')" class="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs transition" title="Delete Deposit">
               🗑️
             </button>
           </div>
@@ -717,7 +717,7 @@
                 <td class="p-3 whitespace-nowrap">
                   <span v-if="dep.status === 'completed'" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">CREDITED</span>
                   <span v-else-if="dep.status === 'verifying'" class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px] animate-pulse">VERIFYING</span>
-                  <span v-else-if="dep.status === 'rejected'" class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold text-[10px]">REJECTED</span>
+                  <span v-else-if="dep.status === 'rejected'" class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold text-[10px]">REJECTED</span>
                   <span v-else class="px-2 py-0.5 rounded bg-white/10 text-gray-400 font-bold text-[10px]">{{ dep.status.toUpperCase() }}</span>
                 </td>
                 <td class="p-3 whitespace-nowrap">
@@ -732,7 +732,7 @@
                 <td class="p-3 whitespace-nowrap font-bold text-white">
                   <div class="flex items-center gap-1.5">
                     <span>{{ dep.utr || '—' }}</span>
-                    <button v-if="dep.utr" @click="copyText(dep.utr)" class="text-[10px] text-gray-400 hover:text-white">📋</button>
+                    <button v-if="dep.utr" @click="copyText(dep.utr)" aria-label="Copy UTR" class="text-[10px] text-gray-400 hover:text-white">📋</button>
                   </div>
                 </td>
                 <td class="p-3 whitespace-nowrap text-gray-400 font-mono">{{ dep.payeeVpa || 'Official UPI' }}</td>
@@ -742,7 +742,7 @@
                       {{ actionLoading === dep.id ? 'Crediting…' : 'Credit' }}
                     </button>
                     <span v-else class="text-[10px] text-gray-400">{{ dep.verifiedBy ? 'By ' + dep.verifiedBy : '—' }}</span>
-                    <button @click="promptDeleteTransaction(dep, 'deposit')" class="p-1 text-red-400 hover:text-red-300 text-xs" title="Delete">
+                    <button @click="promptDeleteTransaction(dep, 'deposit')" class="p-1 text-rose-400 hover:text-rose-300 text-xs" title="Delete">
                       🗑️
                     </button>
                   </div>
@@ -811,7 +811,7 @@
                 <span v-if="tx.status === 'completed'" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">COMPLETED</span>
                 <span v-else-if="tx.status === 'verifying'" class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px] animate-pulse">VERIFYING</span>
                 <span v-else-if="tx.status === 'pending'" class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px]">PENDING</span>
-                <span v-else-if="tx.status === 'rejected'" class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold text-[10px]">REJECTED</span>
+                <span v-else-if="tx.status === 'rejected'" class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold text-[10px]">REJECTED</span>
                 <span v-else class="px-2 py-0.5 rounded bg-white/10 text-gray-400 text-[10px]">{{ tx.status }}</span>
               </td>
               <td class="p-3 whitespace-nowrap">
@@ -829,7 +829,7 @@
                 <div v-if="tx.utr" class="font-mono text-white">UTR: {{ tx.utr }}</div>
                 <div v-if="tx.txRef" class="font-mono text-gray-300">Ref: {{ tx.txRef }}</div>
                 <div v-if="tx.payoutAccount" class="text-gray-400 truncate max-w-xs">{{ tx.payoutAccount }}</div>
-                <div v-if="tx.rejectReason" class="text-red-400 text-[10px]">Rej: {{ tx.rejectReason }}</div>
+                <div v-if="tx.rejectReason" class="text-rose-400 text-[10px]">Rej: {{ tx.rejectReason }}</div>
               </td>
               <td class="p-3 whitespace-nowrap text-right">
                 <div class="flex items-center justify-end gap-1.5">
@@ -837,7 +837,7 @@
                     <span>✏️</span>
                     <span>Edit</span>
                   </button>
-                  <button @click="promptDeleteTransaction(tx, tx.txType)" class="px-2.5 py-1 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-[10px] font-bold transition flex items-center gap-1" title="Delete Permanently">
+                  <button @click="promptDeleteTransaction(tx, tx.txType)" class="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[10px] font-bold transition flex items-center gap-1" title="Delete Permanently">
                     <span>🗑️</span>
                     <span>Delete</span>
                   </button>
@@ -924,7 +924,7 @@
               <span>QR</span>
             </button>
 
-            <button @click="promptRejectOrder(order)" :disabled="actionLoading !== null" class="w-1/3 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
+            <button @click="promptRejectOrder(order)" :disabled="actionLoading !== null" class="w-1/3 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold transition active:scale-95 disabled:opacity-50">
               ❌ Reject
             </button>
 
@@ -933,7 +933,7 @@
               <span v-else>✅ Confirm & Credit ₹{{ formatMoney(order.totalReward) }}</span>
             </button>
 
-            <button @click="promptDeleteTransaction(order, 'order')" class="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs transition" title="Delete Order">
+            <button @click="promptDeleteTransaction(order, 'order')" class="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs transition" title="Delete Order">
               🗑️
             </button>
           </div>
@@ -964,7 +964,7 @@
               <td class="p-3 whitespace-nowrap">
                 <span v-if="order.status === 'completed'" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">VERIFIED & CREDITED</span>
                 <span v-else-if="order.status === 'verifying'" class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px]">PENDING AUDIT</span>
-                <span v-else-if="order.status === 'rejected'" class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold text-[10px]">REJECTED</span>
+                <span v-else-if="order.status === 'rejected'" class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold text-[10px]">REJECTED</span>
                 <span v-else class="px-2 py-0.5 rounded bg-white/10 text-gray-400 font-bold text-[10px]">{{ order.status.toUpperCase() }}</span>
               </td>
               <td class="p-3 whitespace-nowrap">
@@ -985,7 +985,7 @@
                     {{ actionLoading === order.buyId ? 'Crediting…' : 'Credit' }}
                   </button>
                   <span v-else class="text-[10px] text-gray-400">{{ order.verifiedBy ? 'By ' + order.verifiedBy : '—' }}</span>
-                  <button @click="promptDeleteTransaction(order, 'order')" class="p-1 text-red-400 hover:text-red-300 text-xs" title="Delete">
+                  <button @click="promptDeleteTransaction(order, 'order')" class="p-1 text-rose-400 hover:text-rose-300 text-xs" title="Delete">
                     🗑️
                   </button>
                 </div>
@@ -1001,17 +1001,17 @@
     <!-- ========================================== -->
     <!-- MODAL: BALANCE MANIPULATION -->
     <!-- ========================================== -->
-    <div v-if="balanceModal.show" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="balanceModal.show" role="dialog" aria-modal="true" aria-labelledby="balance-modal-title" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-emerald-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-2xl">💰</span>
             <div>
-              <h3 class="text-base font-bold text-white">Manipulate User Balance</h3>
+              <h3 id="balance-modal-title" class="text-base font-bold text-white">Manipulate User Balance</h3>
               <p class="text-xs text-gray-400">{{ balanceModal.user?.nickname }} ({{ balanceModal.user?.phone || balanceModal.user?.id }})</p>
             </div>
           </div>
-          <button @click="balanceModal.show = false" :disabled="balanceModal.submitting" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="balanceModal.show = false" :disabled="balanceModal.submitting" aria-label="Close" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg disabled:opacity-50">✕</button>
         </div>
 
         <!-- Current Balance Display -->
@@ -1025,7 +1025,7 @@
           <button type="button" @click="balanceModal.action = 'credit'" class="py-2.5 rounded-xl text-xs font-bold border transition" :class="balanceModal.action === 'credit' ? 'bg-emerald-500 text-black border-emerald-400 shadow' : 'bg-white/5 text-gray-300 border-white/10'">
             ➕ Credit (+)
           </button>
-          <button type="button" @click="balanceModal.action = 'debit'" class="py-2.5 rounded-xl text-xs font-bold border transition" :class="balanceModal.action === 'debit' ? 'bg-red-500 text-white border-red-400 shadow' : 'bg-white/5 text-gray-300 border-white/10'">
+          <button type="button" @click="balanceModal.action = 'debit'" class="py-2.5 rounded-xl text-xs font-bold border transition" :class="balanceModal.action === 'debit' ? 'bg-rose-500 text-white border-rose-400 shadow' : 'bg-white/5 text-gray-300 border-white/10'">
             ➖ Debit (-)
           </button>
           <button type="button" @click="balanceModal.action = 'set'" class="py-2.5 rounded-xl text-xs font-bold border transition" :class="balanceModal.action === 'set' ? 'bg-purple-600 text-white border-purple-400 shadow' : 'bg-white/5 text-gray-300 border-white/10'">
@@ -1040,7 +1040,7 @@
           </label>
           <div class="relative">
             <span class="absolute left-3 top-2.5 text-gray-400 font-bold">₹</span>
-            <input type="number" step="any" v-model.number="balanceModal.amount" placeholder="0.00" class="w-full pl-8 pr-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-base font-bold focus:outline-none focus:border-emerald-400">
+            <input type="number" inputmode="decimal" autocomplete="off" step="any" v-model.number="balanceModal.amount" placeholder="0.00" class="w-full pl-8 pr-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-base font-bold focus:outline-none focus:border-emerald-400">
           </div>
         </div>
 
@@ -1048,7 +1048,7 @@
         <div class="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1 text-xs">
           <div class="flex items-center justify-between text-gray-400">
             <span>Adjustment Delta:</span>
-            <span class="font-mono font-bold" :class="balancePreview.diff >= 0 ? 'text-emerald-400' : 'text-red-400'">
+            <span class="font-mono font-bold" :class="balancePreview.diff >= 0 ? 'text-emerald-400' : 'text-rose-400'">
               {{ balancePreview.diff >= 0 ? '+' : '' }}₹{{ formatMoney(balancePreview.diff) }}
             </span>
           </div>
@@ -1061,7 +1061,7 @@
         <!-- Reason Input -->
         <div>
           <label class="block text-xs font-semibold text-gray-400 mb-1">Reason / Note for Ledger Audit</label>
-          <input v-model="balanceModal.reason" placeholder="e.g. VIP Bonus, Manual Compensation, Correction" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400">
+          <input v-model="balanceModal.reason" placeholder="e.g. VIP Bonus, Manual Compensation, Correction" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-emerald-400">
         </div>
 
         <div class="flex gap-2 pt-2">
@@ -1079,17 +1079,17 @@
     <!-- ========================================== -->
     <!-- MODAL: EDIT WITHDRAWAL AMOUNT -->
     <!-- ========================================== -->
-    <div v-if="editWthModal.show" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="editWthModal.show" role="dialog" aria-modal="true" aria-labelledby="edit-withdrawal-modal-title" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-2xl">✏️</span>
             <div>
-              <h3 class="text-base font-bold text-white">Control Withdrawal Amount</h3>
+              <h3 id="edit-withdrawal-modal-title" class="text-base font-bold text-white">Control Withdrawal Amount</h3>
               <p class="text-xs text-gray-400">Request #{{ editWthModal.withdrawal?.withdrawalId || editWthModal.withdrawal?.id }}</p>
             </div>
           </div>
-          <button @click="editWthModal.show = false" :disabled="editWthModal.submitting" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="editWthModal.show = false" :disabled="editWthModal.submitting" aria-label="Close" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg disabled:opacity-50">✕</button>
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-white/5">
@@ -1109,7 +1109,7 @@
           <label class="block text-xs font-semibold text-gray-300 mb-1">New Withdrawal Amount to Pay (₹)</label>
           <div class="relative">
             <span class="absolute left-3 top-2.5 text-gray-400 font-bold">₹</span>
-            <input type="number" step="any" v-model.number="editWthModal.newAmount" placeholder="Enter new amount" class="w-full pl-8 pr-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-lg font-extrabold focus:outline-none focus:border-amber-400">
+            <input type="number" inputmode="decimal" autocomplete="off" step="any" v-model.number="editWthModal.newAmount" placeholder="Enter new amount" class="w-full pl-8 pr-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white font-mono text-lg font-extrabold focus:outline-none focus:border-amber-400">
           </div>
         </div>
 
@@ -1132,7 +1132,7 @@
         <!-- Reason Input -->
         <div>
           <label class="block text-xs font-semibold text-gray-400 mb-1">Reason for Changing Amount (Visible to User & Audit)</label>
-          <input v-model="editWthModal.reason" placeholder="e.g. TDS deducted / Daily threshold adjustment / Partial approval" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400">
+          <input v-model="editWthModal.reason" placeholder="e.g. TDS deducted / Daily threshold adjustment / Partial approval" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-amber-400">
         </div>
 
         <div class="flex gap-2 pt-2">
@@ -1150,17 +1150,17 @@
     <!-- ========================================== -->
     <!-- MODAL: USER DETAILS & PROFILE EDIT -->
     <!-- ========================================== -->
-    <div v-if="userModal.show" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="userModal.show" role="dialog" aria-modal="true" aria-labelledby="user-modal-title" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="admin-modal-panel w-full max-w-2xl bg-[#1B1B1E] border border-purple-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-2xl">👤</span>
             <div>
-              <h3 class="text-base font-bold text-white">Trader Profile & Account Details</h3>
+              <h3 id="user-modal-title" class="text-base font-bold text-white">Trader Profile & Account Details</h3>
               <p class="text-xs text-gray-400">User ID: {{ userModal.data?.user?.id }}</p>
             </div>
           </div>
-          <button @click="userModal.show = false" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="userModal.show = false" aria-label="Close" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <!-- Tabs inside user modal -->
@@ -1205,11 +1205,11 @@
               </div>
               <div>
                 <label class="block text-[11px] text-gray-400 mb-1">VIP Level</label>
-                <input type="number" v-model.number="userModal.editVip" class="w-full px-3 py-2 rounded-xl bg-[#141416] border border-white/10 text-xs text-white font-mono">
+                <input type="number" inputmode="numeric" autocomplete="off" v-model.number="userModal.editVip" class="w-full px-3 py-2 rounded-xl bg-[#141416] border border-white/10 text-xs text-white font-mono">
               </div>
               <div>
                 <label class="block text-[11px] text-gray-400 mb-1">Reward Points</label>
-                <input type="number" v-model.number="userModal.editPoints" class="w-full px-3 py-2 rounded-xl bg-[#141416] border border-white/10 text-xs text-white font-mono">
+                <input type="number" inputmode="numeric" autocomplete="off" v-model.number="userModal.editPoints" class="w-full px-3 py-2 rounded-xl bg-[#141416] border border-white/10 text-xs text-white font-mono">
               </div>
             </div>
 
@@ -1218,7 +1218,7 @@
                 <button type="button" @click="resetUserPin(userModal.data?.user?.id)" class="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold">
                   🔑 Reset Payment PIN
                 </button>
-                <button type="button" @click="promptEraseUser(userModal.data?.user)" class="px-3 py-2 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 text-xs font-bold transition flex items-center gap-1">
+                <button type="button" @click="promptEraseUser(userModal.data?.user)" class="px-3 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 text-xs font-bold transition flex items-center gap-1">
                   <span>🗑️</span>
                   <span>Erase User from DB</span>
                 </button>
@@ -1269,7 +1269,7 @@
                       <span>✏️</span>
                       <span>Edit</span>
                     </button>
-                    <button @click="promptDeleteTransaction(tx, tx.txType)" class="px-2 py-0.5 rounded bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-[10px] font-bold transition flex items-center gap-0.5" title="Delete">
+                    <button @click="promptDeleteTransaction(tx, tx.txType)" class="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[10px] font-bold transition flex items-center gap-0.5" title="Delete">
                       <span>🗑️</span>
                       <span>Delete</span>
                     </button>
@@ -1285,17 +1285,17 @@
     <!-- ========================================== -->
     <!-- MODAL: EDIT TRANSACTION AMOUNT & DETAILS -->
     <!-- ========================================== -->
-    <div v-if="editTxModal.show" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="editTxModal.show" role="dialog" aria-modal="true" aria-labelledby="edit-tx-modal-title" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-2xl">✏️</span>
             <div>
-              <h3 class="text-base font-bold text-white">Manipulate Transaction</h3>
+              <h3 id="edit-tx-modal-title" class="text-base font-bold text-white">Manipulate Transaction</h3>
               <p class="text-xs text-gray-400">Update amount in database & reflect in user history</p>
             </div>
           </div>
-          <button @click="editTxModal.show = false" :disabled="editTxModal.submitting" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="editTxModal.show = false" :disabled="editTxModal.submitting" aria-label="Close" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg disabled:opacity-50">✕</button>
         </div>
 
         <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2 text-xs">
@@ -1324,14 +1324,14 @@
           <label class="block text-xs font-semibold text-gray-400 mb-1">New Amount (₹)</label>
           <div class="relative">
             <span class="absolute left-3 top-2.5 text-gray-400 font-bold">₹</span>
-            <input type="number" step="1" v-model.number="editTxModal.newAmount" placeholder="Enter new amount" class="w-full pl-8 pr-4 py-2 rounded-xl bg-black/40 border border-white/10 text-sm font-mono font-bold text-white placeholder-gray-500 focus:outline-none focus:border-amber-400">
+            <input type="number" inputmode="decimal" autocomplete="off" step="1" v-model.number="editTxModal.newAmount" placeholder="Enter new amount" class="w-full pl-8 pr-4 py-2 rounded-xl bg-black/40 border border-white/10 text-sm font-mono font-bold text-white placeholder-gray-400 focus:outline-none focus:border-amber-400">
           </div>
         </div>
 
         <!-- Delta Preview -->
         <div v-if="editTxDiff !== 0" class="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between text-xs">
           <span class="text-gray-400">Adjustment Difference:</span>
-          <span class="font-mono font-bold" :class="editTxDiff >= 0 ? 'text-emerald-400' : 'text-red-400'">
+          <span class="font-mono font-bold" :class="editTxDiff >= 0 ? 'text-emerald-400' : 'text-rose-400'">
             {{ editTxDiff >= 0 ? '+' : '' }}₹{{ formatMoney(editTxDiff) }}
           </span>
         </div>
@@ -1352,7 +1352,7 @@
         <!-- Optional UTR / Reference -->
         <div>
           <label class="block text-xs font-semibold text-gray-400 mb-1">UTR / Bank Reference (Optional)</label>
-          <input v-model="editTxModal.newUtr" placeholder="e.g. 12-digit UTR or IMPS reference" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-400">
+          <input v-model="editTxModal.newUtr" placeholder="e.g. 12-digit UTR or IMPS reference" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white placeholder-gray-400 focus:outline-none focus:border-amber-400">
         </div>
 
         <!-- Adjust Balance Checkbox -->
@@ -1371,7 +1371,7 @@
         <!-- Reason / Audit Note -->
         <div>
           <label class="block text-xs font-semibold text-gray-400 mb-1">Audit Note / Reason</label>
-          <input v-model="editTxModal.reason" placeholder="e.g. Correction per transaction proof, VIP adjustment" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400">
+          <input v-model="editTxModal.reason" placeholder="e.g. Correction per transaction proof, VIP adjustment" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-amber-400">
         </div>
 
         <div class="flex gap-2 pt-2">
@@ -1388,14 +1388,14 @@
     <!-- ========================================== -->
     <!-- MODAL: DELETE TRANSACTION CONFIRMATION -->
     <!-- ========================================== -->
-    <div v-if="deleteTxModal.show" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-red-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+    <div v-if="deleteTxModal.show" role="dialog" aria-modal="true" aria-labelledby="delete-tx-modal-title" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-rose-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-2xl">🗑️</span>
-            <h3 class="text-base font-bold text-white">Delete Transaction</h3>
+            <h3 id="delete-tx-modal-title" class="text-base font-bold text-white">Delete Transaction</h3>
           </div>
-          <button @click="deleteTxModal.show = false" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="deleteTxModal.show = false" aria-label="Close" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5 text-xs">
@@ -1420,7 +1420,7 @@
           </label>
         </div>
 
-        <p class="text-xs text-red-400">
+        <p class="text-xs text-rose-400">
           ⚠️ Warning: This will permanently delete this transaction record from the database and user history.
         </p>
 
@@ -1428,7 +1428,7 @@
           <button @click="deleteTxModal.show = false" :disabled="deleteTxModal.submitting" class="w-1/3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300">
             Cancel
           </button>
-          <button @click="executeDeleteTransaction" :disabled="deleteTxModal.submitting" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow transition active:scale-95">
+          <button @click="executeDeleteTransaction" :disabled="deleteTxModal.submitting" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow transition active:scale-95">
             {{ deleteTxModal.submitting ? 'Deleting...' : 'Confirm & Delete Permanently' }}
           </button>
         </div>
@@ -1438,14 +1438,14 @@
     <!-- ========================================== -->
     <!-- MODAL: ERASE USER CONFIRMATION -->
     <!-- ========================================== -->
-    <div v-if="eraseUserModal.show" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-red-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
+    <div v-if="eraseUserModal.show" role="dialog" aria-modal="true" aria-labelledby="erase-user-modal-title" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-rose-500/50 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
-            <span class="text-2xl text-red-500">⚠️</span>
-            <h3 class="text-base font-bold text-white">Completely Erase User</h3>
+            <span class="text-2xl text-rose-500">⚠️</span>
+            <h3 id="erase-user-modal-title" class="text-base font-bold text-white">Completely Erase User</h3>
           </div>
-          <button @click="eraseUserModal.show = false" :disabled="eraseUserModal.submitting" class="text-gray-400 hover:text-white">✕</button>
+          <button @click="eraseUserModal.show = false" :disabled="eraseUserModal.submitting" aria-label="Close" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg disabled:opacity-50">✕</button>
         </div>
 
         <!-- Target User Info -->
@@ -1469,7 +1469,7 @@
         </div>
 
         <!-- Danger Alert -->
-        <div class="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 space-y-1.5">
+        <div class="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 space-y-1.5">
           <p class="font-bold flex items-center gap-1.5">
             <span>🚨</span>
             <span>Permanent & Irreversible</span>
@@ -1483,7 +1483,7 @@
           <button @click="eraseUserModal.show = false" :disabled="eraseUserModal.submitting" class="w-1/3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10">
             Cancel
           </button>
-          <button @click="executeEraseUser" :disabled="eraseUserModal.submitting" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-lg shadow-red-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
+          <button @click="executeEraseUser" :disabled="eraseUserModal.submitting" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5">
             <span v-if="eraseUserModal.submitting">Erasing User...</span>
             <span v-else>🗑️ Confirm & Erase Permanently</span>
           </button>
@@ -1494,14 +1494,14 @@
     <!-- ========================================== -->
     <!-- MODAL: REJECT CONFIRMATION -->
     <!-- ========================================== -->
-    <div v-if="rejectModal.show" @click.self="rejectModal.show = false" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-red-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+    <div v-if="rejectModal.show" @click.self="rejectModal.show = false" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-rose-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-xl">⚠️</span>
-            <h3 class="text-base font-bold text-white">Reject {{ rejectModal.type === 'deposit' ? 'Deposit' : (rejectModal.type === 'withdrawal' ? 'Withdrawal' : 'Order') }}</h3>
+            <h3 id="reject-modal-title" class="text-base font-bold text-white">Reject {{ rejectModal.type === 'deposit' ? 'Deposit' : (rejectModal.type === 'withdrawal' ? 'Withdrawal' : 'Order') }}</h3>
           </div>
-          <button @click="rejectModal.show = false" :disabled="rejectSubmitting" class="text-gray-400 hover:text-white disabled:opacity-50" aria-label="Close rejection dialog">✕</button>
+          <button @click="rejectModal.show = false" :disabled="rejectSubmitting" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg disabled:opacity-50" aria-label="Close">✕</button>
         </div>
 
         <p class="text-xs text-gray-300">
@@ -1511,12 +1511,12 @@
 
         <div>
           <label class="block text-xs font-semibold text-gray-400 mb-1">Rejection Reason</label>
-          <input v-model="rejectModal.reason" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500">
+          <input v-model="rejectModal.reason" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-rose-500">
         </div>
 
         <div class="flex gap-2 pt-2">
           <button @click="rejectModal.show = false" :disabled="rejectSubmitting" class="w-1/2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-gray-300 hover:bg-white/10 disabled:opacity-50">Cancel</button>
-          <button @click="executeReject" :disabled="rejectSubmitting" class="w-1/2 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow transition disabled:opacity-50">
+          <button @click="executeReject" :disabled="rejectSubmitting" class="w-1/2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow transition disabled:opacity-50">
             {{ rejectSubmitting ? 'Rejecting…' : 'Confirm Rejection' }}
           </button>
         </div>
@@ -1526,14 +1526,14 @@
     <!-- ========================================== -->
     <!-- MODAL: CONFIRM WITHDRAWAL PAYOUT -->
     <!-- ========================================== -->
-    <div v-if="payoutModal.show" @click.self="payoutModal.show = false" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div v-if="payoutModal.show" @click.self="payoutModal.show = false" role="dialog" aria-modal="true" aria-labelledby="payout-modal-title" class="admin-modal-backdrop fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="admin-modal-panel w-full max-w-md bg-[#1B1B1E] border border-blue-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-white/10 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-xl">💸</span>
-            <h3 class="text-base font-bold text-white">Confirm Withdrawal Payout</h3>
+            <h3 id="payout-modal-title" class="text-base font-bold text-white">Confirm Withdrawal Payout</h3>
           </div>
-          <button @click="payoutModal.show = false" :disabled="payoutSubmitting" class="text-gray-400 hover:text-white disabled:opacity-50" aria-label="Close payout dialog">✕</button>
+          <button @click="payoutModal.show = false" :disabled="payoutSubmitting" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg disabled:opacity-50" aria-label="Close">✕</button>
         </div>
 
         <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-1">
@@ -1546,7 +1546,7 @@
 
         <div>
           <label class="block text-xs font-semibold text-gray-400 mb-1">Bank Reference / IMPS TxRef (Optional)</label>
-          <input v-model="payoutModal.txRef" placeholder="e.g. IMPS129845789012" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-400 font-mono">
+          <input v-model="payoutModal.txRef" placeholder="e.g. IMPS129845789012" class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 font-mono">
           <p class="text-[10px] text-gray-400 mt-1">Beneficiary user will receive this reference number in their app</p>
         </div>
 
@@ -1562,11 +1562,11 @@
     <!-- ========================================== -->
     <!-- MODAL: ORDER QR LIGHTBOX -->
     <!-- ========================================== -->
-    <div v-if="qrModal.show" @click.self="qrModal.show = false" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div v-if="qrModal.show" @click.self="qrModal.show = false" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <div class="w-full max-w-sm bg-[#1B1B1E] border border-amber-500/40 rounded-3xl p-5 shadow-2xl space-y-4 text-center">
         <div class="flex items-center justify-between border-b border-white/10 pb-2">
-          <h3 class="text-xs font-bold text-[#F2D7A5]">Payment QR Code</h3>
-          <button @click="qrModal.show = false" class="text-gray-400 hover:text-white" aria-label="Close QR preview">✕</button>
+          <h3 id="qr-modal-title" class="text-xs font-bold text-[#F2D7A5]">Payment QR Code</h3>
+          <button @click="qrModal.show = false" aria-label="Close" class="text-gray-400 hover:text-white min-h-11 min-w-11 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="relative mx-auto rounded-2xl overflow-hidden border-2 border-amber-500/30 max-w-[220px] bg-white p-2 shadow-xl">
@@ -1587,11 +1587,12 @@
 
     <!-- ========================================== -->
     <!-- TOAST NOTIFICATION -->
-    <!-- ========================================== -->
-    <div v-if="toast.show" class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2 max-w-sm animate-bounce" :class="toast.type === 'success' ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-300' : (toast.type === 'error' ? 'bg-red-950/90 border-red-500/40 text-red-300' : 'bg-[#222]/95 border-amber-400/40 text-[#F2D7A5]')">
+    <transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 translate-y-2" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0 translate-y-2">
+      <div v-if="toast.show" role="status" aria-live="polite" class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2 max-w-sm" :class="toast.type === 'success' ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-300' : (toast.type === 'error' ? 'bg-rose-950/90 border-rose-500/40 text-rose-300' : 'bg-[#222]/95 border-amber-400/40 text-[#F2D7A5]')">
       <span>{{ toast.type === 'success' ? '✅' : (toast.type === 'error' ? '⚠️' : '🔔') }}</span>
       <span>{{ toast.message }}</span>
-    </div>
+      </div>
+    </transition>
 
   </div>
 
@@ -1751,11 +1752,13 @@
         );
 
         const toast = reactive({ show: false, message: '', type: 'info' });
+        let toastTimer = null;
         function showToast(msg, type = 'info') {
           toast.message = msg;
           toast.type = type;
           toast.show = true;
-          setTimeout(() => { toast.show = false; }, 3000);
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => { toast.show = false; }, 3000);
         }
 
         function playBeep() {
@@ -1785,7 +1788,9 @@
             gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
             osc.start();
             osc.stop(ctx.currentTime + 0.35);
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay Admin] Audio alert unavailable:', e);
+          }
         }
 
         function toggleAudio() {
@@ -1820,7 +1825,9 @@
               devHint.devMode = json.data.devMode;
               devHint.keyHint = json.data.keyHint || '';
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay Admin] Failed to load development key hint:', e);
+          }
         }
 
         function autoFillDevKey() {
@@ -1874,61 +1881,32 @@
           try {
             const headers = getAuthHeaders();
 
-            // Stats
-            const statsRes = await fetch('/api/admin/stats', { headers });
-            if (statsRes.status === 401 || statsRes.status === 403) {
+            const responses = await Promise.all([
+              fetch('/api/admin/stats', { headers }),
+              fetch('/api/admin/orders/pending', { headers }),
+              fetch('/api/admin/orders/all', { headers }),
+              fetch('/api/admin/deposits/pending', { headers }),
+              fetch('/api/admin/deposits/all', { headers }),
+              fetch('/api/admin/withdrawals/pending', { headers }),
+              fetch('/api/admin/withdrawals/all', { headers })
+            ]);
+            if (responses.some(response => response.status === 401 || response.status === 403)) {
               lockConsole();
               return;
             }
-            const statsJson = await statsRes.json();
-            if (statsJson.code === 1000) {
-              Object.assign(stats, statsJson.data);
-            }
+            const [statsJson, pendJson, allJson, depJson, allDepJson, wthJson, allWthJson] =
+              await Promise.all(responses.map(response => response.json()));
+
+            if (statsJson.code === 1000) Object.assign(stats, statsJson.data);
+            if (pendJson.code === 1000) pendingOrders.value = safeRecords(pendJson.data?.records);
+            if (allJson.code === 1000) allOrders.value = safeRecords(allJson.data?.records);
+            if (depJson.code === 1000) pendingDeposits.value = safeRecords(depJson.data?.records);
+            if (allDepJson.code === 1000) allDeposits.value = safeRecords(allDepJson.data?.records);
+            if (wthJson.code === 1000) pendingWithdrawals.value = safeRecords(wthJson.data?.records);
+            if (allWthJson.code === 1000) allWithdrawals.value = safeRecords(allWthJson.data?.records);
 
             // Users list
             fetchUsers();
-
-            // Pending Match Queue
-            const pendRes = await fetch('/api/admin/orders/pending', { headers });
-            const pendJson = await pendRes.json();
-            if (pendJson.code === 1000) {
-              pendingOrders.value = safeRecords(pendJson.data?.records);
-            }
-
-            // All Orders Audit
-            const allRes = await fetch('/api/admin/orders/all', { headers });
-            const allJson = await allRes.json();
-            if (allJson.code === 1000) {
-              allOrders.value = safeRecords(allJson.data?.records);
-            }
-
-            // Pending Deposits
-            const depRes = await fetch('/api/admin/deposits/pending', { headers });
-            const depJson = await depRes.json();
-            if (depJson.code === 1000) {
-              pendingDeposits.value = safeRecords(depJson.data?.records);
-            }
-
-            // All Deposits
-            const allDepRes = await fetch('/api/admin/deposits/all', { headers });
-            const allDepJson = await allDepRes.json();
-            if (allDepJson.code === 1000) {
-              allDeposits.value = safeRecords(allDepJson.data?.records);
-            }
-
-            // Pending Withdrawals
-            const wthRes = await fetch('/api/admin/withdrawals/pending', { headers });
-            const wthJson = await wthRes.json();
-            if (wthJson.code === 1000) {
-              pendingWithdrawals.value = safeRecords(wthJson.data?.records);
-            }
-
-            // All Withdrawals
-            const allWthRes = await fetch('/api/admin/withdrawals/all', { headers });
-            const allWthJson = await allWthRes.json();
-            if (allWthJson.code === 1000) {
-              allWithdrawals.value = safeRecords(allWthJson.data?.records);
-            }
 
             // Unified transactions
             fetchTransactions();
@@ -1949,7 +1927,9 @@
             if (json.code === 1000 && Array.isArray(json.data?.records)) {
               usersList.value = json.data.records;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay Admin] Failed to fetch users:', e);
+          }
         }
 
         async function fetchTransactions() {
@@ -1960,7 +1940,9 @@
             if (json.code === 1000 && Array.isArray(json.data?.records)) {
               transactionsList.value = json.data.records;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay Admin] Failed to fetch transactions:', e);
+          }
         }
 
         // ==========================================
@@ -2141,7 +2123,10 @@
               showToast('Payment PIN reset successfully', 'success');
               openUserDetailsModal({ id: userId });
             }
-          } catch (e) {}
+          } catch (e) {
+            showToast('Network error resetting payment PIN', 'error');
+            console.warn('[TradePay Admin] Failed to reset payment PIN:', e);
+          }
         }
 
         // ==========================================
@@ -2484,17 +2469,43 @@
             if (json.code === 1000) {
               showToast(`Test matching order ₹${json.data.amount} spawned!`, 'success');
               fetchData();
+            } else {
+              showToast(json.message || json.msg || 'Failed to spawn test order', 'error');
             }
-          } catch (e) {}
+          } catch (e) {
+            showToast('Network error while spawning test order', 'error');
+          }
         }
 
         function copyText(txt) {
           if (!txt) return;
-          navigator.clipboard.writeText(String(txt)).then(() => {
-            showToast('Copied: ' + txt, 'success');
-          }).catch(() => {
-            showToast('Copied: ' + txt, 'success');
-          });
+          const value = String(txt);
+          const fallback = () => {
+            let ta = null;
+            try {
+              ta = document.createElement('textarea');
+              ta.value = value;
+              ta.setAttribute('readonly', '');
+              ta.style.position = 'fixed';
+              ta.style.opacity = '0';
+              document.body.appendChild(ta);
+              ta.select();
+              ta.setSelectionRange(0, value.length);
+              const ok = document.execCommand('copy');
+              showToast(ok ? 'Copied to clipboard!' : 'Copy failed: ' + value, ok ? 'success' : 'error');
+            } catch (e) {
+              showToast('Copy failed: ' + value, 'error');
+            } finally {
+              if (ta && ta.parentNode) ta.parentNode.removeChild(ta);
+            }
+          };
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(value)
+              .then(() => showToast('Copied to clipboard!', 'success'))
+              .catch(fallback);
+          } else {
+            fallback();
+          }
         }
 
         function formatMoney(val) {
@@ -2680,12 +2691,16 @@
                 } else if (['ORDER_COMPLETED', 'ORDER_CLAIMED', 'DEPOSIT_COMPLETED', 'WITHDRAWAL_COMPLETED', 'WITHDRAWAL_AMOUNT_MODIFIED', 'ADMIN_USER_UPDATED', 'TRANSACTION_DELETED', 'TRANSACTION_UPDATED', 'BALANCE_UPDATED'].includes(data.type)) {
                   fetchData();
                 }
-              } catch (e) {}
+              } catch (e) {
+                console.warn('[TradePay Admin] Failed to process WebSocket message:', e);
+              }
             };
             ws.onclose = () => {
               if (isUnlocked.value) setTimeout(connectWs, 3000);
             };
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[TradePay Admin] WebSocket connection failed:', e);
+          }
         }
 
         onMounted(() => {
@@ -2706,7 +2721,9 @@
                 } else {
                   localStorage.removeItem('tradepay_admin_session');
                 }
-              }).catch(() => {});
+              }).catch(err => {
+                console.warn('[TradePay Admin] Failed to restore admin session:', err);
+              });
           }
 
           // Polling interval
