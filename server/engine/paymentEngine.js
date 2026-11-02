@@ -709,12 +709,724 @@ function getUserUnifiedTransactions(userId) {
   return all;
 }
 
+/**
+ * 6. WITHDRAWAL AMOUNT CONTROL: Admin modifies the withdrawal amount on a pending request
+ */
+function editWithdrawalAmount({ withdrawalId, newAmount, adminId = 'admin', reason = '' }) {
+  const numericAmount = Number(newAmount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new Error('New withdrawal amount must be a positive number');
+  }
+
+  const state = db.get();
+  if (!state.withdrawals || !state.withdrawals[withdrawalId]) {
+    throw new Error('Withdrawal request not found');
+  }
+
+  const withdrawal = state.withdrawals[withdrawalId];
+  if (withdrawal.status !== 'pending') {
+    throw new Error(`Cannot modify withdrawal amount when status is "${withdrawal.status}" (only "pending" can be modified)`);
+  }
+
+  const user = state.users[withdrawal.userId];
+  if (!user) throw new Error('Target user account not found');
+
+  const oldAmount = Number(withdrawal.amount);
+  const diff = money.subtract(numericAmount, oldAmount);
+
+  if (money.equals(diff, 0)) {
+    return withdrawal;
+  }
+
+  if (diff < 0) {
+    // Reduced withdrawal: refund difference back to user available balance
+    const refundDiff = Math.abs(diff);
+    ledger.apply(state, {
+      userId: user.id,
+      type: 'withdrawal_amount_reduced',
+      amount: refundDiff,
+      availableDelta: refundDiff,
+      pendingDelta: money.multiply(refundDiff, -1),
+      refType: 'withdrawal',
+      refId: withdrawal.id,
+      idempotencyKey: `wth_edit_${withdrawal.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      actorId: adminId,
+      meta: { oldAmount, newAmount: numericAmount, reason }
+    });
+  } else {
+    // Increased withdrawal: hold additional diff from balance
+    const currentBalance = Number(user.balance) || 0;
+    if (currentBalance < diff) {
+      // Auto-credit shortfall if current balance is lower than required extra hold
+      const shortfall = money.subtract(diff, currentBalance);
+      ledger.credit(state, user.id, shortfall, {
+        type: 'admin_withdrawal_adjustment_credit',
+        refType: 'withdrawal',
+        refId: withdrawal.id,
+        idempotencyKey: `wth_credit_${withdrawal.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        actorId: adminId,
+        meta: { reason: `Auto-credit for withdrawal increase: ${reason}` }
+      });
+    }
+
+    ledger.apply(state, {
+      userId: user.id,
+      type: 'withdrawal_amount_increased',
+      amount: diff,
+      availableDelta: money.multiply(diff, -1),
+      pendingDelta: diff,
+      refType: 'withdrawal',
+      refId: withdrawal.id,
+      idempotencyKey: `wth_edit_${withdrawal.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      actorId: adminId,
+      meta: { oldAmount, newAmount: numericAmount, reason }
+    });
+  }
+
+  if (!withdrawal.originalAmount) {
+    withdrawal.originalAmount = oldAmount;
+  }
+  withdrawal.amount = numericAmount;
+  withdrawal.amountModifiedAt = new Date().toISOString();
+  withdrawal.amountModifiedBy = String(adminId);
+  withdrawal.modificationReason = String(reason || 'Amount adjusted by admin in console').slice(0, 200);
+
+  db.save();
+
+  try {
+    const supabaseService = require('./supabaseService');
+    supabaseService.syncUserData(user).catch(() => {});
+  } catch (e) {}
+
+  broadcast('WITHDRAWAL_AMOUNT_MODIFIED', {
+    userId: withdrawal.userId,
+    withdrawalId: withdrawal.id,
+    oldAmount,
+    newAmount: withdrawal.amount,
+    reason: withdrawal.modificationReason,
+    balance: user.balance,
+    msg: `Your withdrawal request #${withdrawal.id} amount was adjusted from ₹${oldAmount} to ₹${withdrawal.amount}.`
+  });
+
+  broadcast('BALANCE_UPDATED', {
+    userId: withdrawal.userId,
+    balance: user.balance,
+    totalBalance: user.totalBalance,
+    delta: -diff,
+    type: 'withdrawal_adjustment'
+  });
+
+  return withdrawal;
+}
+
+/**
+ * 7. USER BALANCE MANIPULATION: Admin directly sets, credits or debits user balance
+ */
+function adjustUserBalance({ userId, action, amount, reason = '', adminId = 'admin' }) {
+  if (!userId) throw new Error('User ID is required');
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount < 0) {
+    throw new Error('Amount must be a non-negative number');
+  }
+
+  const state = db.get();
+  const user = state.users[userId];
+  if (!user) throw new Error('User not found');
+
+  const currentBalance = Number(user.balance) || 0;
+  let delta = 0;
+  let ledgerType = '';
+
+  if (action === 'set') {
+    delta = money.subtract(numericAmount, currentBalance);
+    ledgerType = delta >= 0 ? 'admin_balance_set_credit' : 'admin_balance_set_debit';
+  } else if (action === 'credit') {
+    delta = numericAmount;
+    ledgerType = 'admin_credit';
+  } else if (action === 'debit') {
+    delta = money.multiply(numericAmount, -1);
+    ledgerType = 'admin_debit';
+  } else {
+    throw new Error(`Invalid balance action: "${action}". Must be "set", "credit", or "debit"`);
+  }
+
+  if (money.equals(delta, 0)) {
+    return {
+      user: security.publicUser(user),
+      delta: 0,
+      oldBalance: currentBalance,
+      newBalance: currentBalance,
+      action
+    };
+  }
+
+  const newBalance = money.add(currentBalance, delta);
+  if (newBalance < 0) {
+    throw new Error(`Cannot debit ₹${Math.abs(delta)}. Current balance is ₹${currentBalance}, which would result in a negative balance.`);
+  }
+
+  if (delta > 0) {
+    ledger.credit(state, user.id, delta, {
+      type: ledgerType,
+      refType: 'admin_adjustment',
+      refId: `ADJ${Date.now()}`,
+      idempotencyKey: `adj_${user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      actorId: adminId,
+      meta: { action, reason: reason || 'Admin balance adjustment', oldBalance: currentBalance, newBalance }
+    });
+  } else {
+    ledger.debit(state, user.id, Math.abs(delta), {
+      type: ledgerType,
+      refType: 'admin_adjustment',
+      refId: `ADJ${Date.now()}`,
+      idempotencyKey: `adj_${user.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      actorId: adminId,
+      meta: { action, reason: reason || 'Admin balance adjustment', oldBalance: currentBalance, newBalance }
+    });
+  }
+
+  user.updatedAt = new Date().toISOString();
+  db.save();
+
+  try {
+    const supabaseService = require('./supabaseService');
+    supabaseService.syncUserData(user).catch(() => {});
+  } catch (e) {}
+
+  broadcast('BALANCE_UPDATED', {
+    userId: user.id,
+    balance: user.balance,
+    totalBalance: user.totalBalance,
+    delta,
+    type: ledgerType,
+    msg: `Your balance was updated by admin: ${delta > 0 ? '+' : ''}₹${delta} (${reason || 'Adjustment'}). New balance: ₹${user.balance}`
+  });
+
+  broadcast('ADMIN_USER_UPDATED', {
+    userId: user.id,
+    balance: user.balance,
+    totalBalance: user.totalBalance
+  });
+
+  return {
+    user: security.publicUser(user),
+    oldBalance: currentBalance,
+    newBalance: user.balance,
+    delta,
+    action,
+    reason
+  };
+}
+
+/**
+ * 8. UPDATE USER DETAILS: Admin edits nickname, phone, VIP level, points, or resets PIN
+ */
+function updateUserDetails({ userId, updates = {}, adminId = 'admin' }) {
+  if (!userId) throw new Error('User ID is required');
+  const state = db.get();
+  const user = state.users[userId];
+  if (!user) throw new Error('User not found');
+
+  if (updates.nickname !== undefined && typeof updates.nickname === 'string') {
+    user.nickname = updates.nickname.trim().slice(0, 40) || user.nickname;
+  }
+  if (updates.phone !== undefined && typeof updates.phone === 'string') {
+    user.phone = updates.phone.trim();
+  }
+  if (updates.vipLevel !== undefined) {
+    const vip = Number(updates.vipLevel);
+    if (Number.isFinite(vip) && vip >= 0) user.vipLevel = vip;
+  }
+  if (updates.points !== undefined) {
+    const pts = Number(updates.points);
+    if (Number.isFinite(pts) && pts >= 0) user.points = pts;
+  }
+  if (updates.onSellStatus !== undefined) {
+    user.onSellStatus = Number(updates.onSellStatus) ? 1 : 0;
+  }
+  if (updates.resetPin === true) {
+    user.pinHash = null;
+    user.pinSalt = null;
+    user.isPinSet = false;
+  }
+
+  user.updatedAt = new Date().toISOString();
+  db.save();
+
+  try {
+    const supabaseService = require('./supabaseService');
+    supabaseService.syncUserData(user).catch(() => {});
+  } catch (e) {}
+
+  broadcast('ADMIN_USER_UPDATED', {
+    userId: user.id,
+    user: security.publicUser(user)
+  });
+
+  return security.publicUser(user);
+}
+
+/**
+ * 9. DELETE TRANSACTION: Admin deletes any transaction (order, deposit, withdrawal, ledger)
+ */
+function deleteTransaction({ type, id, adminId = 'admin', refundHold = true }) {
+  if (!type || !id) throw new Error('Transaction type and ID are required');
+  const state = db.get();
+
+  let found = false;
+  let affectedUserId = null;
+  const cleanId = String(id).trim();
+
+  if (type === 'order') {
+    const orderKey = Object.keys(state.claimedOrders || {}).find(
+      k => k === cleanId || state.claimedOrders[k]?.buyId === cleanId || state.claimedOrders[k]?.orderNo === cleanId || state.claimedOrders[k]?.id === cleanId
+    );
+    if (orderKey && state.claimedOrders[orderKey]) {
+      const order = state.claimedOrders[orderKey];
+      affectedUserId = order.userId;
+      delete state.claimedOrders[orderKey];
+      found = true;
+    }
+    if (affectedUserId && state.users[affectedUserId]) {
+      const user = state.users[affectedUserId];
+      if (Array.isArray(user.claimedOrders)) {
+        user.claimedOrders = user.claimedOrders.filter(
+          o => (o.buyId !== cleanId && o.id !== cleanId && o.orderNo !== cleanId)
+        );
+      }
+    }
+  } else if (type === 'deposit') {
+    const depKey = Object.keys(state.deposits || {}).find(
+      k => k === cleanId || state.deposits[k]?.id === cleanId || state.deposits[k]?.depositId === cleanId
+    );
+    if (depKey && state.deposits[depKey]) {
+      affectedUserId = state.deposits[depKey].userId;
+      delete state.deposits[depKey];
+      found = true;
+    }
+  } else if (type === 'withdrawal') {
+    const wthKey = Object.keys(state.withdrawals || {}).find(
+      k => k === cleanId || state.withdrawals[k]?.id === cleanId || state.withdrawals[k]?.withdrawalId === cleanId
+    );
+    if (wthKey && state.withdrawals[wthKey]) {
+      const wth = state.withdrawals[wthKey];
+      affectedUserId = wth.userId;
+      // If withdrawal is pending and refundHold is requested, refund held balance!
+      if (wth.status === 'pending' && refundHold) {
+        try {
+          ledger.refund(state, wth.userId, wth.amount, {
+            type: 'withdrawal_delete_refund',
+            refType: 'withdrawal',
+            refId: wth.id,
+            idempotencyKey: `wth_del_ref_${wth.id}_${Date.now()}`,
+            actorId: adminId
+          });
+        } catch (e) {
+          console.warn('[PaymentEngine] Refund on withdrawal deletion note:', e.message);
+        }
+      }
+      delete state.withdrawals[wthKey];
+      found = true;
+    }
+  } else if (type === 'ledger') {
+    if (state.ledger && Array.isArray(state.ledger.entries)) {
+      const idx = state.ledger.entries.findIndex(e => e.id === cleanId);
+      if (idx !== -1) {
+        affectedUserId = state.ledger.entries[idx].userId;
+        state.ledger.entries.splice(idx, 1);
+        found = true;
+      }
+    }
+  } else {
+    throw new Error(`Unsupported transaction type: "${type}"`);
+  }
+
+  if (!found) {
+    throw new Error(`Transaction of type "${type}" with ID "${id}" was not found`);
+  }
+
+  db.save();
+
+  if (affectedUserId && state.users[affectedUserId]) {
+    const user = state.users[affectedUserId];
+    try {
+      const supabaseService = require('./supabaseService');
+      supabaseService.syncUserData(user).catch(() => {});
+    } catch (e) {}
+
+    broadcast('BALANCE_UPDATED', {
+      userId: user.id,
+      balance: user.balance,
+      totalBalance: user.totalBalance,
+      delta: 0,
+      type: 'transaction_deleted'
+    });
+  }
+
+  broadcast('TRANSACTION_DELETED', {
+    type,
+    id: cleanId,
+    adminId,
+    timestamp: new Date().toISOString()
+  });
+
+  return { success: true, type, id: cleanId, affectedUserId };
+}
+
+/**
+ * 10. GET ALL USERS FOR ADMIN: Full details, balances, order counts, deposit/withdrawal summaries
+ */
+function getAllUsersForAdmin(search = '') {
+  const state = db.get();
+  const users = Object.values(state.users || {});
+  const cleanSearch = String(search || '').toLowerCase().trim();
+
+  let list = users;
+  if (cleanSearch) {
+    list = list.filter(u =>
+      String(u.id || '').toLowerCase().includes(cleanSearch) ||
+      String(u.phone || '').toLowerCase().includes(cleanSearch) ||
+      String(u.nickname || '').toLowerCase().includes(cleanSearch) ||
+      String(u.inviteCode || '').toLowerCase().includes(cleanSearch)
+    );
+  }
+
+  return list.map(u => {
+    const userWallets = (state.wallets || []).filter(w => String(w.userId) === String(u.id));
+    const userOrders = Object.values(state.claimedOrders || {}).filter(o => String(o.userId) === String(u.id));
+    const userDeposits = Object.values(state.deposits || {}).filter(d => String(d.userId) === String(u.id));
+    const userWithdrawals = Object.values(state.withdrawals || {}).filter(w => String(w.userId) === String(u.id));
+
+    return {
+      id: u.id,
+      userId: u.userId || u.id,
+      phone: u.phone || '',
+      nickname: u.nickname || 'Trader',
+      avatar: u.avatar || '/static/user/profile.png',
+      balance: Number(u.balance) || 0,
+      totalBalance: Number(u.totalBalance) || Number(u.balance) || 0,
+      pendingWithdrawal: Number(u.pendingWithdrawal) || 0,
+      totalDeposited: Number(u.totalDeposited) || 0,
+      totalWithdrawn: Number(u.totalWithdrawn) || 0,
+      rewardTotal: Number(u.rewardTotal) || 0,
+      points: Number(u.points) || 0,
+      vipLevel: u.vipLevel || 1,
+      inviteCode: u.inviteCode || '',
+      isPinSet: Boolean(u.pinHash && u.pinSalt),
+      onSellStatus: u.onSellStatus !== undefined ? u.onSellStatus : 1,
+      createdAt: u.createdAt || '',
+      walletsCount: userWallets.length,
+      ordersCount: userOrders.length,
+      depositsCount: userDeposits.length,
+      withdrawalsCount: userWithdrawals.length
+    };
+  }).sort((a, b) => (b.balance || 0) - (a.balance || 0));
+}
+
+/**
+ * 11. GET USER DEEP DETAILS FOR ADMIN: Full profile, wallets, all transactions, ledger history
+ */
+function getUserDetailsForAdmin(userId) {
+  if (!userId) throw new Error('User ID is required');
+  const state = db.get();
+  const user = state.users[userId];
+  if (!user) throw new Error('User not found');
+
+  const wallets = (state.wallets || []).filter(w => String(w.userId) === String(userId));
+  const orders = Object.values(state.claimedOrders || {}).filter(o => String(o.userId) === String(userId));
+  const deposits = Object.values(state.deposits || {}).filter(d => String(d.userId) === String(userId));
+  const withdrawals = Object.values(state.withdrawals || {}).filter(w => String(w.userId) === String(userId));
+  const ledgerEntries = (state.ledger && Array.isArray(state.ledger.entries))
+    ? state.ledger.entries.filter(e => String(e.userId) === String(userId)).slice(-50)
+    : [];
+
+  return {
+    user: {
+      id: user.id,
+      userId: user.userId || user.id,
+      phone: user.phone || '',
+      nickname: user.nickname || 'Trader',
+      avatar: user.avatar || '/static/user/profile.png',
+      balance: Number(user.balance) || 0,
+      totalBalance: Number(user.totalBalance) || Number(user.balance) || 0,
+      pendingWithdrawal: Number(user.pendingWithdrawal) || 0,
+      totalDeposited: Number(user.totalDeposited) || 0,
+      totalWithdrawn: Number(user.totalWithdrawn) || 0,
+      rewardTotal: Number(user.rewardTotal) || 0,
+      points: Number(user.points) || 0,
+      vipLevel: user.vipLevel || 1,
+      inviteCode: user.inviteCode || '',
+      isPinSet: Boolean(user.pinHash && user.pinSalt),
+      onSellStatus: user.onSellStatus !== undefined ? user.onSellStatus : 1,
+      createdAt: user.createdAt || '',
+      updatedAt: user.updatedAt || user.createdAt || ''
+    },
+    wallets,
+    orders,
+    deposits,
+    withdrawals,
+    ledgerEntries,
+    unifiedTransactions: getUserUnifiedTransactions(userId)
+  };
+}
+
+/**
+ * 12. GET ALL UNIFIED TRANSACTIONS FOR ADMIN: Orders, Deposits, Withdrawals
+ */
+function getAllUnifiedTransactionsForAdmin({ type = 'all', status = 'all', search = '' } = {}) {
+  const state = db.get();
+  const cleanSearch = String(search || '').toLowerCase().trim();
+
+  let list = [];
+
+  if (type === 'all' || type === 'order') {
+    for (const o of Object.values(state.claimedOrders || {})) {
+      if (!o) continue;
+      const u = state.users[o.userId];
+      list.push({
+        txType: 'order',
+        id: o.buyId || o.id,
+        orderNo: o.orderNo || o.buyId,
+        userId: o.userId,
+        userNickname: u ? u.nickname : o.userNickname || 'Trader',
+        userPhone: u ? u.phone : o.userPhone || '',
+        amount: Number(o.amount) || 0,
+        reward: Number(o.totalReward || o.reward) || 0,
+        status: o.status,
+        utr: o.utr || null,
+        payoutAccount: o.payoutAccount || '',
+        rejectReason: o.rejectReason || null,
+        createdAt: o.createdAt,
+        updatedAt: o.completedAt || o.submittedAt || o.createdAt
+      });
+    }
+  }
+
+  if (type === 'all' || type === 'deposit') {
+    for (const d of Object.values(state.deposits || {})) {
+      if (!d) continue;
+      const u = state.users[d.userId];
+      list.push({
+        txType: 'deposit',
+        id: d.id || d.depositId,
+        orderNo: d.depositId || d.id,
+        userId: d.userId,
+        userNickname: u ? u.nickname : d.userNickname || 'Trader',
+        userPhone: u ? u.phone : d.userPhone || '',
+        amount: Number(d.amount) || 0,
+        reward: 0,
+        status: d.status,
+        utr: d.utr || null,
+        payoutAccount: d.payeeVpa || '',
+        rejectReason: d.rejectReason || null,
+        createdAt: d.createdAt,
+        updatedAt: d.verifiedAt || d.submittedAt || d.createdAt
+      });
+    }
+  }
+
+  if (type === 'all' || type === 'withdrawal') {
+    for (const w of Object.values(state.withdrawals || {})) {
+      if (!w) continue;
+      const u = state.users[w.userId];
+      const accountDesc = w.payoutType === 'bank'
+        ? `${w.payoutDetails?.bankName || 'Bank'}: ${w.payoutDetails?.accountNumber || ''} (${w.payoutDetails?.ifsc || ''})`
+        : `UPI: ${w.payoutDetails?.upiId || ''}`;
+      list.push({
+        txType: 'withdrawal',
+        id: w.id || w.withdrawalId,
+        orderNo: w.withdrawalId || w.id,
+        userId: w.userId,
+        userNickname: u ? u.nickname : w.userNickname || 'Trader',
+        userPhone: u ? u.phone : w.userPhone || '',
+        amount: Number(w.amount) || 0,
+        originalAmount: w.originalAmount ? Number(w.originalAmount) : null,
+        modificationReason: w.modificationReason || null,
+        reward: 0,
+        status: w.status,
+        payoutType: w.payoutType,
+        payoutDetails: w.payoutDetails,
+        payoutAccount: accountDesc,
+        txRef: w.txRef || null,
+        rejectReason: w.rejectReason || null,
+        createdAt: w.createdAt,
+        updatedAt: w.processedAt || w.amountModifiedAt || w.createdAt
+      });
+    }
+  }
+
+  if (status && status !== 'all') {
+    list = list.filter(t => t.status === status);
+  }
+
+  if (cleanSearch) {
+    list = list.filter(t =>
+      String(t.id || '').toLowerCase().includes(cleanSearch) ||
+      String(t.orderNo || '').toLowerCase().includes(cleanSearch) ||
+      String(t.userId || '').toLowerCase().includes(cleanSearch) ||
+      String(t.userPhone || '').toLowerCase().includes(cleanSearch) ||
+      String(t.userNickname || '').toLowerCase().includes(cleanSearch) ||
+      String(t.utr || '').toLowerCase().includes(cleanSearch) ||
+      String(t.txRef || '').toLowerCase().includes(cleanSearch) ||
+      String(t.payoutAccount || '').toLowerCase().includes(cleanSearch)
+    );
+  }
+
+  list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return list;
+}
+
+/**
+ * 13. ERASE USER: Completely erase the user and all their records from app & database
+ */
+function eraseUser({ userId, adminId = 'admin' }) {
+  if (!userId) throw new Error('User ID is required');
+  const state = db.get();
+  let user = state.users[userId];
+  let resolvedUserId = String(userId);
+
+  if (!user) {
+    const foundEntry = Object.entries(state.users || {}).find(([k, u]) =>
+      k === String(userId) ||
+      (u && String(u.id) === String(userId)) ||
+      (u && String(u.userId) === String(userId)) ||
+      (u && String(u.phone) === String(userId))
+    );
+    if (foundEntry) {
+      resolvedUserId = foundEntry[0];
+      user = foundEntry[1];
+    }
+  }
+  if (!user) throw new Error(`User "${userId}" not found in database`);
+
+  const canonicalId = String(user.id || user.userId || resolvedUserId);
+  const deletedNickname = user.nickname || 'Trader';
+  const deletedPhone = user.phone || '';
+
+  // 1. Remove user record under all known keys
+  delete state.users[resolvedUserId];
+  if (user.id && state.users[user.id]) delete state.users[user.id];
+  if (user.userId && state.users[user.userId]) delete state.users[user.userId];
+
+  // 2. Remove all user's bound wallets
+  if (Array.isArray(state.wallets)) {
+    state.wallets = state.wallets.filter(w =>
+      String(w.userId) !== canonicalId && String(w.userId) !== String(userId)
+    );
+  }
+
+  // 3. Clean up user's claimed match orders
+  let deletedOrdersCount = 0;
+  if (state.claimedOrders && typeof state.claimedOrders === 'object') {
+    for (const [buyId, order] of Object.entries(state.claimedOrders)) {
+      if (order && (String(order.userId) === canonicalId || String(order.userId) === String(userId))) {
+        if (order.status === 'pending' || order.status === 'verifying') {
+          const hangSale = (state.hangSales || []).find(
+            h => h.payOrderId === order.payOrderId || h.orderNo === order.orderNo
+          );
+          if (hangSale && hangSale.status === 'processing') {
+            hangSale.status = 'pending';
+          }
+        }
+        delete state.claimedOrders[buyId];
+        deletedOrdersCount++;
+      }
+    }
+  }
+
+  // 4. Remove all user's deposits
+  let deletedDepositsCount = 0;
+  if (state.deposits && typeof state.deposits === 'object') {
+    for (const [depId, dep] of Object.entries(state.deposits)) {
+      if (dep && (String(dep.userId) === canonicalId || String(dep.userId) === String(userId))) {
+        delete state.deposits[depId];
+        deletedDepositsCount++;
+      }
+    }
+  }
+
+  // 5. Remove all user's withdrawals
+  let deletedWithdrawalsCount = 0;
+  if (state.withdrawals && typeof state.withdrawals === 'object') {
+    for (const [wthId, wth] of Object.entries(state.withdrawals)) {
+      if (wth && (String(wth.userId) === canonicalId || String(wth.userId) === String(userId))) {
+        delete state.withdrawals[wthId];
+        deletedWithdrawalsCount++;
+      }
+    }
+  }
+
+  // 6. Clean up user's ledger entries and idempotency keys
+  let deletedLedgerCount = 0;
+  if (state.ledger && Array.isArray(state.ledger.entries)) {
+    const userEntries = state.ledger.entries.filter(e =>
+      String(e.userId) === canonicalId || String(e.userId) === String(userId)
+    );
+    state.ledger.entries = state.ledger.entries.filter(e =>
+      String(e.userId) !== canonicalId && String(e.userId) !== String(userId)
+    );
+    deletedLedgerCount = userEntries.length;
+    if (state.ledger.idempotency) {
+      for (const entry of userEntries) {
+        if (entry.idempotencyKey) {
+          delete state.ledger.idempotency[entry.idempotencyKey];
+        }
+      }
+    }
+  }
+
+  // 7. Revoke active tokens for this user
+  if (!state.revokedTokens) state.revokedTokens = {};
+  state.revokedTokens[canonicalId] = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  if (userId !== canonicalId) {
+    state.revokedTokens[userId] = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  }
+
+  db.save();
+
+  // 8. Delete from Supabase Auth if integrated
+  try {
+    const supabaseService = require('./supabaseService');
+    if (typeof supabaseService.deleteUserRecord === 'function') {
+      supabaseService.deleteUserRecord(canonicalId).catch(() => {});
+    }
+  } catch (e) {}
+
+  // 9. Broadcast real-time deletion
+  broadcast('USER_DELETED', {
+    userId: canonicalId,
+    adminId,
+    timestamp: new Date().toISOString()
+  });
+
+  return {
+    success: true,
+    userId: canonicalId,
+    deletedNickname,
+    deletedPhone,
+    stats: {
+      deletedOrdersCount,
+      deletedDepositsCount,
+      deletedWithdrawalsCount,
+      deletedLedgerCount
+    }
+  };
+}
+
 module.exports = {
   createDeposit,
   submitDepositUtr,
   verifyDeposit,
   requestWithdrawal,
   verifyWithdrawal,
+  editWithdrawalAmount,
+  adjustUserBalance,
+  updateUserDetails,
+  eraseUser,
+  deleteTransaction,
+  getAllUsersForAdmin,
+  getUserDetailsForAdmin,
+  getAllUnifiedTransactionsForAdmin,
   getPendingDeposits,
   getAllDepositsForAdmin,
   getPendingWithdrawals,

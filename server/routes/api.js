@@ -1140,6 +1140,21 @@ router.get('/api/admin/stats', async (req, res) => {
   const completedAmount = completed.reduce((sum, o) => money.add(sum, o.amount || 0), 0);
   const totalRewards = completed.reduce((sum, o) => money.add(sum, o.totalReward || 0), 0);
 
+  const allDeposits = Object.values(state.deposits || {});
+  const pendingDeposits = allDeposits.filter(d => d.status === 'verifying');
+  const completedDeposits = allDeposits.filter(d => d.status === 'completed');
+  const pendingDepositsAmount = pendingDeposits.reduce((sum, d) => money.add(sum, d.amount || 0), 0);
+  const completedDepositsAmount = completedDeposits.reduce((sum, d) => money.add(sum, d.amount || 0), 0);
+
+  const allWithdrawals = Object.values(state.withdrawals || {});
+  const pendingWithdrawals = allWithdrawals.filter(w => w.status === 'pending');
+  const completedWithdrawals = allWithdrawals.filter(w => w.status === 'completed');
+  const pendingWithdrawalsAmount = pendingWithdrawals.reduce((sum, w) => money.add(sum, w.amount || 0), 0);
+  const completedWithdrawalsAmount = completedWithdrawals.reduce((sum, w) => money.add(sum, w.amount || 0), 0);
+
+  const users = Object.values(state.users || {});
+  const totalCirculationBalance = users.reduce((sum, u) => money.add(sum, u.balance || 0), 0);
+
   return ok(res, {
     pendingCount: pending.length,
     pendingAmount,
@@ -1148,7 +1163,16 @@ router.get('/api/admin/stats', async (req, res) => {
     rejectedCount: rejected.length,
     totalRewards,
     totalOrders: allOrders.length,
-    totalUsers: Object.keys(state.users || {}).length
+    totalUsers: users.length,
+    totalCirculationBalance,
+    pendingDepositsCount: pendingDeposits.length,
+    pendingDepositsAmount,
+    completedDepositsCount: completedDeposits.length,
+    completedDepositsAmount,
+    pendingWithdrawalsCount: pendingWithdrawals.length,
+    pendingWithdrawalsAmount,
+    completedWithdrawalsCount: completedWithdrawals.length,
+    completedWithdrawalsAmount
   });
 });
 
@@ -1331,6 +1355,178 @@ router.post('/api/admin/withdraw/verify', async (req, res) => {
   } catch (err) {
     return fail(res, err.message, 400);
   }
+});
+
+// -------------------------------------------------------------
+// 7. ADMIN USER MANAGEMENT & BALANCE CONTROL ENDPOINTS
+// -------------------------------------------------------------
+router.get(['/api/admin/users', '/admin/users'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const search = req.query.search || '';
+  const users = paymentEngine.getAllUsersForAdmin(search);
+  return ok(res, {
+    records: users,
+    total: users.length
+  });
+});
+
+router.get(['/api/admin/user/:userId', '/admin/user/:userId'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { userId } = req.params;
+  try {
+    const details = paymentEngine.getUserDetailsForAdmin(userId);
+    return ok(res, details);
+  } catch (err) {
+    return fail(res, err.message, 404);
+  }
+});
+
+router.post(['/api/admin/user/balance', '/admin/user/balance'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { userId, action, amount, reason } = req.body || {};
+  if (!userId) return fail(res, 'userId is required', 400);
+  if (!['set', 'credit', 'debit'].includes(action)) {
+    return fail(res, 'action must be "set", "credit", or "debit"', 400);
+  }
+  try {
+    const result = paymentEngine.adjustUserBalance({
+      userId,
+      action,
+      amount,
+      reason,
+      adminId: req.user?.id || 'admin'
+    });
+    return ok(
+      res,
+      result,
+      `User balance ${action === 'set' ? 'set to' : (action === 'credit' ? 'credited by' : 'debited by')} ₹${amount} successfully`
+    );
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.post(['/api/admin/user/update', '/admin/user/update'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { userId, updates } = req.body || {};
+  if (!userId) return fail(res, 'userId is required', 400);
+  try {
+    const updated = paymentEngine.updateUserDetails({
+      userId,
+      updates,
+      adminId: req.user?.id || 'admin'
+    });
+    return ok(res, updated, 'User details updated successfully');
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.post(['/api/admin/user/erase', '/admin/user/erase'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { userId } = req.body || {};
+  if (!userId) return fail(res, 'userId is required', 400);
+  try {
+    const result = paymentEngine.eraseUser({
+      userId,
+      adminId: req.user?.id || 'admin'
+    });
+    return ok(
+      res,
+      result,
+      `User "${result.deletedNickname}" (${userId}) and all associated records were completely erased from the app and database.`
+    );
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.post(['/api/admin/user/delete', '/admin/user/delete'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { userId } = req.body || {};
+  if (!userId) return fail(res, 'userId is required', 400);
+  try {
+    const result = paymentEngine.eraseUser({
+      userId,
+      adminId: req.user?.id || 'admin'
+    });
+    return ok(
+      res,
+      result,
+      `User "${result.deletedNickname}" (${userId}) was completely erased from database.`
+    );
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+// -------------------------------------------------------------
+// 8. ADMIN WITHDRAWAL AMOUNT CONTROL (CHANGE AMOUNT)
+// -------------------------------------------------------------
+router.post(['/api/admin/withdrawal/edit-amount', '/admin/withdrawal/edit-amount'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { withdrawalId, newAmount, reason } = req.body || {};
+  if (!withdrawalId) return fail(res, 'withdrawalId is required', 400);
+  if (newAmount == null || Number(newAmount) <= 0) {
+    return fail(res, 'Valid positive newAmount is required', 400);
+  }
+  try {
+    const updated = paymentEngine.editWithdrawalAmount({
+      withdrawalId,
+      newAmount,
+      adminId: req.user?.id || 'admin',
+      reason
+    });
+    return ok(res, updated, `Withdrawal amount successfully updated to ₹${newAmount}`);
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+// -------------------------------------------------------------
+// 9. ADMIN UNIFIED TRANSACTIONS & DELETION ENDPOINTS
+// -------------------------------------------------------------
+router.get(['/api/admin/transactions/all', '/admin/transactions/all'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { type = 'all', status = 'all', search = '' } = req.query;
+  const records = paymentEngine.getAllUnifiedTransactionsForAdmin({ type, status, search });
+  return ok(res, { records, total: records.length });
+});
+
+router.post(['/api/admin/transaction/delete', '/admin/transaction/delete'], async (req, res) => {
+  await getOrAuthenticateAdmin(req);
+  if (!requireAdmin(req, res)) return;
+  const { type, id, refundHold = true } = req.body || {};
+  if (!type || !id) return fail(res, 'Transaction type and id are required', 400);
+  try {
+    const result = paymentEngine.deleteTransaction({
+      type,
+      id,
+      adminId: req.user?.id || 'admin',
+      refundHold: Boolean(refundHold)
+    });
+    return ok(res, result, `Transaction ${id} deleted successfully`);
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
+router.get(['/api/admin/auth/dev-hint', '/admin/auth/dev-hint'], (req, res) => {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const configured = adminAuth.validateConfiguredKey();
+  return ok(res, {
+    isConfigured: configured.ok,
+    devMode: isDev,
+    keyHint: isDev && configured.ok ? (process.env.ADMIN_KEY || process.env.ADMIN_SECRET) : null
+  });
 });
 
 module.exports = router;

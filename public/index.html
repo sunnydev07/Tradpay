@@ -182,12 +182,11 @@
     }
 
     .modal-sheet {
-      max-height: calc(100vh - env(safe-area-inset-top, 0px));
-      max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
       overflow-y: auto;
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
-      padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     /* Avoid horizontal overflow from images and long unbroken strings */
@@ -324,7 +323,7 @@
         <button @click="installApp" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-extrabold shadow-md hover:brightness-110 active:scale-95 transition">
           Install
         </button>
-        <button @click="dismissInstallBanner" class="text-gray-400 hover:text-white text-sm p-1">✕</button>
+        <button @click="dismissInstallBanner" aria-label="Dismiss install banner" class="text-gray-400 hover:text-white text-sm min-h-11 min-w-11 -my-2 -mr-1 flex items-center justify-center rounded-lg">✕</button>
       </div>
     </div>
 
@@ -336,7 +335,7 @@
             <img src="/static/logo/icon-192.png" class="w-8 h-8 rounded-lg object-contain">
             <h3 class="text-sm font-bold text-white">Install on iPhone / Safari</h3>
           </div>
-          <button @click="modals.iosInstall.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.iosInstall.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="space-y-3 text-xs text-gray-300">
@@ -389,7 +388,7 @@
             </div>
             <div class="flex items-center gap-1.5 mt-0.5">
               <span class="text-[11px] text-gray-400 font-mono">ID: {{ String(user.id).slice(0, 8) }}</span>
-              <button @click="copyText(String(user.id))" class="text-gray-400 hover:text-white text-[11px] p-0.5 transition" title="Copy ID">
+              <button @click="copyText(String(user.id))" aria-label="Copy ID" class="text-gray-400 hover:text-white text-[11px] min-h-11 min-w-11 -my-2 -mx-1 flex items-center justify-center transition" title="Copy ID">
                 📋
               </button>
             </div>
@@ -684,7 +683,7 @@
 
       <!-- Quick Amount Filter Chips -->
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
-        <button v-for="chip in filterRanges" :key="chip.key" @click="selectFilter(chip)" class="px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition border" :class="activeFilterKey === chip.key ? 'bg-[#F2D7A5] text-[#1B1B1B] font-bold border-[#F2D7A5] shadow-md' : 'bg-[#242424] text-gray-300 border-white/5 hover:border-white/10'">
+        <button v-for="chip in filterRanges" :key="chip.key" @click="selectFilter(chip)" class="px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition border" :class="activeFilterKey === chip.key ? 'bg-[#F2D7A5] text-[#1B1B1B] font-bold border-[#F2D7A5] shadow-md' : 'bg-[#242424] text-gray-300 border-white/5 hover:border-white/10'">
           {{ chip.text }}
         </button>
       </div>
@@ -775,8 +774,9 @@
               <button @click="openWalletQrModal(w)" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#F2D7A5]/20 border border-white/10 hover:border-[#F2D7A5]/30 text-[#F2D7A5] text-[10px] font-semibold flex items-center gap-1 transition">
                 <span>📷 QR</span>
               </button>
-              <button @click="toggleWalletStatus(w)" class="w-12 h-6 rounded-full transition-colors relative p-1" :class="w.status === 1 ? 'bg-[#F2D7A5]' : 'bg-gray-700'">
-                <div class="w-4 h-4 rounded-full bg-[#1B1B1B] transition-transform" :class="w.status === 1 ? 'translate-x-6' : 'translate-x-0'"></div>
+              <button @click="toggleWalletStatus(w)" :disabled="w.toggling" :aria-label="`${w.status === 1 ? 'Pause' : 'Activate'} ${w.ctName}`" class="w-12 h-11 rounded-xl transition relative flex items-center justify-center disabled:opacity-50">
+                <span class="absolute w-12 h-6 rounded-full transition-colors" :class="w.status === 1 ? 'bg-[#F2D7A5]' : 'bg-gray-700'"></span>
+                <span class="z-10 w-4 h-4 rounded-full bg-[#1B1B1B] transition-transform" :class="w.status === 1 ? 'translate-x-3' : '-translate-x-3'"></span>
               </button>
             </div>
           </div>
@@ -1079,7 +1079,7 @@
             </h3>
             <p class="text-[11px] text-gray-400">Access your account, balance & wallets securely</p>
           </div>
-          <button @click="modals.auth.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.auth.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <!-- Logged-in profile view inside modal -->
@@ -1174,7 +1174,7 @@
             <h3 class="text-sm font-bold text-white">Select Payout Receiving Wallet</h3>
             <p class="text-[11px] text-gray-400">Order Amount: <span class="text-white font-bold">₹{{ formatMoney(selectedOrder.amount) }}</span></p>
           </div>
-          <button @click="modals.claim.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.claim.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="space-y-2 max-h-60 overflow-y-auto">
@@ -1225,7 +1225,7 @@
               <span v-else>Pending Payment Receipt</span>
             </h3>
           </div>
-          <button @click="modals.inrOrder.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.inrOrder.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <!-- STATE 1: PENDING UTR SUBMISSION (User needs to scan QR & enter UTR) -->
@@ -1389,7 +1389,7 @@
             <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-[#F2D7A5] font-bold">ORDER PAYMENT QR</span>
             <h3 class="text-sm font-bold text-white mt-1">Exact Amount: ₹{{ formatMoney(activeClaimedOrder.amount) }}</h3>
           </div>
-          <button @click="modals.orderQr.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.orderQr.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="p-4 rounded-2xl bg-[#1A1A1A] border border-white/10 text-center space-y-3">
@@ -1423,7 +1423,7 @@
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">Add Receiving Wallet / UPI</h3>
-          <button @click="modals.addWallet.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.addWallet.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="space-y-3 text-xs">
@@ -1463,7 +1463,7 @@
           </div>
         </div>
 
-        <button @click="saveNewWallet" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition">
+        <button @click="saveNewWallet" :disabled="saveWalletSubmitting" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#F2D7A5] to-[#D8B26E] text-[#1B1B1B] text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition disabled:opacity-50">
           Bind Wallet
         </button>
       </div>
@@ -1476,7 +1476,7 @@
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">USDT Deposit Gateway</h3>
-          <button @click="modals.usdt.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.usdt.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="space-y-3 text-xs">
@@ -1510,7 +1510,7 @@
             <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">RECEIVING WALLET QR</span>
             <h3 class="text-sm font-bold text-white mt-1">{{ selectedWalletForQr?.ctName || 'UPI Account' }}</h3>
           </div>
-          <button @click="modals.walletQr.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.walletQr.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="p-4 rounded-2xl bg-[#1A1A1A] border border-white/10 text-center space-y-3">
@@ -1541,7 +1541,7 @@
       <div class="modal-panel w-full max-w-[420px] bg-[#242424] rounded-3xl p-5 border border-white/10 space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 class="text-sm font-bold text-white">Daily Missions & Rewards</h3>
-          <button @click="modals.missions.show = false" class="text-gray-400 hover:text-white text-lg">✕</button>
+          <button @click="modals.missions.show = false" aria-label="Close" class="text-gray-400 hover:text-white text-lg min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg">✕</button>
         </div>
 
         <div class="space-y-2 max-h-60 overflow-y-auto">
@@ -1550,9 +1550,9 @@
               <p class="text-xs font-semibold text-white">{{ m.title }}</p>
               <p class="text-[10px] text-emerald-400">+{{ m.reward }} Points</p>
             </div>
-            <button v-if="m.claimed" class="px-2.5 py-1 rounded-lg bg-gray-700 text-gray-400 text-[10px] font-medium" disabled>Claimed</button>
-            <button v-else-if="m.completed" @click="claimMission(m)" class="px-2.5 py-1 rounded-lg bg-[#F2D7A5] text-[#1B1B1B] text-[10px] font-bold">Claim</button>
-            <a v-else-if="m.link" :href="m.link" target="_blank" @click="visitMission(m)" class="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 text-[10px] font-bold">Go ›</a>
+            <button v-if="m.claimed" class="min-h-11 min-w-11 px-2.5 py-2 rounded-lg bg-gray-700 text-gray-400 text-[10px] font-medium" disabled>Claimed</button>
+            <button v-else-if="m.completed" @click="claimMission(m)" :disabled="m.claiming" class="min-h-11 min-w-11 px-2.5 py-2 rounded-lg bg-[#F2D7A5] text-[#1B1B1B] text-[10px] font-bold disabled:opacity-50">{{ m.claiming ? 'Claiming…' : 'Claim' }}</button>
+            <a v-else-if="m.link" :href="m.link" target="_blank" @click="visitMission(m)" class="min-h-11 min-w-11 px-2.5 py-2 rounded-lg bg-blue-500/20 text-blue-300 text-[10px] font-bold flex items-center justify-center">Go ›</a>
             <span v-else class="text-[10px] text-gray-400">In Progress</span>
           </div>
         </div>
@@ -1563,7 +1563,7 @@
     <!-- MODAL 6: TRANSACTION HISTORY -->
     <!-- ======================================================== -->
     <div v-if="modals.transactions.show" @click.self="modals.transactions.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div class="modal-panel modal-sheet w-full max-w-[500px] max-h-[92vh] sm:max-h-[85vh] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
+      <div class="modal-panel modal-sheet w-full max-w-[500px] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Header -->
         <div class="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-[#242424] flex-shrink-0">
@@ -1602,19 +1602,19 @@
         <div class="p-3 border-b border-white/5 space-y-2.5 flex-shrink-0 bg-[#212121]">
           <!-- Filter Tabs -->
           <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-            <button @click="historyFilter = 'all'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px]" :class="historyFilter === 'all' ? 'bg-[#F2D7A5] text-black shadow-md' : 'bg-white/5 text-gray-400 hover:text-white'">
+            <button @click="historyFilter = 'all'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px]" :class="historyFilter === 'all' ? 'bg-[#F2D7A5] text-black shadow-md' : 'bg-white/5 text-gray-400 hover:text-white'">
               All ({{ historySummary.totalCount }})
             </button>
-            <button @click="historyFilter = 'completed'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'completed' ? 'bg-emerald-500 text-black shadow-md' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'">
+            <button @click="historyFilter = 'completed'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'completed' ? 'bg-emerald-500 text-black shadow-md' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'">
               <span>✅ Credited ({{ historySummary.completedCount }})</span>
             </button>
-            <button @click="historyFilter = 'verifying'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'verifying' ? 'bg-amber-500 text-black shadow-md' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'">
+            <button @click="historyFilter = 'verifying'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'verifying' ? 'bg-amber-500 text-black shadow-md' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'">
               <span>⏳ Verifying ({{ historySummary.verifyingCount }})</span>
             </button>
-            <button @click="historyFilter = 'rejected'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'rejected' ? 'bg-rose-500 text-white shadow-md' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20'">
+            <button @click="historyFilter = 'rejected'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'rejected' ? 'bg-rose-500 text-white shadow-md' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20'">
               <span>❌ Rejected ({{ historySummary.rejectedCount }})</span>
             </button>
-            <button @click="historyFilter = 'pending'" class="px-3 py-1.5 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'pending' ? 'bg-blue-500 text-white shadow-md' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20'">
+            <button @click="historyFilter = 'pending'" class="px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap text-[11px] flex items-center gap-1" :class="historyFilter === 'pending' ? 'bg-blue-500 text-white shadow-md' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20'">
               <span>⏱️ Pending ({{ historySummary.pendingCount }})</span>
             </button>
           </div>
@@ -1744,7 +1744,7 @@
     <!-- MODAL 7: DEPOSIT (OFFICIAL QR CODE & INSTANT PAYMENT REVIEW) -->
     <!-- ======================================================== -->
     <div v-if="modals.deposit.show" @click.self="modals.deposit.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div class="modal-panel modal-sheet w-full max-w-[440px] max-h-[92vh] sm:max-h-[85vh] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-[#F2D7A5]/30 flex flex-col shadow-2xl overflow-hidden">
+      <div class="modal-panel modal-sheet w-full max-w-[440px] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-[#F2D7A5]/30 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Modal Header -->
         <div class="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-[#242424] flex-shrink-0">
@@ -1906,7 +1906,7 @@
     <!-- MODAL 8: WITHDRAWAL (REQUEST CASH OUT VIA UPI / BANK) -->
     <!-- ======================================================== -->
     <div v-if="modals.withdrawal.show" @click.self="modals.withdrawal.show = false" class="modal-overlay fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div class="modal-panel modal-sheet w-full max-w-[440px] max-h-[92vh] sm:max-h-[85vh] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
+      <div class="modal-panel modal-sheet w-full max-w-[440px] bg-[#1E1E1E] rounded-t-3xl sm:rounded-3xl border border-white/10 flex flex-col shadow-2xl overflow-hidden">
         
         <!-- Modal Header -->
         <div class="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-[#242424] flex-shrink-0">
@@ -1973,7 +1973,7 @@
           <div v-if="modals.withdrawal.payoutType === 'upi' && wallets.length > 0" class="space-y-1.5">
             <span class="text-[10px] text-gray-400 block">Select from your saved UPI accounts:</span>
             <div class="flex flex-wrap gap-1.5">
-              <button v-for="w in wallets.filter(x => !x.isOfficial)" :key="w.id" @click="modals.withdrawal.upiId = w.account; modals.withdrawal.accountName = w.name || user.nickname" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-blue-500/20 border border-white/10 hover:border-blue-500/40 text-xs font-mono text-gray-300 hover:text-blue-300 transition flex items-center gap-1">
+              <button v-for="w in wallets.filter(x => !x.isOfficial)" :key="w.id" @click="modals.withdrawal.upiId = w.account; modals.withdrawal.accountName = w.name || user.nickname" class="min-h-11 px-2.5 py-2 rounded-lg bg-white/5 hover:bg-blue-500/20 border border-white/10 hover:border-blue-500/40 text-xs font-mono text-gray-300 hover:text-blue-300 transition flex items-center gap-1">
                 <span>{{ w.ctName }}:</span>
                 <span class="text-white">{{ w.account }}</span>
               </button>
@@ -2269,6 +2269,7 @@
           minAmount: 500,
           maxAmount: 20000
         });
+        const saveWalletSubmitting = ref(false);
 
         const usdtChain = ref('TRC20');
         const usdtChains = ref([]);
@@ -2855,6 +2856,8 @@
         }
 
         async function toggleWalletStatus(w) {
+          if (w.toggling) return;
+          w.toggling = true;
           const newStatus = w.status === 1 ? 0 : 1;
           try {
             const res = await authFetch('/app/ct/app/collection/changeStatus/' + w.id, {
@@ -2866,7 +2869,11 @@
               w.status = newStatus;
               showToast(`${w.ctName} is now ${newStatus === 1 ? 'Active (onSell)' : 'Paused (offSell)'}`, 'success');
             }
-          } catch (e) {}
+          } catch (e) {
+            showToast('Unable to update wallet status');
+          } finally {
+            w.toggling = false;
+          }
         }
 
         function openClaimModal(order) {
@@ -2987,11 +2994,13 @@
         }
 
         async function saveNewWallet() {
+          if (saveWalletSubmitting.value) return;
           const upiId = String(newWallet.account || '').trim();
           if (!isValidUpiId(upiId)) {
             showToast('Please enter a valid UPI ID (e.g. mobile@ybl or username@upi)');
             return;
           }
+          saveWalletSubmitting.value = true;
           try {
             const res = await authFetch('/app/ct/app/collection/submit', {
               method: 'POST',
@@ -3005,6 +3014,8 @@
             }
           } catch (e) {
             showToast('Failed to add wallet');
+          } finally {
+            saveWalletSubmitting.value = false;
           }
         }
 
@@ -3053,6 +3064,8 @@
         }
 
         async function claimMission(m) {
+          if (!m || m.claiming) return;
+          m.claiming = true;
           try {
             const res = await authFetch('/app/mission/task/receive/' + m.id, { method: 'POST' });
             const json = await res.json();
@@ -3070,6 +3083,8 @@
             }
           } catch (e) {
             showToast('Unable to claim mission');
+          } finally {
+            m.claiming = false;
           }
         }
 
@@ -3339,6 +3354,7 @@
           orderCountdown,
           utrInput,
           newWallet,
+          saveWalletSubmitting,
           usdtChain,
           usdtChains,
           usdtDetails,

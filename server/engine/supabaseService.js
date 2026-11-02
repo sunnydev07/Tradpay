@@ -284,6 +284,22 @@ async function verifyToken(token) {
   }
 }
 
+// 6. Permanently delete user from Supabase Auth
+async function deleteUserRecord(userId) {
+  if (!userId) return false;
+  const admin = getAdminClient();
+  if (admin) {
+    try {
+      const { error } = await admin.auth.admin.deleteUser(String(userId));
+      if (!error) return true;
+      console.warn('[Supabase] deleteUser error:', error.message);
+    } catch (e) {
+      console.warn('[Supabase] deleteUser error:', e.message);
+    }
+  }
+  return false;
+}
+
 module.exports = {
   isConfigured,
   getClient,
@@ -292,6 +308,7 @@ module.exports = {
   signUpUser,
   signInUser,
   updateUserRecord,
+  deleteUserRecord,
   buildSyncPayload,
   syncUserData,
   verifyToken
